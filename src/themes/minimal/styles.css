@@ -1,0 +1,50 @@
+/* ─── MINIMAL THEME STYLES ────────────────────────────────────────
+   Overrides for the minimal/clean theme. No glow, no chamfer,
+   soft shadows and rounded corners instead.
+   ──────────────────────────────────────────────────────────────── */
+
+/* No tactical grid — plain background */
+:root[data-theme="minimal"] .theme-bg {
+  background-image: none;
+}
+
+/* No chamfer in minimal — standard border-radius */
+:root[data-theme="minimal"] .panel-chamfer,
+:root[data-theme="minimal"] .panel-chamfer-sm {
+  clip-path: none;
+  border-radius: var(--cad-radius);
+}
+
+/* No glow effects */
+:root[data-theme="minimal"] .glow-accent,
+:root[data-theme="minimal"] .glow-success,
+:root[data-theme="minimal"] .glow-danger {
+  text-shadow: none;
+}
+
+/* No HUD flicker or blinking */
+:root[data-theme="minimal"] .hud-flicker,
+:root[data-theme="minimal"] .blink {
+  animation: none !important;
+  opacity: 1 !important;
+}
+
+/* Disable hex-val computer stuff */
+:root[data-theme="minimal"] .hex-val {
+  display: none !important;
+}
+
+/* Status dot pulse — still keep for minimal */
+:root[data-theme="minimal"] .status-pulse {
+  animation: status-pulse 2s ease-in-out infinite;
+}
+
+/* Softer scrollbar in minimal */
+:root[data-theme="minimal"] ::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+}
+
+/* Inter font for minimal body */
+:root[data-theme="minimal"] body {
+  font-family: 'Inter', sans-serif;
+}

@@ -1,0 +1,72 @@
+/* ─── MINIMAL THEME TOKENS ───────────────────────────────────────
+   Applied when <html data-theme="minimal">
+   Clean, flat — academic productivity tool aesthetic.
+   ──────────────────────────────────────────────────────────────── */
+
+/* Base (Light Mode) */
+:root[data-theme="minimal"] {
+  --cad-bg-primary:   #f8fafc;
+  --cad-bg-panel:     #ffffff;
+  --cad-bg-header:    #f1f5f9;
+  --cad-bg-elevated:  #f8fafc;
+  --cad-bg-input:     #ffffff;
+
+  --cad-accent:       #4f46e5;
+  --cad-accent-text:  #4338ca;
+  --cad-accent-dim:   rgba(79, 70, 229, 0.1);
+  --cad-accent-mid:   rgba(79, 70, 229, 0.2);
+  --cad-accent-glow:  rgba(79, 70, 229, 0.15);
+
+  --cad-text-hi:      #0f172a;
+  --cad-text-mid:     #334155;
+  --cad-text-lo:      #64748b;
+  --cad-text-xlo:     #94a3b8;
+
+  --cad-border:       #cbd5e1;
+  --cad-border-dim:   #e2e8f0;
+  --cad-border-panel: #94a3b8;
+
+  --cad-danger:       #dc2626;
+  --cad-danger-dim:   rgba(220, 38, 38, 0.10);
+  --cad-success:      #16a34a;
+  --cad-warn:         #d97706;
+
+  --cad-hex-color:    #64748b;
+  --cad-font-ui:      'Inter', sans-serif;
+  --cad-font-mono:    'IBM Plex Mono', 'Fira Code', monospace;
+
+  --cad-radius:       8px;
+  --cad-shadow-panel: 0 4px 24px rgba(0,0,0,0.06), 0 1px 4px rgba(0,0,0,0.04);
+  --cad-shadow-glow:  0 2px 8px rgba(79,70,229,0.1);
+}
+
+/* Dark Mode Override */
+:root[data-theme="minimal"][data-mode="dark"] {
+  --cad-bg-primary:   #0f172a;
+  --cad-bg-panel:     #1e293b;
+  --cad-bg-header:    #0f172a;
+  --cad-bg-elevated:  #334155;
+  --cad-bg-input:     #0f172a;
+
+  --cad-accent:       #818cf8;
+  --cad-accent-text:  #a5b4fc;
+  --cad-accent-dim:   rgba(129, 140, 248, 0.15);
+  --cad-accent-mid:   rgba(129, 140, 248, 0.25);
+  --cad-accent-glow:  rgba(129, 140, 248, 0.2);
+
+  --cad-text-hi:      #f8fafc;
+  --cad-text-mid:     #cbd5e1;
+  --cad-text-lo:      #94a3b8;
+  --cad-text-xlo:     #64748b;
+
+  --cad-border:       #334155;
+  --cad-border-dim:   #1e293b;
+  --cad-border-panel: #475569;
+
+  --cad-danger:       #ef4444;
+  --cad-danger-dim:   rgba(239, 68, 68, 0.15);
+  --cad-success:      #22c55e;
+  --cad-warn:         #f59e0b;
+
+  --cad-shadow-panel: 0 4px 24px rgba(0,0,0,0.2), 0 1px 4px rgba(0,0,0,0.1);
+}

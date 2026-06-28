@@ -1,0 +1,23 @@
+// ─── TIME GRID ───────────────────────────────────────────────────
+export const GRID_START_HOUR = 7
+export const GRID_END_HOUR   = 23
+
+// ─── SCHEDULE ────────────────────────────────────────────────────
+export const DAYS        = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
+export const WEEK_LABELS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
+export const MONTH_NAMES = [
+  'JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE',
+  'JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER',
+]
+
+// ─── ACADEMIC ────────────────────────────────────────────────────
+export const GRADE_MAP = [
+  { gp: 10, label: 'O'  },
+  { gp: 9,  label: 'A+' },
+  { gp: 8,  label: 'A'  },
+  { gp: 7,  label: 'B+' },
+  { gp: 6,  label: 'B'  },
+  { gp: 5,  label: 'C'  },
+  { gp: 4,  label: 'P'  },
+  { gp: 0,  label: 'F'  },
+]

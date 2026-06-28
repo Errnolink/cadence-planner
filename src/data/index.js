@@ -1,0 +1,5 @@
+// Barrel re-export — import everything from 'src/data'
+export * from './constants.js'
+export * from './colors.js'
+export * from './initialData.js'
+export * from './utils.js'

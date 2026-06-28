@@ -1,0 +1,72 @@
+/* ─── NERV MAGI THEME STYLES ──────────────────────────────────────
+   NERV-exclusive visual effects. Only loaded when theme = nerv.
+   These are applied via data-theme="nerv" selector.
+   ──────────────────────────────────────────────────────────────── */
+
+/* Tactical grid & CRT background */
+:root[data-theme="nerv"] body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  background: repeating-linear-gradient(to bottom, transparent 0, transparent 2px, rgba(0, 0, 0, .08) 2px, rgba(0, 0, 0, .08) 4px);
+  animation: crt-scroll 10s linear infinite;
+}
+
+@keyframes crt-scroll {
+  from { background-position: 0 0; }
+  to { background-position: 0 400px; }
+}
+
+:root[data-theme="nerv"] .theme-bg {
+  background-image:
+    linear-gradient(rgba(255,152,48,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,152,48,0.03) 1px, transparent 1px);
+  background-size: 36px 36px;
+}
+
+/* Hazard Borders */
+:root[data-theme="nerv"] .hazard-border-top {
+  height: 6px;
+  width: 100%;
+  background: repeating-linear-gradient(45deg, var(--cad-accent) 0, var(--cad-accent) 10px, #000 10px, #000 20px);
+  flex-shrink: 0;
+  border-bottom: 2px solid #000;
+}
+:root[data-theme="nerv"] .hazard-border-bot {
+  height: 6px;
+  width: 100%;
+  background: repeating-linear-gradient(-45deg, var(--cad-accent) 0, var(--cad-accent) 10px, #000 10px, #000 20px);
+  flex-shrink: 0;
+  border-top: 2px solid #000;
+}
+
+/* Chamfered corners — NERV panel style */
+:root[data-theme="nerv"] .panel-chamfer {
+  clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+}
+:root[data-theme="nerv"] .panel-chamfer-sm {
+  clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
+}
+
+/* Glow effects */
+:root[data-theme="nerv"] .glow-accent {
+  text-shadow: 0 0 8px rgba(255,152,48,0.7);
+}
+:root[data-theme="nerv"] .glow-success {
+  text-shadow: 0 0 8px rgba(80,255,80,0.7);
+}
+:root[data-theme="nerv"] .glow-danger {
+  text-shadow: 0 0 8px rgba(255,48,48,0.7);
+}
+
+/* HUD flicker on top bar */
+:root[data-theme="nerv"] .hud-flicker {
+  animation: hud-flicker 7s infinite;
+}
+
+/* Status dot pulse — only in NERV */
+:root[data-theme="nerv"] .status-pulse {
+  animation: status-pulse 2s ease-in-out infinite;
+}

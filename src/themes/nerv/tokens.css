@@ -1,0 +1,47 @@
+/* ─── NERV MAGI THEME TOKENS ─────────────────────────────────────
+   Applied when <html data-theme="nerv">
+   ──────────────────────────────────────────────────────────────── */
+:root[data-theme="nerv"] {
+  /* Backgrounds */
+  --cad-bg-primary:   #050505;
+  --cad-bg-panel:     #0d0d0d;
+  --cad-bg-header:    #0d0d0d;
+  --cad-bg-elevated:  #1a1612;
+  --cad-bg-input:     #1a1612;
+
+  /* Accent (orange) */
+  --cad-accent:       #FF9830;
+  --cad-accent-text:  #FF9830;
+  --cad-accent-dim:   #8A4A00;
+  --cad-accent-mid:   #332b21;
+  --cad-accent-glow:  rgba(255, 152, 48, 0.30);
+
+  /* Text */
+  --cad-text-hi:      #D8D8D0;
+  --cad-text-mid:     #665a48;
+  --cad-text-lo:      #332b21;
+  --cad-text-xlo:     #1a1612;
+
+  /* Borders */
+  --cad-border:       #332b21;
+  --cad-border-dim:   #1a1612;
+  --cad-border-panel: #FF9830;
+
+  /* Status */
+  --cad-danger:       #FF3030;
+  --cad-danger-dim:   #660000;
+  --cad-success:      #50FF50;
+  --cad-warn:         #FF9830;
+
+  /* Hex label */
+  --cad-hex-color:    #665a48;
+
+  /* Typography */
+  --cad-font-ui:      'Bebas Neue', sans-serif;
+  --cad-font-mono:    'IBM Plex Mono', monospace;
+
+  /* Misc */
+  --cad-radius:       0px;
+  --cad-shadow-panel: 0 0 40px rgba(255,152,48,0.25), 0 0 80px rgba(255,152,48,0.08);
+  --cad-shadow-glow:  0 0 10px rgba(255,152,48,0.20);
+}
