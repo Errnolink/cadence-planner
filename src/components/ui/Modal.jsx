@@ -22,7 +22,7 @@ export function Modal({ title, hex, onClose, children }) {
       onClick={e => { if (e.target === backdropRef.current) onClose() }}
     >
       <div
-        className="w-full max-w-sm panel-chamfer"
+        className="w-full max-w-sm panel-chamfer overflow-hidden"
         style={{
           border:     '2px solid var(--cad-accent)',
           background: 'var(--cad-bg-panel)',

@@ -20,6 +20,15 @@ export function SettingsModal({ semesters, setSemesters, onClose }) {
     })
   }
 
+  const handlePaste = () => {
+    navigator.clipboard.readText().then(text => {
+      setImportText(text)
+    }).catch(err => {
+      setSyncMsg('FAILED TO READ CLIPBOARD.')
+      setTimeout(() => setSyncMsg(''), 3000)
+    })
+  }
+
   const handleImport = () => {
     try {
       const data = JSON.parse(importText)
@@ -141,6 +150,19 @@ export function SettingsModal({ semesters, setSemesters, onClose }) {
                 borderRadius:'var(--cad-radius)',
               }}
             />
+            <button
+              onClick={handlePaste}
+              className="px-3 py-1.5 btn-mech panel-chamfer-sm"
+              style={{
+                fontFamily:   'var(--cad-font-mono)',
+                fontSize:     '10px',
+                letterSpacing:'0.15em',
+                border:       '1px solid var(--cad-border)',
+                color:        'var(--cad-text-mid)',
+                background:   'transparent',
+                borderRadius: 'var(--cad-radius)',
+              }}
+            >PASTE</button>
             <button
               onClick={handleImport}
               disabled={!importText}

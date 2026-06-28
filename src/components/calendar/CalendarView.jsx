@@ -96,10 +96,9 @@ export function CalendarView({ timetable, subjects }) {
       {/* Calendar grid */}
       <div className="flex-1 overflow-y-auto min-h-0">
         <div
-          className="grid"
+          className="grid auto-rows-[minmax(48px,1fr)] md:auto-rows-[minmax(64px,1fr)]"
           style={{
             gridTemplateColumns: 'repeat(7, 1fr)',
-            gridAutoRows:        'minmax(64px, 1fr)',
             height:              '100%',
           }}
         >

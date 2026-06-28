@@ -39,7 +39,7 @@ export default function App() {
 
   return (
     <div
-      className="theme-bg flex flex-col h-screen overflow-hidden"
+      className="theme-bg flex flex-col h-[100dvh] overflow-hidden"
       style={{ background: 'var(--cad-bg-primary)' }}
     >
       <ControlBar
