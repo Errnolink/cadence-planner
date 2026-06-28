@@ -3,7 +3,7 @@ import { pad2 } from '../../data/index.js'
 import { useTheme } from '../../themes/ThemeContext.jsx'
 import { SemDropdown } from './SemDropdown.jsx'
 
-export function ControlBar({ semesters, activeSemId, onSemChange, editMode, onToggleEdit, onOpenSettings }) {
+export function ControlBar({ semesters, activeSemId, onSemChange, onRemoveSem, editMode, onToggleEdit, onAddSem, onOpenSettings }) {
   const [now, setNow] = useState(new Date())
   const { currentTheme, cycleTheme, themes } = useTheme()
 
@@ -39,7 +39,14 @@ export function ControlBar({ semesters, activeSemId, onSemChange, editMode, onTo
         >CADENCE</span>
       </div>
 
-      <SemDropdown semesters={semesters} activeSemId={activeSemId} onChange={onSemChange} />
+      <SemDropdown
+        semesters={semesters}
+        activeSemId={activeSemId}
+        onChange={onSemChange}
+        onRemove={onRemoveSem}
+        onAdd={onAddSem}
+        editMode={editMode}
+      />
       <div className="flex-1" />
 
       {/* Settings toggle */}

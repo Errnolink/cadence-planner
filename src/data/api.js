@@ -17,9 +17,16 @@ export const API = {
   get: (key, defaultValue) => {
     try {
       const saved = localStorage.getItem(key)
-      if (saved) return JSON.parse(saved)
+      if (saved) {
+        try {
+          return JSON.parse(saved)
+        } catch {
+          // If it was stored as a raw string (e.g. old themes)
+          return saved
+        }
+      }
     } catch (e) {
-      console.error(`Failed to parse ${key}`, e)
+      console.error(`Failed to retrieve ${key}`, e)
     }
     return defaultValue
   },
@@ -48,4 +55,26 @@ export const API = {
 
   getCustomThemes: (fallback) => API.get(KEYS.CUSTOM_THEMES, fallback),
   saveCustomThemes: (themes) => API.set(KEYS.CUSTOM_THEMES, themes),
+
+  // --- Import / Export ---
+  exportAllData: () => {
+    return {
+      version: 1,
+      semesters: API.getSemesters([]),
+      activeSemId: API.getActiveSemId(null),
+      settings: API.getSettings({}),
+      attendance: API.getAttendance({}),
+      customThemes: API.getCustomThemes([]),
+      themeId: API.get('cadence-theme', 'nerv')
+    }
+  },
+  importAllData: (data) => {
+    if (!data || data.version !== 1) throw new Error("Invalid format or unsupported version")
+    if (data.semesters !== undefined) API.saveSemesters(data.semesters)
+    if (data.activeSemId !== undefined) API.saveActiveSemId(data.activeSemId)
+    if (data.settings !== undefined) API.saveSettings(data.settings)
+    if (data.attendance !== undefined) API.saveAttendance(data.attendance)
+    if (data.customThemes !== undefined) API.saveCustomThemes(data.customThemes)
+    if (data.themeId !== undefined) API.set('cadence-theme', data.themeId)
+  }
 }

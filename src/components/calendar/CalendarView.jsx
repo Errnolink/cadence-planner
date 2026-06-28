@@ -11,7 +11,7 @@ function dayLabel(year, month, day) {
   return ['SUN','MON','TUE','WED','THU','FRI','SAT'][js]
 }
 
-export function CalendarView({ timetable, subjects }) {
+export function CalendarView({ timetable, subjects, attendanceHook }) {
   const { settings } = useSettings()
   const today      = new Date()
   const [year, setYear]   = useState(today.getFullYear())
@@ -64,25 +64,23 @@ export function CalendarView({ timetable, subjects }) {
           onMouseLeave={e => { e.currentTarget.style.color = 'var(--cad-text-mid)' }}
         >◀</button>
 
-        <div className="relative text-center cursor-pointer" title="Select Month/Year">
-          <div style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '13px', letterSpacing: '0.2em', color: 'var(--cad-accent)' }}>
-            {MONTH_NAMES[month]}
-          </div>
-          <div style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '9px', color: 'var(--cad-text-lo)' }}>
-            {year}
-          </div>
-          <input 
-            type="month" 
-            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-            value={`${year}-${String(month + 1).padStart(2, '0')}`}
-            onChange={e => {
-              if (e.target.value) {
-                const [y, m] = e.target.value.split('-')
-                setYear(parseInt(y))
-                setMonth(parseInt(m) - 1)
-              }
-            }}
-          />
+        <div className="flex gap-2 text-center items-center">
+          <select 
+            value={month} 
+            onChange={e => setMonth(Number(e.target.value))}
+            className="btn-mech panel-chamfer-sm"
+            style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '13px', letterSpacing: '0.1em', color: 'var(--cad-accent)', background: 'transparent', border: '1px solid var(--cad-border)', padding: '2px 4px', outline: 'none', cursor: 'pointer', appearance: 'none', textAlign: 'center' }}
+          >
+            {MONTH_NAMES.map((m, i) => <option key={i} value={i} style={{color: 'var(--cad-text-hi)', background: 'var(--cad-bg-panel)'}}>{m}</option>)}
+          </select>
+          <select 
+            value={year} 
+            onChange={e => setYear(Number(e.target.value))}
+            className="btn-mech panel-chamfer-sm"
+            style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '13px', letterSpacing: '0.1em', color: 'var(--cad-accent)', background: 'transparent', border: '1px solid var(--cad-border)', padding: '2px 4px', outline: 'none', cursor: 'pointer', appearance: 'none', textAlign: 'center' }}
+          >
+            {Array.from({length: 20}, (_, i) => today.getFullYear() - 10 + i).map(y => <option key={y} value={y} style={{color: 'var(--cad-text-hi)', background: 'var(--cad-bg-panel)'}}>{y}</option>)}
+          </select>
         </div>
 
         <button
@@ -229,6 +227,7 @@ export function CalendarView({ timetable, subjects }) {
           weekday={detail.weekday}
           timetable={timetable}
           subjects={subjects}
+          attendanceHook={attendanceHook}
           onClose={() => setDetail(null)}
         />
       )}

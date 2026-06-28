@@ -84,7 +84,7 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
 
       {/* Scrollable Container (Both X and Y) */}
       <div className="flex-1 overflow-auto min-h-0 min-w-0" style={{ position: 'relative' }}>
-        <div style={{ position: 'relative', minHeight: '480px', height: '100%', minWidth: `${TIME_COL_W + displayDays.length * DAY_MIN_W}px`, display: 'flex', flexDirection: 'column' }}>
+        <div style={{ position: 'relative', minHeight: '1440px', height: '100%', minWidth: `${TIME_COL_W + displayDays.length * DAY_MIN_W}px`, display: 'flex', flexDirection: 'column' }}>
 
           {/* Sticky Day Header */}
           <div className="shrink-0 flex" style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--cad-bg-primary)', borderBottom: '1px solid var(--cad-border-dim)' }}>

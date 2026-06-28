@@ -38,12 +38,30 @@ export function useSemesters() {
       const newSem = {
         id: newId,
         label: `SEM ${String(newId).padStart(2, '0')}`,
+        startDate: '',
+        endDate: '',
         subjects: [],
         timetable: [],
       }
       return [...prev, newSem]
     })
   }, [])
+
+  const removeSemester = useCallback((id) => {
+    setSemesters(prev => {
+      if (prev.length <= 1) return prev // Can't delete the last one
+      const next = prev.filter(s => s.id !== id)
+      return next
+    })
+    setActiveSemId(prevId => {
+      if (prevId === id) {
+        // If we deleted the active sem, switch to the first available one
+        const remaining = semesters.filter(s => s.id !== id)
+        return remaining.length > 0 ? remaining[0].id : prevId
+      }
+      return prevId
+    })
+  }, [semesters])
 
   // ── Subject CRUD ───────────────────────────────────────────────
   const addSubject = useCallback(() => {
@@ -114,6 +132,8 @@ export function useSemesters() {
     // Sem actions
     setActiveSemId,
     addSemester,
+    updateSem,
+    removeSemester,
     // Subject actions
     addSubject,
     updateSubject,

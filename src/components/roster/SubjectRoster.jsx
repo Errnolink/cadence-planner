@@ -4,8 +4,10 @@ import { SubjectRow } from './SubjectRow.jsx'
 import { GpaBadge } from './GpaBadge.jsx'
 import { Dot } from '../ui/Dot.jsx'
 
-export function SubjectRoster({ sem, semesters, editMode, onAddSubject, onUpdate, onRemove }) {
+export function SubjectRoster({ sem, semesters, editMode, onUpdateSem, onAddSubject, onUpdate, onRemove }) {
   const subjects  = sem?.subjects ?? []
+  const startDate = sem?.startDate || ''
+  const endDate   = sem?.endDate || ''
   const totalCr   = subjects.reduce((a, s) => a + (parseFloat(s.credits) || 0), 0)
   const semGpa    = calcGPA(subjects)
   const gradedCnt = subjects.filter(s => s.gradePoint !== null && s.gradePoint !== undefined).length
@@ -28,6 +30,30 @@ export function SubjectRoster({ sem, semesters, editMode, onAddSubject, onUpdate
             {totalCr.toFixed(1)}
           </span>
         </div>
+        
+        {editMode ? (
+          <div className="flex gap-2 mt-2">
+            <input 
+              type="date" 
+              value={startDate}
+              onChange={e => onUpdateSem(s => ({ ...s, startDate: e.target.value }))}
+              style={{ flex: 1, fontFamily: 'var(--cad-font-mono)', fontSize: '8px', padding: '2px 4px', background: 'var(--cad-bg-input)', border: '1px solid var(--cad-border)', color: 'var(--cad-text-hi)' }}
+            />
+            <input 
+              type="date" 
+              value={endDate}
+              onChange={e => onUpdateSem(s => ({ ...s, endDate: e.target.value }))}
+              style={{ flex: 1, fontFamily: 'var(--cad-font-mono)', fontSize: '8px', padding: '2px 4px', background: 'var(--cad-bg-input)', border: '1px solid var(--cad-border)', color: 'var(--cad-text-hi)' }}
+            />
+          </div>
+        ) : (startDate && endDate) ? (
+          <div className="mt-2" style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '8px', color: 'var(--cad-text-mid)' }}>
+            {Math.min(
+              Math.max(0, Math.round((new Date() - new Date(startDate)) / (1000 * 60 * 60 * 24))),
+              Math.round((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24))
+            )} / {Math.round((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24))} DAYS ELAPSED
+          </div>
+        ) : null}
       </div>
 
       {/* Column headers */}

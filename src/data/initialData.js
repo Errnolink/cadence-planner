@@ -1,7 +1,7 @@
 // Timetable entries use { startTime: "HH:MM", endTime: "HH:MM" }
 export const INITIAL_SEMESTERS = [
   {
-    id: 1, label: 'SEM 01',
+    id: 1, label: 'SEM 01', startDate: '', endDate: '',
     subjects: [
       { id: 1, name: 'MATHEMATICS III',      credits: 4,   colorIdx: 0, gradePoint: 8  },
       { id: 2, name: 'DATA STRUCTURES',      credits: 3,   colorIdx: 1, gradePoint: 9  },
@@ -22,7 +22,7 @@ export const INITIAL_SEMESTERS = [
     ],
   },
   {
-    id: 2, label: 'SEM 02',
+    id: 2, label: 'SEM 02', startDate: '', endDate: '',
     subjects: [
       { id: 10, name: 'ALGORITHMS',        credits: 4, colorIdx: 0, gradePoint: null },
       { id: 11, name: 'DATABASE SYSTEMS',  credits: 3, colorIdx: 5, gradePoint: null },
@@ -42,7 +42,7 @@ export const INITIAL_SEMESTERS = [
     ],
   },
   {
-    id: 3, label: 'SEM 03',
+    id: 3, label: 'SEM 03', startDate: '', endDate: '',
     subjects: [
       { id: 20, name: 'MACHINE LEARNING', credits: 4, colorIdx: 7, gradePoint: null },
       { id: 21, name: 'COMPUTER VISION',  credits: 3, colorIdx: 0, gradePoint: null },

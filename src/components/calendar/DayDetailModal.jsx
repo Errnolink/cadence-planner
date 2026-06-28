@@ -5,7 +5,10 @@ import { SUBJECT_COLORS, DAYS, WEEK_LABELS, MONTH_NAMES, parseTimeToMins } from 
  * Shows all timetable entries for that weekday, sorted by start time.
  * Slide-up on mobile, centered overlay on desktop.
  */
-export function DayDetailModal({ date, weekday, timetable, subjects, onClose }) {
+export function DayDetailModal({ date, weekday, timetable, subjects, attendanceHook, onClose }) {
+  const { attendance, markAttendance } = attendanceHook || {}
+  const dateStr = date ? `${date.year}-${String(date.month + 1).padStart(2, '0')}-${String(date.day).padStart(2, '0')}` : ''
+  const dayData = attendance && dateStr ? (attendance[dateStr] || {}) : {}
   // weekday: 'MON','TUE', etc. — null means no classes (weekend or no match)
   const entries = timetable
     .filter(t => t.day === weekday)
@@ -119,11 +122,48 @@ export function DayDetailModal({ date, weekday, timetable, subjects, onClose }) 
                         </span>
                       </div>
 
-                      {/* Duration badge */}
-                      <div style={{ display: 'flex', alignItems: 'center' }}>
-                        <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '8px', color: 'rgba(255,255,255,0.4)' }}>
+                      {/* Duration badge and Attendance */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '8px', color: 'rgba(255,255,255,0.4)', alignSelf: 'flex-start', marginTop: '2px' }}>
                           {Math.round((parseTimeToMins(entry.endTime) - parseTimeToMins(entry.startTime)))}m
                         </span>
+                        
+                        {attendanceHook && date && !date.isHoliday && (
+                          <div className="flex flex-col gap-1 ml-2 border-l pl-2" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
+                            {['PRESENT', 'ABSENT', 'CANCELLED'].map(type => {
+                              const isActive = dayData[entry.id] === type
+                              let colorVar = '--cad-text-mid'
+                              let bg = 'transparent'
+                              if (isActive) {
+                                if (type === 'PRESENT') { colorVar = '--cad-success'; bg = 'rgba(80,255,80,0.1)' }
+                                else if (type === 'ABSENT') { colorVar = '--cad-danger'; bg = 'var(--cad-danger-dim)' }
+                                else { colorVar = '--cad-text-lo'; bg = 'var(--cad-bg-primary)' }
+                              }
+                              
+                              return (
+                                <button
+                                  key={type}
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    markAttendance(dateStr, entry.id, isActive ? null : type)
+                                  }}
+                                  style={{
+                                    fontFamily: 'var(--cad-font-mono)', fontSize: '7px', letterSpacing: '0.1em',
+                                    border: isActive ? `1px solid var(${colorVar})` : '1px solid rgba(255,255,255,0.1)',
+                                    color: isActive ? `var(${colorVar})` : 'rgba(255,255,255,0.3)',
+                                    background: bg,
+                                    padding: '2px 4px',
+                                    borderRadius: '2px',
+                                    textAlign: 'center',
+                                    cursor: 'pointer'
+                                  }}
+                                >
+                                  {type}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        )}
                       </div>
                     </div>
                   )

@@ -37,6 +37,16 @@ body {
   transition:  background 0.3s ease, color 0.3s ease;
 }
 
+:root[data-theme="nerv"] {
+  color-scheme: dark;
+}
+:root[data-theme="minimal"] {
+  color-scheme: light;
+}
+:root[data-theme="minimal"][data-mode="dark"] {
+  color-scheme: dark;
+}
+
 /* ─── Scrollbars ──────────────────────────────────────────────── */
 ::-webkit-scrollbar       { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }

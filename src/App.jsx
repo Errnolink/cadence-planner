@@ -14,7 +14,7 @@ import { AttendanceView } from './components/attendance/AttendanceView.jsx'
 export default function App() {
   const {
     semesters, setSemesters, activeSemId, activeSem,
-    setActiveSemId, addSemester,
+    setActiveSemId, addSemester, updateSem, removeSemester,
     addSubject, updateSubject, removeSubject,
     saveTimetableEntry, deleteTimetableEntry, clearAllLocations,
   } = useSemesters()
@@ -90,8 +90,10 @@ export default function App() {
         semesters={semesters}
         activeSemId={activeSemId}
         onSemChange={handleSemChange}
+        onRemoveSem={removeSemester}
         editMode={editMode}
         onToggleEdit={toggleEdit}
+        onAddSem={addSemester}
         onOpenSettings={() => setShowSettings(true)}
       />
 
@@ -131,6 +133,7 @@ export default function App() {
             sem={activeSem}
             semesters={semesters}
             editMode={editMode}
+            onUpdateSem={updateSem}
             onAddSubject={addSubject}
             onUpdate={updateSubject}
             onRemove={removeSubject}
@@ -171,7 +174,7 @@ export default function App() {
           </div>
 
           {activeTab === 'calendar' ? (
-            <CalendarView timetable={activeSem?.timetable ?? []} subjects={activeSem?.subjects ?? []} />
+            <CalendarView timetable={activeSem?.timetable ?? []} subjects={activeSem?.subjects ?? []} attendanceHook={attendanceHook} />
           ) : activeTab === 'attendance' ? (
             <AttendanceView timetable={activeSem?.timetable ?? []} subjects={activeSem?.subjects ?? []} attendanceHook={attendanceHook} />
           ) : (
@@ -204,9 +207,6 @@ export default function App() {
 
       {showSettings && (
         <SettingsModal 
-          semesters={semesters} 
-          setSemesters={setSemesters} 
-          addSemester={addSemester}
           onClose={() => setShowSettings(false)} 
         />
       )}

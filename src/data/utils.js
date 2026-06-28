@@ -27,10 +27,9 @@ export const timeFraction = (timeStr, startHour = GRID_START_HOUR, endHour = GRI
   return Math.max(0, Math.min(1, offset / total))
 }
 
-/** Returns 0-based weekday index (MON=0 … FRI=4), -1 on weekends */
 export const getTodayDayIdx = () => {
   const d = new Date().getDay()
-  return d === 0 || d === 6 ? -1 : d - 1
+  return d === 0 ? 6 : d - 1
 }
 
 export const gpToLabel = gp =>

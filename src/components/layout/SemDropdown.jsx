@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from 'react'
 
-export function SemDropdown({ semesters, activeSemId, onChange }) {
+export function SemDropdown({ semesters, activeSemId, onChange, onRemove, onAdd, editMode }) {
   const [open, setOpen] = useState(false)
+  const [deleteStage, setDeleteStage] = useState({})
   const ref    = useRef(null)
   const active = semesters.find(s => s.id === activeSemId)
 
   useEffect(() => {
-    const h = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    const h = e => { if (ref.current && !ref.current.contains(e.target)) { setOpen(false); setDeleteStage({}) } }
     document.addEventListener('mousedown', h)
     return () => document.removeEventListener('mousedown', h)
   }, [])
@@ -40,30 +41,81 @@ export function SemDropdown({ semesters, activeSemId, onChange }) {
             boxShadow:    'var(--cad-shadow-panel)',
             minWidth:     '140px',
             borderRadius: 'var(--cad-radius)',
+            overflow:     'hidden',
           }}
         >
           {semesters.map(s => (
-            <button
-              key={s.id}
-              onClick={() => { onChange(s.id); setOpen(false) }}
-              className="w-full flex items-center justify-between px-3 py-2 transition-colors"
-              style={{
-                fontFamily:   'var(--cad-font-mono)',
-                fontSize:     '11px',
-                letterSpacing:'0.1em',
-                borderLeft:   s.id === activeSemId ? '2px solid var(--cad-accent)' : '2px solid transparent',
-                color:        s.id === activeSemId ? 'var(--cad-accent-text)' : 'var(--cad-text-mid)',
-                background:   'transparent',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.background = 'var(--cad-accent-dim)' }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
-            >
-              <span>{s.label}</span>
-              <span style={{ color: 'var(--cad-text-lo)', fontSize: '9px' }}>
-                {s.subjects.reduce((a, x) => a + x.credits, 0).toFixed(1)}CR
-              </span>
-            </button>
+              <div
+                key={s.id}
+                className="w-full flex items-center justify-between px-3 py-2 transition-colors"
+                style={{
+                  fontFamily:   'var(--cad-font-mono)',
+                  fontSize:     '11px',
+                  letterSpacing:'0.1em',
+                  borderLeft:   s.id === activeSemId ? '2px solid var(--cad-accent)' : '2px solid transparent',
+                  color:        s.id === activeSemId ? 'var(--cad-accent-text)' : 'var(--cad-text-mid)',
+                  background:   'transparent',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'var(--cad-accent-dim)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+              >
+                <button
+                  onClick={() => { onChange(s.id); setOpen(false) }}
+                  className="flex-1 text-left"
+                  style={{ background: 'none', border: 'none', color: 'inherit', fontFamily: 'inherit', fontSize: 'inherit', cursor: 'pointer' }}
+                >
+                  {s.label}
+                </button>
+                <div className="flex items-center gap-2">
+                  <span style={{ color: 'var(--cad-text-lo)', fontSize: '9px' }}>
+                    {s.subjects.reduce((a, x) => a + (parseFloat(x.credits)||0), 0).toFixed(1)}CR
+                  </span>
+                  {editMode && semesters.length > 1 && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        const stage = deleteStage[s.id] || 0
+                        if (stage === 0) {
+                          setDeleteStage(prev => ({ ...prev, [s.id]: 1 }))
+                        } else if (stage === 1) {
+                          setDeleteStage(prev => ({ ...prev, [s.id]: 2 }))
+                        } else {
+                          onRemove(s.id)
+                          if (s.id === activeSemId) setOpen(false)
+                        }
+                      }}
+                      className="btn-mech"
+                      style={{ background: 'none', border: 'none', color: 'var(--cad-danger)', fontSize: '10px', cursor: 'pointer', padding: '0 2px' }}
+                      title="Delete Semester"
+                    >
+                      {deleteStage[s.id] === 2 ? 'REALLY?' : deleteStage[s.id] === 1 ? 'SURE?' : '×'}
+                    </button>
+                  )}
+                </div>
+              </div>
           ))}
+          
+          {editMode && (
+            <div className="w-full" style={{ borderTop: '1px solid var(--cad-border-dim)' }}>
+              <button
+                onClick={() => { onAdd(); setOpen(false); }}
+                className="w-full px-3 py-2 text-center transition-colors"
+                style={{
+                  fontFamily:   'var(--cad-font-mono)',
+                  fontSize:     '10px',
+                  letterSpacing:'0.15em',
+                  color:        'var(--cad-accent)',
+                  background:   'transparent',
+                  border:       'none',
+                  cursor:       'pointer'
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'var(--cad-accent-dim)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+              >
+                + ADD SEMESTER
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

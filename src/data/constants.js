@@ -1,6 +1,6 @@
 // ─── TIME GRID ───────────────────────────────────────────────────
-export const GRID_START_HOUR = 7
-export const GRID_END_HOUR   = 23
+export const GRID_START_HOUR = 0
+export const GRID_END_HOUR   = 24
 
 // ─── SCHEDULE ────────────────────────────────────────────────────
 export const DAYS        = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
