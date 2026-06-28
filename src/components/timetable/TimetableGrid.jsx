@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useRef } from 'react'
-import { SUBJECT_COLORS, DAYS, GRID_START_HOUR, GRID_END_HOUR, pad2, getTodayDayIdx, parseTimeToMins } from '../../data/index.js'
+import { SUBJECT_COLORS, DAYS, GRID_START_HOUR, GRID_END_HOUR, pad2, getTodayDayIdx, parseTimeToMins, generateSubjectCode } from '../../data/index.js'
 import { DataHr } from '../ui/DataHr.jsx'
 
 const TOTAL_MINS = (GRID_END_HOUR - GRID_START_HOUR) * 60
@@ -215,14 +215,14 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                           <div
                             style={{
                               fontFamily: 'var(--cad-font-mono)',
-                              fontSize:   '9px',
-                              fontWeight: '600',
+                              fontSize:   '10px',
+                              fontWeight: '700',
                               color:      color.text,
                               overflow:   'hidden',
                               textOverflow: 'ellipsis',
                               whiteSpace: 'nowrap',
                             }}
-                          >{subj.name}</div>
+                          >{subj.code || generateSubjectCode(subj.name)}</div>
                           {!isShort && (
                             <>
                               <div style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '8px', color: color.text, opacity: 0.8, marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

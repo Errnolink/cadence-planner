@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { SUBJECT_COLORS, GRADE_MAP, gpToLabel } from '../../data/index.js'
+import { SUBJECT_COLORS, GRADE_MAP, gpToLabel, generateSubjectCode } from '../../data/index.js'
 import { ColorPicker } from '../ui/ColorPicker.jsx'
 
 export function SubjectRow({ subject, editMode, onUpdate, onRemove }) {
@@ -36,6 +36,26 @@ export function SubjectRow({ subject, editMode, onUpdate, onRemove }) {
             fontSize:    '11px',
             letterSpacing:'0.05em',
             color:       color.text,
+            borderBottom: editMode ? '1px solid var(--cad-border)' : '1px solid transparent',
+            outline:     'none',
+            transition:  'border-color 0.15s',
+          }}
+          onFocus={e => { e.currentTarget.style.borderBottomColor = 'var(--cad-accent)' }}
+          onBlur={e  => { e.currentTarget.style.borderBottomColor = 'var(--cad-border)'  }}
+        />
+
+        {/* Code */}
+        <input
+          value={subject.code ?? ''}
+          placeholder={generateSubjectCode(subject.name)}
+          onChange={e => onUpdate(subject.id, 'code', e.target.value.toUpperCase())}
+          disabled={!editMode}
+          spellCheck={false}
+          className="w-12 shrink-0 bg-transparent uppercase text-center"
+          style={{
+            fontFamily:  'var(--cad-font-mono)',
+            fontSize:    '10px',
+            color:       'var(--cad-accent)',
             borderBottom: editMode ? '1px solid var(--cad-border)' : '1px solid transparent',
             outline:     'none',
             transition:  'border-color 0.15s',

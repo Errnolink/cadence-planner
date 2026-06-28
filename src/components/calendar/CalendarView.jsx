@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
-import { SUBJECT_COLORS, WEEK_LABELS, MONTH_NAMES, DAYS, parseTimeToMins } from '../../data/index.js'
+import { SUBJECT_COLORS, WEEK_LABELS, MONTH_NAMES, DAYS, parseTimeToMins, generateSubjectCode, isSecondOrFourthSaturday } from '../../data/index.js'
 import { DayDetailModal } from './DayDetailModal.jsx'
+import { useSettings } from '../../hooks/useSettings.jsx'
 
 const DAYS_SET = new Set(DAYS)
 
@@ -11,6 +12,7 @@ function dayLabel(year, month, day) {
 }
 
 export function CalendarView({ timetable, subjects }) {
+  const { settings } = useSettings()
   const today      = new Date()
   const [year, setYear]   = useState(today.getFullYear())
   const [month, setMonth] = useState(today.getMonth())
@@ -45,7 +47,8 @@ export function CalendarView({ timetable, subjects }) {
 
   const handleDayClick = (day) => {
     const wday = dayLabel(year, month, day)
-    setDetail({ year, month, day, weekday: DAYS_SET.has(wday) ? wday : null })
+    const isHoliday = settings.holidays2nd4thSat && isSecondOrFourthSaturday(year, month, day)
+    setDetail({ year, month, day, weekday: (!isHoliday && DAYS_SET.has(wday)) ? wday : null, isHoliday })
   }
 
   return (
@@ -106,9 +109,12 @@ export function CalendarView({ timetable, subjects }) {
             if (!day) return <div key={`empty-${idx}`} style={{ borderRight: '1px solid var(--cad-border-dim)', borderBottom: '1px solid var(--cad-border-dim)' }} />
 
             const wday    = dayLabel(year, month, day)
-            const entries = DAYS_SET.has(wday) ? (eventsByWeekday[wday] ?? []) : []
+            let entries = DAYS_SET.has(wday) ? (eventsByWeekday[wday] ?? []) : []
             const todayCell = isToday(day)
             const isWeekend = !DAYS_SET.has(wday)
+            
+            const isHoliday = settings.holidays2nd4thSat && isSecondOrFourthSaturday(year, month, day)
+            if (isHoliday) entries = []
 
             return (
               <div
@@ -134,13 +140,20 @@ export function CalendarView({ timetable, subjects }) {
                   fontSize:    '11px',
                   marginBottom:'3px',
                   color:       todayCell  ? 'var(--cad-accent)'
+                             : isHoliday ? 'var(--cad-danger)'
                              : isWeekend ? 'var(--cad-text-lo)'
                              : 'var(--cad-text-mid)',
                   fontWeight:  todayCell ? '700' : '400',
                 }}>{day}</div>
 
+                {isHoliday && (
+                  <div style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '8px', color: 'var(--cad-danger)', opacity: 0.8 }}>
+                    HOLIDAY
+                  </div>
+                )}
+
                 {/* Event chips (max 3 shown) */}
-                {entries.slice(0, 3).map(entry => {
+                {!isHoliday && entries.slice(0, 3).map(entry => {
                   const subj  = subjectMap[entry.subjectId]
                   if (!subj) return null
                   const color = SUBJECT_COLORS[subj.colorIdx % SUBJECT_COLORS.length]
@@ -161,11 +174,11 @@ export function CalendarView({ timetable, subjects }) {
                         borderRadius: '0 2px 2px 0',
                       }}
                     >
-                      {entry.startTime} {subj.name.slice(0, 7).toUpperCase()}
+                      {entry.startTime} {subj.code || generateSubjectCode(subj.name)}
                     </div>
                   )
                 })}
-                {entries.length > 3 && (
+                {!isHoliday && entries.length > 3 && (
                   <div style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '7px', color: 'var(--cad-text-lo)', paddingLeft: '4px' }}>
                     +{entries.length - 3} more
                   </div>

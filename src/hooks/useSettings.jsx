@@ -1,8 +1,9 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 
 const defaultSettings = {
-  showLocation: true,
+  showLocation: false,
   themeMode: 'dark', // 'dark' or 'light'
+  holidays2nd4thSat: true,
 }
 
 const SettingsContext = createContext(null)

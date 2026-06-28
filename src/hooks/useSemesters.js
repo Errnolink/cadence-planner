@@ -53,6 +53,7 @@ export function useSemesters() {
         {
           id:         genId(),
           name:       'NEW SUBJECT',
+          code:       '',
           credits:    3,
           colorIdx:   sem.subjects.length % SUBJECT_COLORS.length,
           gradePoint: null,
@@ -96,6 +97,13 @@ export function useSemesters() {
     }))
   }, [updateSem])
 
+  const clearAllLocations = useCallback(() => {
+    setSemesters(prev => prev.map(sem => ({
+      ...sem,
+      timetable: sem.timetable.map(t => ({ ...t, room: '' }))
+    })))
+  }, [])
+
   return {
     // State
     semesters,
@@ -111,5 +119,6 @@ export function useSemesters() {
     // Timetable actions
     saveTimetableEntry,
     deleteTimetableEntry,
+    clearAllLocations,
   }
 }

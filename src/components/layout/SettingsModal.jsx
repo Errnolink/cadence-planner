@@ -104,7 +104,7 @@ export function SettingsModal({ semesters, setSemesters, onClose }) {
         {/* Preferences */}
         <div style={sectionStyle}>
           <div style={labelStyle}>PREFERENCES</div>
-          <label className="flex items-center gap-2 cursor-pointer" style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '11px', color: 'var(--cad-text-hi)' }}>
+          <label className="flex items-center gap-2 cursor-pointer mb-2" style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '11px', color: 'var(--cad-text-hi)' }}>
             <input
               type="checkbox"
               checked={settings.showLocation}
@@ -112,6 +112,15 @@ export function SettingsModal({ semesters, setSemesters, onClose }) {
               style={{ accentColor: 'var(--cad-accent)' }}
             />
             SHOW ROOM / LOCATION INPUT
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer" style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '11px', color: 'var(--cad-text-hi)' }}>
+            <input
+              type="checkbox"
+              checked={settings.holidays2nd4thSat}
+              onChange={e => updateSettings({ holidays2nd4thSat: e.target.checked })}
+              style={{ accentColor: 'var(--cad-accent)' }}
+            />
+            ENABLE 2ND/4TH SATURDAY HOLIDAYS
           </label>
         </div>
 

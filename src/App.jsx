@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useSemesters } from './hooks/useSemesters.js'
 import { Dot } from './components/ui/Dot.jsx'
 import { ControlBar }   from './components/layout/ControlBar.jsx'
@@ -14,16 +14,56 @@ export default function App() {
     semesters, setSemesters, activeSemId, activeSem,
     setActiveSemId,
     addSubject, updateSubject, removeSubject,
-    saveTimetableEntry, deleteTimetableEntry,
+    saveTimetableEntry, deleteTimetableEntry, clearAllLocations,
   } = useSemesters()
 
   const [editMode,  setEditMode]  = useState(false)
   const [ttModal,   setTtModal]   = useState(null)
   const [showSettings, setShowSettings] = useState(false)
   const [activeTab, setActiveTab] = useState('timetable')
+  const [showSecretMenu, setShowSecretMenu] = useState(false)
+  const [editClickCount, setEditClickCount] = useState(0)
+
+  // Konami Code Listener
+  useEffect(() => {
+    const konamiCode = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a']
+    let konamiIndex = 0
+
+    const handleKeyDown = (e) => {
+      if (e.key === konamiCode[konamiIndex]) {
+        konamiIndex++
+        if (konamiIndex === konamiCode.length) {
+          setShowSecretMenu(true)
+          konamiIndex = 0
+        }
+      } else {
+        konamiIndex = 0
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
+  useEffect(() => {
+    if (editClickCount > 0) {
+      const t = setTimeout(() => setEditClickCount(0), 1000)
+      return () => clearTimeout(t)
+    }
+  }, [editClickCount])
 
   const handleSemChange = id => { setActiveSemId(id); setTtModal(null) }
-  const toggleEdit      = ()  => { setEditMode(e => !e); setTtModal(null) }
+  const toggleEdit      = ()  => { 
+    setEditMode(e => !e)
+    setTtModal(null)
+    setEditClickCount(c => {
+      const newCount = c + 1
+      if (newCount >= 5) {
+        setShowSecretMenu(true)
+        return 0
+      }
+      return newCount
+    })
+  }
 
   const handleSave = useCallback(entry => {
     saveTimetableEntry(entry)
@@ -162,6 +202,37 @@ export default function App() {
           setSemesters={setSemesters} 
           onClose={() => setShowSettings(false)} 
         />
+      )}
+
+      {showSecretMenu && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.85)' }}>
+          <div className="w-full max-w-xs panel-chamfer overflow-hidden" style={{ border: '2px solid var(--cad-danger)', background: 'var(--cad-bg-panel)', boxShadow: '0 4px 30px var(--cad-danger)' }}>
+            <div className="px-3 py-2 text-center" style={{ borderBottom: '1px solid var(--cad-danger)', background: 'var(--cad-danger-dim)' }}>
+              <span className="blink" style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '10px', letterSpacing: '0.2em', color: 'var(--cad-danger)', fontWeight: 'bold' }}>CLASSIFIED OPERATIONS</span>
+            </div>
+            <div className="p-4 flex flex-col gap-3">
+              <p style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '10px', color: 'var(--cad-text-mid)', textAlign: 'center' }}>
+                WARNING: THIS WILL CLEAR ALL ROOM LOCATIONS ACROSS ALL SEMESTERS.
+              </p>
+              <button
+                onClick={() => { clearAllLocations(); setShowSecretMenu(false); }}
+                className="w-full py-2 btn-mech"
+                style={{
+                  fontFamily: 'var(--cad-font-mono)', fontSize: '12px', letterSpacing: '0.1em',
+                  border: '1px solid var(--cad-danger)', color: 'var(--cad-danger)', background: 'transparent'
+                }}
+              >PURGE ALL LOCATIONS</button>
+              <button
+                onClick={() => setShowSecretMenu(false)}
+                className="w-full py-2 mt-2 btn-mech"
+                style={{
+                  fontFamily: 'var(--cad-font-mono)', fontSize: '10px', letterSpacing: '0.1em',
+                  border: '1px solid var(--cad-border)', color: 'var(--cad-text-lo)', background: 'transparent'
+                }}
+              >ABORT</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

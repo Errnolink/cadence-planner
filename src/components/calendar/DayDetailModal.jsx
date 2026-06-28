@@ -74,11 +74,11 @@ export function DayDetailModal({ date, weekday, timetable, subjects, onClose }) 
                   padding:    '32px 0',
                   fontFamily: 'var(--cad-font-mono)',
                   fontSize:   '11px',
-                  color:      'var(--cad-text-lo)',
+                  color:      date?.isHoliday ? 'var(--cad-danger)' : 'var(--cad-text-lo)',
                 }}
               >
                 <div style={{ fontSize: '24px', marginBottom: '8px', opacity: 0.3 }}>◎</div>
-                {weekday ? `// NO CLASSES ON ${weekday}` : '// NO CLASSES THIS DAY'}
+                {date?.isHoliday ? '// HOLIDAY (2ND/4TH SAT)' : weekday ? `// NO CLASSES ON ${weekday}` : '// NO CLASSES THIS DAY'}
               </div>
             ) : (
               <div className="flex flex-col gap-2">

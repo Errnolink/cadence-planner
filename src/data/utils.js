@@ -55,3 +55,19 @@ export const dateToDayLabel = (year, month, day) => {
   const LABELS = ['SUN','MON','TUE','WED','THU','FRI','SAT']
   return LABELS[new Date(year, month, day).getDay()]
 }
+
+/** Automatically generate a short subject code from its name */
+export const generateSubjectCode = (name) => {
+  if (!name) return ''
+  const words = name.split(/[\s-]+/).filter(Boolean)
+  if (words.length === 1) return words[0].substring(0, 3).toUpperCase()
+  return words.map(w => w[0]).join('').substring(0, 4).toUpperCase()
+}
+
+/** Check if date is the 2nd or 4th Saturday of the month */
+export const isSecondOrFourthSaturday = (year, month, day) => {
+  const date = new Date(year, month, day);
+  if (date.getDay() !== 6) return false;
+  const n = Math.ceil(day / 7);
+  return n === 2 || n === 4;
+}
