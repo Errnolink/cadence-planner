@@ -20,10 +20,12 @@ function sanitizeThemeForCSS(ct) {
   let count = 0
   for (const [k, v] of Object.entries(ct.tokens || {})) {
     if (count >= MAX_TOKENS) break
-    if (!SAFE_KEY_RE.test(k)) continue
+    // Normalize: strip any existing '--' prefix — we always add it at injection time
+    const normalizedKey = k.replace(/^--/, '')
+    if (!SAFE_KEY_RE.test(normalizedKey)) continue
     if (typeof v !== 'string' || v.length > MAX_VALUE_LEN) continue
     if (DANGEROUS_VALUE_RE.test(v)) continue
-    safeTokens[k] = v
+    safeTokens[normalizedKey] = v
     count++
   }
   return { id: ct.id, tokens: safeTokens }
@@ -40,7 +42,9 @@ function validateThemeImport(themeObj) {
   if (entries.length === 0 || entries.length > MAX_TOKENS) throw new Error(`TOKENS COUNT MUST BE 1-${MAX_TOKENS}`)
 
   for (const [k, v] of entries) {
-    if (!SAFE_KEY_RE.test(k)) throw new Error(`INVALID TOKEN KEY: ${k}`)
+    // Strip '--' prefix before validating — both 'cad-foo' and '--cad-foo' are accepted
+    const normalizedKey = k.replace(/^--/, '')
+    if (!SAFE_KEY_RE.test(normalizedKey)) throw new Error(`INVALID TOKEN KEY: ${k}`)
     if (typeof v !== 'string' || v.length > MAX_VALUE_LEN) throw new Error(`INVALID VALUE FOR ${k}`)
     if (DANGEROUS_VALUE_RE.test(v)) throw new Error(`UNSAFE CSS VALUE FOR ${k}`)
   }
@@ -84,7 +88,7 @@ export function ThemeProvider({ children }) {
       if (!safe) return // Skip themes that fail sanitization
       css += `:root[data-theme="${safe.id}"] {\n`
       Object.entries(safe.tokens).forEach(([k, v]) => {
-        css += `  ${k}: ${v};\n`
+        css += `  --${k}: ${v};\n`  // always inject with '--' prefix for CSS custom properties
       })
       css += `}\n`
     })
