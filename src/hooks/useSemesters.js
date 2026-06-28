@@ -16,7 +16,19 @@ export function useSemesters() {
     return INITIAL_SEMESTERS
   })
   
-  const [activeSemId, setActiveSemId] = useState(semesters[0]?.id || 1)
+  const [activeSemId, setActiveSemId] = useState(() => {
+    try {
+      const saved = localStorage.getItem('cadence_active_sem')
+      if (saved) return JSON.parse(saved)
+    } catch (e) {
+      console.error('Failed to parse active sem', e)
+    }
+    return semesters[0]?.id || 1
+  })
+
+  useEffect(() => {
+    localStorage.setItem('cadence_active_sem', JSON.stringify(activeSemId))
+  }, [activeSemId])
 
   useEffect(() => {
     localStorage.setItem('cadence_data', JSON.stringify(semesters))

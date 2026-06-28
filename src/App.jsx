@@ -106,7 +106,7 @@ export default function App() {
               <Dot on />
               <span style={{ fontSize: '9px', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--cad-accent)', fontFamily: 'var(--cad-font-mono)' }}>PANEL-B</span>
             </div>
-            <div className="flex gap-1">
+            <div className="hidden md:flex gap-1">
               {['timetable', 'calendar'].map(tab => (
                 <button key={tab}
                   onClick={() => setActiveTab(tab)}
