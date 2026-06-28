@@ -1,16 +1,53 @@
-# React + Vite
+# Cadence Planner
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Cadence Planner is a modern, responsive web application designed for students and academics to efficiently track semesters, subjects, timetables, and attendance. It features a unique, technical "mech-inspired" user interface.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **Semester & Subject Management**: Organize your academic life by semesters and track the subjects, credits, and details for each term.
+- **Roster & Timetable Grid**: Build out your weekly schedule with an intuitive timetable view.
+- **Calendar & Attendance Tracking**: Keep tabs on your attendance and view your schedule in a calendar format.
+- **Data Persistence**: Uses a custom backend/storage (Supabase integration is set up in dependencies) to keep your schedule safe.
+- **Mech Aesthetic**: A highly stylized, terminal-like UI with a cyberpunk feel.
 
-## React Compiler
+## Tech Stack
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Framework**: React 19 + Vite
+- **Styling**: Tailwind CSS + Vanilla CSS variables
+- **Backend/DB**: Supabase (Client)
 
-## Expanding the Oxlint configuration
+## Getting Started
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+### Prerequisites
+Make sure you have Node.js installed.
+
+### Installation
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/Errnolink/cadence-planner.git
+   cd cadence-planner
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Start the development server:
+   ```bash
+   npm run dev
+   ```
+
+4. Open your browser and navigate to `http://localhost:5173/` (or the port specified by Vite).
+
+## Scripts
+
+- `npm run dev`: Starts the development server.
+- `npm run build`: Builds the app for production.
+- `npm run preview`: Previews the production build locally.
+- `npm run lint`: Lints the codebase using Oxlint.
+
+## License
+
+MIT
