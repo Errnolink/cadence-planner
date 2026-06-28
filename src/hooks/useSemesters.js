@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 import { INITIAL_SEMESTERS, SUBJECT_COLORS, genId } from '../data/index.js'
 
 /**
@@ -6,8 +6,21 @@ import { INITIAL_SEMESTERS, SUBJECT_COLORS, genId } from '../data/index.js'
  * Returns derived state + action callbacks.
  */
 export function useSemesters() {
-  const [semesters,   setSemesters]   = useState(INITIAL_SEMESTERS)
-  const [activeSemId, setActiveSemId] = useState(INITIAL_SEMESTERS[0].id)
+  const [semesters, setSemesters] = useState(() => {
+    try {
+      const saved = localStorage.getItem('cadence_data')
+      if (saved) return JSON.parse(saved)
+    } catch (e) {
+      console.error('Failed to parse cadence_data', e)
+    }
+    return INITIAL_SEMESTERS
+  })
+  
+  const [activeSemId, setActiveSemId] = useState(semesters[0]?.id || 1)
+
+  useEffect(() => {
+    localStorage.setItem('cadence_data', JSON.stringify(semesters))
+  }, [semesters])
 
   const activeSem = useMemo(
     () => semesters.find(s => s.id === activeSemId),
@@ -74,6 +87,7 @@ export function useSemesters() {
   return {
     // State
     semesters,
+    setSemesters,
     activeSemId,
     activeSem,
     // Semester navigation

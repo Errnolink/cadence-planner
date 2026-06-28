@@ -11,7 +11,7 @@ import { CalendarView }  from './components/calendar/CalendarView.jsx'
 
 export default function App() {
   const {
-    semesters, activeSemId, activeSem,
+    semesters, setSemesters, activeSemId, activeSem,
     setActiveSemId,
     addSubject, updateSubject, removeSubject,
     saveTimetableEntry, deleteTimetableEntry,
@@ -156,9 +156,12 @@ export default function App() {
         />
       )}
 
-      {/* Settings modal */}
       {showSettings && (
-        <SettingsModal onClose={() => setShowSettings(false)} />
+        <SettingsModal 
+          semesters={semesters} 
+          setSemesters={setSemesters} 
+          onClose={() => setShowSettings(false)} 
+        />
       )}
     </div>
   )
