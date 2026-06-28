@@ -1,5 +1,5 @@
 /**
- * api.js
+ * api.js — v1.1
  * Centralized data wrapper. Uses localStorage for fast reads, syncs with Supabase in background.
  */
 import { supabase } from './supabaseClient';
