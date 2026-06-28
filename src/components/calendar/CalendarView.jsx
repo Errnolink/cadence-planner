@@ -69,7 +69,7 @@ export function CalendarView({ timetable, subjects, attendanceHook }) {
             value={month} 
             onChange={e => setMonth(Number(e.target.value))}
             className="btn-mech panel-chamfer-sm"
-            style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '13px', letterSpacing: '0.1em', color: 'var(--cad-accent)', background: 'transparent', border: '1px solid var(--cad-border)', padding: '2px 4px', outline: 'none', cursor: 'pointer', appearance: 'none', textAlign: 'center' }}
+            style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '13px', letterSpacing: '0.1em', color: 'var(--cad-accent)', background: 'transparent', border: '1px solid var(--cad-border)', padding: '2px 12px', outline: 'none', cursor: 'pointer', appearance: 'none', textAlign: 'center' }}
           >
             {MONTH_NAMES.map((m, i) => <option key={i} value={i} style={{color: 'var(--cad-text-hi)', background: 'var(--cad-bg-panel)'}}>{m}</option>)}
           </select>
@@ -77,7 +77,7 @@ export function CalendarView({ timetable, subjects, attendanceHook }) {
             value={year} 
             onChange={e => setYear(Number(e.target.value))}
             className="btn-mech panel-chamfer-sm"
-            style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '13px', letterSpacing: '0.1em', color: 'var(--cad-accent)', background: 'transparent', border: '1px solid var(--cad-border)', padding: '2px 4px', outline: 'none', cursor: 'pointer', appearance: 'none', textAlign: 'center' }}
+            style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '13px', letterSpacing: '0.1em', color: 'var(--cad-accent)', background: 'transparent', border: '1px solid var(--cad-border)', padding: '2px 12px', outline: 'none', cursor: 'pointer', appearance: 'none', textAlign: 'center' }}
           >
             {Array.from({length: 20}, (_, i) => today.getFullYear() - 10 + i).map(y => <option key={y} value={y} style={{color: 'var(--cad-text-hi)', background: 'var(--cad-bg-panel)'}}>{y}</option>)}
           </select>
