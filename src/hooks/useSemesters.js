@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo, useEffect } from 'react'
 import { INITIAL_SEMESTERS, SUBJECT_COLORS, genId } from '../data/index.js'
+import { API } from '../data/api.js'
 
 /**
  * useSemesters — all semester CRUD state, extracted from App.jsx.
@@ -7,31 +8,19 @@ import { INITIAL_SEMESTERS, SUBJECT_COLORS, genId } from '../data/index.js'
  */
 export function useSemesters() {
   const [semesters, setSemesters] = useState(() => {
-    try {
-      const saved = localStorage.getItem('cadence_data')
-      if (saved) return JSON.parse(saved)
-    } catch (e) {
-      console.error('Failed to parse cadence_data', e)
-    }
-    return INITIAL_SEMESTERS
+    return API.getSemesters(INITIAL_SEMESTERS)
   })
   
   const [activeSemId, setActiveSemId] = useState(() => {
-    try {
-      const saved = localStorage.getItem('cadence_active_sem')
-      if (saved) return JSON.parse(saved)
-    } catch (e) {
-      console.error('Failed to parse active sem', e)
-    }
-    return semesters[0]?.id || 1
+    return API.getActiveSemId(semesters[0]?.id || 1)
   })
 
   useEffect(() => {
-    localStorage.setItem('cadence_active_sem', JSON.stringify(activeSemId))
+    API.saveActiveSemId(activeSemId)
   }, [activeSemId])
 
   useEffect(() => {
-    localStorage.setItem('cadence_data', JSON.stringify(semesters))
+    API.saveSemesters(semesters)
   }, [semesters])
 
   const activeSem = useMemo(
@@ -39,10 +28,22 @@ export function useSemesters() {
     [semesters, activeSemId]
   )
 
-  const updateSem = useCallback(
-    fn => setSemesters(prev => prev.map(s => s.id === activeSemId ? fn(s) : s)),
-    [activeSemId]
-  )
+  const updateSem = useCallback((updater) => {
+    setSemesters(prev => prev.map(s => s.id === activeSemId ? updater(s) : s))
+  }, [activeSemId])
+
+  const addSemester = useCallback(() => {
+    setSemesters(prev => {
+      const newId = (prev.length > 0 ? Math.max(...prev.map(p => p.id)) : 0) + 1
+      const newSem = {
+        id: newId,
+        label: `SEM ${String(newId).padStart(2, '0')}`,
+        subjects: [],
+        timetable: [],
+      }
+      return [...prev, newSem]
+    })
+  }, [])
 
   // ── Subject CRUD ───────────────────────────────────────────────
   const addSubject = useCallback(() => {
@@ -110,8 +111,9 @@ export function useSemesters() {
     setSemesters,
     activeSemId,
     activeSem,
-    // Semester navigation
+    // Sem actions
     setActiveSemId,
+    addSemester,
     // Subject actions
     addSubject,
     updateSubject,

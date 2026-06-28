@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useSemesters } from './hooks/useSemesters.js'
+import { useAttendance } from './hooks/useAttendance.js'
 import { Dot } from './components/ui/Dot.jsx'
 import { ControlBar }   from './components/layout/ControlBar.jsx'
 import { MobileTabBar } from './components/layout/MobileTabBar.jsx'
@@ -8,14 +9,17 @@ import { TimetableGrid } from './components/timetable/TimetableGrid.jsx'
 import { TimetableModal } from './components/timetable/TimetableModal.jsx'
 import { SettingsModal } from './components/layout/SettingsModal.jsx'
 import { CalendarView }  from './components/calendar/CalendarView.jsx'
+import { AttendanceView } from './components/attendance/AttendanceView.jsx'
 
 export default function App() {
   const {
     semesters, setSemesters, activeSemId, activeSem,
-    setActiveSemId,
+    setActiveSemId, addSemester,
     addSubject, updateSubject, removeSubject,
     saveTimetableEntry, deleteTimetableEntry, clearAllLocations,
   } = useSemesters()
+
+  const attendanceHook = useAttendance()
 
   const [editMode,  setEditMode]  = useState(false)
   const [ttModal,   setTtModal]   = useState(null)
@@ -147,7 +151,7 @@ export default function App() {
               <span style={{ fontSize: '9px', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--cad-accent)', fontFamily: 'var(--cad-font-mono)' }}>PANEL-B</span>
             </div>
             <div className="hidden md:flex gap-1">
-              {['timetable', 'calendar'].map(tab => (
+              {['timetable', 'calendar', 'attendance'].map(tab => (
                 <button key={tab}
                   onClick={() => setActiveTab(tab)}
                   className="px-2 py-0.5 btn-mech"
@@ -168,6 +172,8 @@ export default function App() {
 
           {activeTab === 'calendar' ? (
             <CalendarView timetable={activeSem?.timetable ?? []} subjects={activeSem?.subjects ?? []} />
+          ) : activeTab === 'attendance' ? (
+            <AttendanceView timetable={activeSem?.timetable ?? []} subjects={activeSem?.subjects ?? []} attendanceHook={attendanceHook} />
           ) : (
             <TimetableGrid
               subjects={activeSem?.subjects ?? []}
@@ -200,6 +206,7 @@ export default function App() {
         <SettingsModal 
           semesters={semesters} 
           setSemesters={setSemesters} 
+          addSemester={addSemester}
           onClose={() => setShowSettings(false)} 
         />
       )}

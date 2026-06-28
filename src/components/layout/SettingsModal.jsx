@@ -3,12 +3,14 @@ import { useTheme } from '../../themes/ThemeContext.jsx'
 import { useSettings } from '../../hooks/useSettings.jsx'
 import { Modal } from '../ui/Modal.jsx'
 
-export function SettingsModal({ semesters, setSemesters, onClose }) {
-  const { currentTheme, setTheme, themes } = useTheme()
+export function SettingsModal({ semesters, setSemesters, addSemester, onClose }) {
+  const { currentTheme, setTheme, themes, addCustomTheme } = useTheme()
   const { settings, updateSettings } = useSettings()
 
   const [importText, setImportText] = useState('')
   const [syncMsg, setSyncMsg] = useState('')
+  const [themeImportText, setThemeImportText] = useState('')
+  const [themeSyncMsg, setThemeSyncMsg] = useState('')
 
   const handleExport = () => {
     const data = JSON.stringify(semesters)
@@ -40,6 +42,20 @@ export function SettingsModal({ semesters, setSemesters, onClose }) {
     } catch (e) {
       setSyncMsg('INVALID DATA STRING.')
       setTimeout(() => setSyncMsg(''), 3000)
+    }
+  }
+
+  const handleThemeImport = () => {
+    try {
+      const data = JSON.parse(themeImportText)
+      if (!data.id || !data.label || !data.tokens) throw new Error('Invalid format')
+      addCustomTheme(data)
+      setThemeImportText('')
+      setThemeSyncMsg('THEME IMPORTED!')
+      setTimeout(() => setThemeSyncMsg(''), 3000)
+    } catch (e) {
+      setThemeSyncMsg('INVALID THEME JSON.')
+      setTimeout(() => setThemeSyncMsg(''), 3000)
     }
   }
 
@@ -101,6 +117,53 @@ export function SettingsModal({ semesters, setSemesters, onClose }) {
           </div>
         )}
 
+        {/* Custom Theme Import */}
+        <div style={sectionStyle}>
+          <div style={labelStyle}>IMPORT CUSTOM THEME</div>
+          <div className="flex gap-2">
+            <input
+              value={themeImportText}
+              onChange={e => setThemeImportText(e.target.value)}
+              placeholder='{"id":"my-theme","label":"MY THEME","tokens":{...}}'
+              className="flex-1 px-2 py-1.5"
+              style={{
+                fontFamily:  'var(--cad-font-mono)',
+                fontSize:    '10px',
+                background:  'var(--cad-bg-input)',
+                border:      '1px solid var(--cad-border)',
+                color:       'var(--cad-text-hi)',
+                outline:     'none',
+                borderRadius:'var(--cad-radius)',
+              }}
+            />
+            <button
+              onClick={handleThemeImport}
+              disabled={!themeImportText}
+              className="px-3 py-1.5 btn-mech panel-chamfer-sm"
+              style={{
+                fontFamily:   'var(--cad-font-mono)',
+                fontSize:     '10px',
+                letterSpacing:'0.15em',
+                border:       themeImportText ? '1px solid var(--cad-accent)' : '1px solid var(--cad-border-dim)',
+                color:        themeImportText ? 'var(--cad-accent-text)' : 'var(--cad-text-lo)',
+                background:   'transparent',
+                borderRadius: 'var(--cad-radius)',
+                cursor:       themeImportText ? 'pointer' : 'not-allowed',
+              }}
+            >IMPORT</button>
+          </div>
+          {themeSyncMsg && (
+            <div style={{
+              fontFamily: 'var(--cad-font-mono)',
+              fontSize: '9px',
+              color: themeSyncMsg.includes('INVALID') ? 'var(--cad-danger)' : 'var(--cad-success)',
+              marginTop: '6px'
+            }}>
+              {themeSyncMsg}
+            </div>
+          )}
+        </div>
+
         {/* Preferences */}
         <div style={sectionStyle}>
           <div style={labelStyle}>PREFERENCES</div>
@@ -124,8 +187,23 @@ export function SettingsModal({ semesters, setSemesters, onClose }) {
           </label>
         </div>
 
-        {/* Data Sync */}
+        {/* Data Management */}
         <div style={sectionStyle}>
+          <div style={labelStyle}>DATA MANAGEMENT</div>
+          <button
+            onClick={() => { addSemester(); setSyncMsg('NEW SEMESTER ADDED!'); setTimeout(() => setSyncMsg(''), 3000); }}
+            className="w-full py-1.5 btn-mech panel-chamfer-sm mb-4"
+            style={{
+              fontFamily:   'var(--cad-font-mono)',
+              fontSize:     '10px',
+              letterSpacing:'0.15em',
+              border:       '1px solid var(--cad-border)',
+              color:        'var(--cad-text-hi)',
+              background:   'transparent',
+              borderRadius: 'var(--cad-radius)',
+            }}
+          >+ ADD NEW SEMESTER</button>
+          
           <div style={labelStyle}>DATA SYNC</div>
           <div className="flex gap-2 mb-2">
             <button

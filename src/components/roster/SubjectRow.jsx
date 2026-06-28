@@ -27,10 +27,10 @@ export function SubjectRow({ subject, editMode, onUpdate, onRemove }) {
         {/* Name */}
         <input
           value={subject.name}
-          onChange={e => onUpdate(subject.id, 'name', e.target.value.toUpperCase())}
+          onChange={e => onUpdate(subject.id, 'name', e.target.value)}
           disabled={!editMode}
           spellCheck={false}
-          className="flex-1 min-w-0 uppercase bg-transparent"
+          className="flex-1 min-w-0 bg-transparent"
           style={{
             fontFamily:  'var(--cad-font-mono)',
             fontSize:    '11px',
@@ -48,10 +48,10 @@ export function SubjectRow({ subject, editMode, onUpdate, onRemove }) {
         <input
           value={subject.code ?? ''}
           placeholder={generateSubjectCode(subject.name)}
-          onChange={e => onUpdate(subject.id, 'code', e.target.value.toUpperCase())}
+          onChange={e => onUpdate(subject.id, 'code', e.target.value)}
           disabled={!editMode}
           spellCheck={false}
-          className="w-12 shrink-0 bg-transparent uppercase text-center"
+          className="w-12 shrink-0 bg-transparent text-center"
           style={{
             fontFamily:  'var(--cad-font-mono)',
             fontSize:    '10px',

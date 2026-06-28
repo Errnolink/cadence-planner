@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react'
+import { API } from '../data/api.js'
 
 const defaultSettings = {
   showLocation: false,
@@ -10,16 +11,11 @@ const SettingsContext = createContext(null)
 
 export function SettingsProvider({ children }) {
   const [settings, setSettings] = useState(() => {
-    try {
-      const stored = localStorage.getItem('cadence_settings')
-      return stored ? { ...defaultSettings, ...JSON.parse(stored) } : defaultSettings
-    } catch {
-      return defaultSettings
-    }
+    return API.getSettings(defaultSettings)
   })
 
   useEffect(() => {
-    localStorage.setItem('cadence_settings', JSON.stringify(settings))
+    API.saveSettings(settings)
     // Also apply data-mode to documentElement here so CSS can react
     document.documentElement.setAttribute('data-mode', settings.themeMode)
   }, [settings])

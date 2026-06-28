@@ -70,3 +70,11 @@
 :root[data-theme="nerv"] .status-pulse {
   animation: status-pulse 2s ease-in-out infinite;
 }
+
+/* Force all text inputs to appear uppercase in NERV theme */
+:root[data-theme="nerv"] input[type="text"],
+:root[data-theme="nerv"] input:not([type]),
+:root[data-theme="nerv"] select,
+:root[data-theme="nerv"] textarea {
+  text-transform: uppercase;
+}

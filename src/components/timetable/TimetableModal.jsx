@@ -149,7 +149,7 @@ export function TimetableModal({ mode, initialData, subjects, timetable, onSave,
             <div style={labelStyle}>ROOM / LOCATION</div>
             <input
               value={form.room}
-              onChange={e => upd('room', e.target.value.toUpperCase())}
+              onChange={e => upd('room', e.target.value)}
               placeholder="LH-301"
               style={{
                 width:        '100%',

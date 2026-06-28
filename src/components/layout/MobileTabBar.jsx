@@ -1,7 +1,8 @@
 const TABS = [
-  { id: 'roster',    icon: '☰', label: 'ROSTER'    },
-  { id: 'timetable', icon: '⊞', label: 'TIMETABLE' },
-  { id: 'calendar',  icon: '◫', label: 'CALENDAR'  },
+  { id: 'roster',     icon: '☰', label: 'ROSTER'     },
+  { id: 'timetable',  icon: '⊞', label: 'TIMETABLE' },
+  { id: 'calendar',   icon: '◫', label: 'CALENDAR'  },
+  { id: 'attendance', icon: '✓', label: 'ATTENDANCE' },
 ]
 
 export function MobileTabBar({ activeTab, onTabChange }) {

@@ -64,13 +64,25 @@ export function CalendarView({ timetable, subjects }) {
           onMouseLeave={e => { e.currentTarget.style.color = 'var(--cad-text-mid)' }}
         >◀</button>
 
-        <div className="text-center">
+        <div className="relative text-center cursor-pointer" title="Select Month/Year">
           <div style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '13px', letterSpacing: '0.2em', color: 'var(--cad-accent)' }}>
             {MONTH_NAMES[month]}
           </div>
           <div style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '9px', color: 'var(--cad-text-lo)' }}>
             {year}
           </div>
+          <input 
+            type="month" 
+            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+            value={`${year}-${String(month + 1).padStart(2, '0')}`}
+            onChange={e => {
+              if (e.target.value) {
+                const [y, m] = e.target.value.split('-')
+                setYear(parseInt(y))
+                setMonth(parseInt(m) - 1)
+              }
+            }}
+          />
         </div>
 
         <button
