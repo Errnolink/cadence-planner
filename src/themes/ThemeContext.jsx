@@ -12,6 +12,7 @@ const SAFE_KEY_RE       = /^-{0,2}[a-zA-Z][a-zA-Z0-9-]*$/
 const DANGEROUS_VALUE_RE = /url\s*\(|@import|expression\s*\(|javascript:|behavior\s*:|binding\s*:|<|>/i
 const MAX_TOKENS        = 50
 const MAX_VALUE_LEN     = 200
+const MAX_CUSTOM_THEMES = 5
 
 /** Sanitize a custom theme object before injecting its tokens into CSS */
 function sanitizeThemeForCSS(ct) {
@@ -104,12 +105,22 @@ export function ThemeProvider({ children }) {
 
   const addCustomTheme = (themeObj) => {
     validateThemeImport(themeObj) // throws on invalid input
+    const isReplacing = customThemes.some(t => t.id === themeObj.id)
+    if (!isReplacing && customThemes.length >= MAX_CUSTOM_THEMES) {
+      throw new Error(`MAX ${MAX_CUSTOM_THEMES} CUSTOM THEMES REACHED. DELETE ONE FIRST.`)
+    }
     setCustomThemes(prev => [...prev.filter(t => t.id !== themeObj.id), themeObj])
     setThemeId(themeObj.id)
   }
 
+  const removeCustomTheme = (id) => {
+    setCustomThemes(prev => prev.filter(t => t.id !== id))
+    // If the deleted theme was active, fall back to the first built-in theme
+    if (themeId === id) setThemeId(THEMES[0].id)
+  }
+
   return (
-    <ThemeContext.Provider value={{ themeId, setTheme: setThemeId, cycleTheme, themes: allThemes, currentTheme, addCustomTheme }}>
+    <ThemeContext.Provider value={{ themeId, setTheme: setThemeId, cycleTheme, themes: allThemes, customThemes, currentTheme, addCustomTheme, removeCustomTheme }}>
       {children}
     </ThemeContext.Provider>
   )

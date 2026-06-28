@@ -5,7 +5,7 @@ import { Modal } from '../ui/Modal.jsx'
 import { API } from '../../data/api.js'
 
 export function SettingsModal({ onClose }) {
-  const { currentTheme, setTheme, themes, addCustomTheme } = useTheme()
+  const { currentTheme, setTheme, themes, customThemes, addCustomTheme, removeCustomTheme } = useTheme()
   const { settings, updateSettings } = useSettings()
 
   const [themeImportText, setThemeImportText] = useState('')
@@ -22,8 +22,8 @@ export function SettingsModal({ onClose }) {
       setThemeSyncMsg('THEME IMPORTED!')
       setTimeout(() => setThemeSyncMsg(''), 3000)
     } catch (e) {
-      setThemeSyncMsg('INVALID THEME JSON.')
-      setTimeout(() => setThemeSyncMsg(''), 3000)
+      setThemeSyncMsg(e.message || 'INVALID THEME JSON.')
+      setTimeout(() => setThemeSyncMsg(''), 4000)
     }
   }
 
@@ -125,8 +125,10 @@ Please output ONLY the raw JSON format without markdown wrapping or codeblocks.`
         {/* THEMES */}
         <div style={sectionStyle}>
           <div style={labelStyle}>THEME INTERFACE</div>
+
+          {/* Built-in themes */}
           <div className="grid grid-cols-2 gap-2 mt-3">
-            {themes.map(t => (
+            {themes.filter(t => !customThemes.some(ct => ct.id === t.id)).map(t => (
               <button
                 key={t.id}
                 onClick={() => setTheme(t.id)}
@@ -144,6 +146,52 @@ Please output ONLY the raw JSON format without markdown wrapping or codeblocks.`
               </button>
             ))}
           </div>
+
+          {/* Custom themes */}
+          {customThemes.length > 0 && (
+            <div className="mt-3 flex flex-col gap-1.5">
+              <div style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '8px', letterSpacing: '0.12em', color: 'var(--cad-text-lo)', marginBottom: '2px' }}>
+                CUSTOM — {customThemes.length}/5 SLOTS USED
+              </div>
+              {customThemes.map(t => (
+                <div key={t.id} className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => setTheme(t.id)}
+                    className="flex-1 py-1.5 btn-mech panel-chamfer-sm"
+                    style={{
+                      fontFamily:   'var(--cad-font-mono)',
+                      fontSize:     '10px',
+                      letterSpacing:'0.12em',
+                      border:       currentTheme.id === t.id ? '1px solid var(--cad-accent)' : '1px solid var(--cad-border)',
+                      color:        currentTheme.id === t.id ? 'var(--cad-accent-text)'      : 'var(--cad-text-mid)',
+                      background:   currentTheme.id === t.id ? 'var(--cad-accent-dim)'       : 'var(--cad-bg-elevated)',
+                      textAlign:    'left',
+                      paddingLeft:  '10px',
+                    }}
+                  >
+                    {t.label}
+                  </button>
+                  <button
+                    onClick={() => removeCustomTheme(t.id)}
+                    className="btn-mech panel-chamfer-sm"
+                    style={{
+                      fontFamily:   'var(--cad-font-mono)',
+                      fontSize:     '11px',
+                      width:        '28px',
+                      height:       '28px',
+                      border:       '1px solid var(--cad-border)',
+                      color:        'var(--cad-danger)',
+                      background:   'transparent',
+                      flexShrink:   0,
+                    }}
+                    title="Delete theme"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
 
           {currentTheme.id === 'minimal' && (
             <div className="flex gap-2 mt-2">
@@ -172,31 +220,35 @@ Please output ONLY the raw JSON format without markdown wrapping or codeblocks.`
               value={themeImportText}
               onChange={e => setThemeImportText(e.target.value)}
               placeholder='PASTE CUSTOM THEME JSON'
+              disabled={customThemes.length >= 5}
               className="w-full px-3 py-2 panel-chamfer-sm"
               style={{
                 fontFamily:  'var(--cad-font-mono)',
                 fontSize:    '10px',
                 background:  'var(--cad-bg-input)',
                 border:      '1px solid var(--cad-border)',
-                color:       'var(--cad-text-hi)',
+                color:       customThemes.length >= 5 ? 'var(--cad-text-lo)' : 'var(--cad-text-hi)',
                 outline:     'none',
+                cursor:      customThemes.length >= 5 ? 'not-allowed' : 'text',
               }}
             />
             <div className="flex gap-2">
               <button
                 onClick={handleThemeImport}
-                disabled={!themeImportText}
+                disabled={!themeImportText || customThemes.length >= 5}
                 className="flex-1 py-1.5 btn-mech panel-chamfer-sm"
                 style={{
                   fontFamily:   'var(--cad-font-mono)',
                   fontSize:     '10px',
                   letterSpacing:'0.15em',
-                  border:       themeImportText ? '1px solid var(--cad-accent)' : '1px solid var(--cad-border-dim)',
-                  color:        themeImportText ? 'var(--cad-accent-text)' : 'var(--cad-text-lo)',
-                  background:   themeImportText ? 'var(--cad-accent-dim)' : 'transparent',
-                  cursor:       themeImportText ? 'pointer' : 'not-allowed',
+                  border:       (themeImportText && customThemes.length < 5) ? '1px solid var(--cad-accent)' : '1px solid var(--cad-border-dim)',
+                  color:        (themeImportText && customThemes.length < 5) ? 'var(--cad-accent-text)' : 'var(--cad-text-lo)',
+                  background:   (themeImportText && customThemes.length < 5) ? 'var(--cad-accent-dim)' : 'transparent',
+                  cursor:       (themeImportText && customThemes.length < 5) ? 'pointer' : 'not-allowed',
                 }}
-              >IMPORT THEME</button>
+              >
+                {customThemes.length >= 5 ? 'LIMIT REACHED' : 'IMPORT THEME'}
+              </button>
               <button
                 onClick={handleCopyPrompt}
                 className="flex-1 py-1.5 btn-mech panel-chamfer-sm"
@@ -211,7 +263,7 @@ Please output ONLY the raw JSON format without markdown wrapping or codeblocks.`
               >COPY AI PROMPT</button>
             </div>
             {themeSyncMsg && (
-              <div className="text-center mt-1" style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '9px', color: themeSyncMsg.includes('INVALID') ? 'var(--cad-danger)' : 'var(--cad-success)' }}>
+              <div className="text-center mt-1" style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '9px', color: themeSyncMsg.includes('INVALID') || themeSyncMsg.includes('MAX') || themeSyncMsg.includes('UNSAFE') ? 'var(--cad-danger)' : 'var(--cad-success)' }}>
                 {themeSyncMsg}
               </div>
             )}
