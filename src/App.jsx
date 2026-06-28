@@ -19,6 +19,7 @@ export default function App() {
     saveTimetableEntry, deleteTimetableEntry, clearAllLocations,
   } = useSemesters()
 
+
   const attendanceHook = useAttendance()
 
   const [editMode,  setEditMode]  = useState(false)

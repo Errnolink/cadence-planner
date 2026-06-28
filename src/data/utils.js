@@ -1,8 +1,13 @@
 // ─── UTILS ───────────────────────────────────────────────────────
 import { GRADE_MAP, GRID_START_HOUR, GRID_END_HOUR } from './constants.js'
 
-let _id = 2000
-export const genId = () => ++_id
+/** Collision-safe ID generator — uses timestamp so IDs survive page reloads */
+let _lastId = 0
+export const genId = () => {
+  const now = Date.now()
+  _lastId = now > _lastId ? now : _lastId + 1
+  return _lastId
+}
 
 export const pad2 = n => String(n).padStart(2, '0')
 
