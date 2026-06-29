@@ -16,7 +16,7 @@ function pctH(start, end) {
   return `${Math.max(0, ((e - s) / TOTAL_MINS) * 100)}%`
 }
 
-export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBlockClick }) {
+export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBlockClick, attendanceHook }) {
   const todayIdx = getTodayDayIdx()
 
   const subjectMap = useMemo(() => {
@@ -57,7 +57,14 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
           >
             ✎ CLICK EMPTY COLUMN TO ADD · CLICK BLOCK TO EDIT
           </div>
-        ) : <div />}
+        ) : (
+          <div
+            className="text-[9px] tracking-wider"
+            style={{ fontFamily: 'var(--cad-font-mono)', color: 'var(--cad-text-mid)', opacity: 0.8 }}
+          >
+            ▸ CLICK BLOCK TO MARK ATTENDANCE
+          </div>
+        )}
         
         <div className="flex gap-1 shrink-0">
           {['ALL WEEK', 'TODAY'].map(mode => {
@@ -189,10 +196,25 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                       const durMins  = endMs - startMs
                       const isShort  = durMins <= 45
 
+                      const colIdx = DAYS.indexOf(day)
+                      const diff = colIdx - todayIdx
+                      const d = new Date()
+                      d.setDate(d.getDate() + diff)
+                      const dateStr = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
+                      const dayData = attendanceHook?.attendance?.[dateStr] || {}
+                      const status = dayData[entry.id]
+
+                      const handleBlockAction = (e) => {
+                        e.stopPropagation()
+                        if (editMode) {
+                          onBlockClick(entry)
+                        }
+                      }
+
                       return (
                         <div
                           key={entry.id}
-                          onClick={editMode ? e => { e.stopPropagation(); onBlockClick(entry) } : undefined}
+                          onClick={handleBlockAction}
                           title={`${subj.name} · ${entry.room} · ${entry.startTime}–${entry.endTime}`}
                           style={{
                             position:        'absolute',
@@ -200,12 +222,12 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                             right:           '3px',
                             top:             pct(entry.startTime),
                             height:          pctH(entry.startTime, entry.endTime),
-                            background:      color.bg,
+                            background:      `linear-gradient(${color.bg}, ${color.bg}), var(--cad-bg-primary)`,
                             borderLeft:      `3px solid ${color.border}`,
                             boxShadow:       `inset 0 0 0 1px ${color.border}22`,
                             padding:         '4px 6px',
                             overflow:        'hidden',
-                            cursor:          editMode ? 'pointer' : 'default',
+                            cursor:          'pointer',
                             transition:      'filter 0.15s',
                             borderRadius:    '0 2px 2px 0',
                           }}
@@ -234,6 +256,67 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                             </>
                           )}
                           {editMode && <div style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '7px', color: 'var(--cad-accent)', opacity: 0.5 }}>✎</div>}
+                          {!editMode && attendanceHook && (
+                            <div style={{ position: 'absolute', top: '4px', right: '4px', display: 'flex', flexDirection: 'column', gap: '2px', zIndex: 10 }}>
+                              {['PRESENT', 'ABSENT', 'CANCELLED'].map(type => {
+                                const isActive = status === type
+                                let colorVar = '--cad-text-mid'
+                                let bg = 'transparent'
+                                if (isActive) {
+                                  if (type === 'PRESENT') { colorVar = '--cad-success'; bg = 'rgba(80,255,80,0.1)' }
+                                  else if (type === 'ABSENT') { colorVar = '--cad-danger'; bg = 'var(--cad-danger-dim)' }
+                                  else { colorVar = '--cad-text-lo'; bg = 'var(--cad-bg-primary)' }
+                                }
+                                
+                                return (
+                                  <button
+                                    key={type}
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      attendanceHook.markAttendance(dateStr, entry.id, isActive ? null : type)
+                                    }}
+                                    style={{
+                                      fontFamily: 'var(--cad-font-mono)', fontSize: '7px', letterSpacing: '0.1em',
+                                      border: isActive ? `1px solid var(${colorVar})` : '1px solid rgba(255,255,255,0.1)',
+                                      color: isActive ? `var(${colorVar})` : 'rgba(255,255,255,0.3)',
+                                      background: bg,
+                                      padding: '2px 4px',
+                                      borderRadius: '2px',
+                                      textAlign: 'center',
+                                      cursor: 'pointer',
+                                      transition: 'all 0.15s',
+                                    }}
+                                    onMouseEnter={e => {
+                                      if (!isActive) {
+                                        e.currentTarget.style.border = '1px solid rgba(255,255,255,0.3)'
+                                        e.currentTarget.style.color = 'rgba(255,255,255,0.6)'
+                                      }
+                                    }}
+                                    onMouseLeave={e => {
+                                      if (!isActive) {
+                                        e.currentTarget.style.border = '1px solid rgba(255,255,255,0.1)'
+                                        e.currentTarget.style.color = 'rgba(255,255,255,0.3)'
+                                      }
+                                    }}
+                                  >
+                                    {type}
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          )}
+                          {editMode && status && (
+                            <div style={{
+                              position: 'absolute', top: '3px', right: '3px',
+                              fontFamily: 'var(--cad-font-mono)', fontSize: '7px', fontWeight: 'bold',
+                              padding: '1px 3px', borderRadius: '2px',
+                              background: status === 'PRESENT' ? 'rgba(80,255,80,0.15)' : status === 'ABSENT' ? 'var(--cad-danger-dim)' : 'var(--cad-bg-primary)',
+                              color: status === 'PRESENT' ? 'var(--cad-success)' : status === 'ABSENT' ? 'var(--cad-danger)' : 'var(--cad-text-lo)',
+                              border: `1px solid ${status === 'PRESENT' ? 'var(--cad-success)' : status === 'ABSENT' ? 'var(--cad-danger)' : 'var(--cad-text-lo)'}`
+                            }}>
+                              {status === 'PRESENT' ? 'P' : status === 'ABSENT' ? 'A' : 'C'}
+                            </div>
+                          )}
                         </div>
                       )
                     })}

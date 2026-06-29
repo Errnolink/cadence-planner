@@ -3,6 +3,7 @@ import { useTheme } from '../../themes/ThemeContext.jsx'
 import { useSettings } from '../../hooks/useSettings.jsx'
 import { Modal } from '../ui/Modal.jsx'
 import { API } from '../../data/api.js'
+import { SyncChip } from '../ui/SyncChip.jsx'
 
 export function SettingsModal({ onClose }) {
   const { currentTheme, setTheme, themes, customThemes, addCustomTheme, removeCustomTheme } = useTheme()
@@ -276,6 +277,9 @@ Please output ONLY the raw JSON format without markdown wrapping or codeblocks.`
           <p style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '9px', color: 'var(--cad-text-lo)', marginBottom: '8px', lineHeight: '1.4' }}>
             Backup and restore your entire Cadence dataset as a single .json file. Restoring will overwrite all existing data.
           </p>
+          <div className="flex mb-2">
+            <SyncChip className="flex-1 py-2" style={{ fontSize: '10px' }} />
+          </div>
           <div className="flex gap-2">
             <button
               onClick={handleDownloadBackup}

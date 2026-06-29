@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { pad2 } from '../../data/index.js'
 import { useTheme } from '../../themes/ThemeContext.jsx'
 import { SemDropdown } from './SemDropdown.jsx'
-import { SyncChip } from '../ui/SyncChip.jsx'
 
 export function ControlBar({ semesters, activeSemId, onSemChange, onRemoveSem, editMode, onToggleEdit, onAddSem, onOpenSettings }) {
   const [now, setNow] = useState(new Date())
@@ -49,9 +48,6 @@ export function ControlBar({ semesters, activeSemId, onSemChange, onRemoveSem, e
         editMode={editMode}
       />
       <div className="flex-1" />
-
-      {/* Cloud Sync Button */}
-      <SyncChip />
 
       {/* Settings toggle */}
       <button

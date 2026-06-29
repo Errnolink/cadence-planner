@@ -173,7 +173,7 @@ export function CalendarView({ timetable, subjects, attendanceHook }) {
                       style={{
                         fontFamily:   'var(--cad-font-mono)',
                         fontSize:     '8px',
-                        background:   color.bg,
+                        background:   `linear-gradient(${color.bg}, ${color.bg}), var(--cad-bg-primary)`,
                         borderLeft:   `3px solid ${color.border}`,
                         color:        color.text,
                         padding:      '1px 4px',

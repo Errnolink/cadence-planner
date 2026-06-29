@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Auth } from '../Auth.jsx';
 import { Modal } from './Modal.jsx';
 
-export function SyncChip() {
+export function SyncChip({ className, style }) {
   const [status, setStatus] = useState(null);
   const [showAuth, setShowAuth] = useState(false);
 
@@ -34,7 +34,7 @@ export function SyncChip() {
     <>
       <button
         onClick={() => setShowAuth(true)}
-        className="flex items-center gap-1.5 px-2.5 py-1.5 panel-chamfer-sm btn-mech"
+        className={`flex items-center justify-center gap-1.5 panel-chamfer-sm btn-mech ${className || 'px-2.5 py-1.5'}`}
         style={{
           border:       status === 'error' ? '1px solid var(--cad-danger)' : '1px solid var(--cad-border)',
           color:        status === 'error' ? 'var(--cad-danger)' : 'var(--cad-text-mid)',
@@ -44,6 +44,7 @@ export function SyncChip() {
           letterSpacing:'0.15em',
           borderRadius: 'var(--cad-radius)',
           transition:   'all 0.15s',
+          ...style
         }}
       >
         {getStatusContent()}

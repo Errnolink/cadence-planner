@@ -28,6 +28,24 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('timetable')
   const [showSecretMenu, setShowSecretMenu] = useState(false)
   const [editClickCount, setEditClickCount] = useState(0)
+  const [syncStatus, setSyncStatus] = useState(null)
+
+  // Sync Listener
+  useEffect(() => {
+    let timeout;
+    const handleSync = (e) => {
+      setSyncStatus(e.detail);
+      if (e.detail === 'success' || e.detail === 'error') {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => setSyncStatus(null), 2500);
+      }
+    };
+    window.addEventListener('cadence-sync', handleSync);
+    return () => {
+      window.removeEventListener('cadence-sync', handleSync);
+      clearTimeout(timeout);
+    };
+  }, []);
 
   // Konami Code Listener
   useEffect(() => {
@@ -153,6 +171,15 @@ export default function App() {
             <div className="flex items-center gap-1.5">
               <Dot on />
               <span style={{ fontSize: '9px', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--cad-accent)', fontFamily: 'var(--cad-font-mono)' }}>PANEL-B</span>
+              {syncStatus && (
+                <span className={`ml-2 px-1.5 py-0.5 rounded ${syncStatus === 'syncing' ? 'animate-pulse' : ''}`} style={{
+                  fontFamily: 'var(--cad-font-mono)', fontSize: '7px', letterSpacing: '0.1em',
+                  background: syncStatus === 'error' ? 'var(--cad-danger-dim)' : 'var(--cad-accent-dim)',
+                  color: syncStatus === 'error' ? 'var(--cad-danger)' : 'var(--cad-accent)'
+                }}>
+                  {syncStatus === 'syncing' ? 'SYNCING...' : syncStatus === 'success' ? 'SYNCED' : 'SYNC FAILED'}
+                </span>
+              )}
             </div>
             <div className="hidden md:flex gap-1">
               {['timetable', 'calendar', 'attendance'].map(tab => (
@@ -183,6 +210,7 @@ export default function App() {
               subjects={activeSem?.subjects ?? []}
               timetable={activeSem?.timetable ?? []}
               editMode={editMode}
+              attendanceHook={attendanceHook}
               onCellClick={(day, startTime, endTime) => setTtModal({ mode: 'add', initialData: { day, startTime, endTime } })}
               onBlockClick={entry => setTtModal({ mode: 'edit', initialData: entry })}
             />
