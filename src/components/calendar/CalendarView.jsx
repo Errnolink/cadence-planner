@@ -135,9 +135,9 @@ export function CalendarView({ timetable, subjects, attendanceHook }) {
                   borderBottom: '1px solid var(--cad-border-dim)',
                   padding:      '4px',
                   cursor:       'pointer',
-                  background:   todayCell ? 'var(--cad-accent-dim)' : 'transparent',
-                  outline:      todayCell ? '2px solid var(--cad-accent)' : 'none',
-                  outlineOffset:'-2px',
+                  background:   'transparent',
+                  outline:      todayCell ? '1px solid var(--cad-accent)' : 'none',
+                  outlineOffset:'-1px',
                   transition:   'background 0.15s',
                   overflow:     'hidden',
                 }}
@@ -173,7 +173,7 @@ export function CalendarView({ timetable, subjects, attendanceHook }) {
                       style={{
                         fontFamily:   'var(--cad-font-mono)',
                         fontSize:     '8px',
-                        background:   `linear-gradient(${color.bg}, ${color.bg}), var(--cad-bg-primary)`,
+                        background:   color.bg,
                         borderLeft:   `3px solid ${color.border}`,
                         color:        color.text,
                         padding:      '1px 4px',

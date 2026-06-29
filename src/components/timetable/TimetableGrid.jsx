@@ -208,6 +208,11 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                         e.stopPropagation()
                         if (editMode) {
                           onBlockClick(entry)
+                        } else if (attendanceHook && !showTodayOnly) {
+                          let nextStatus = 'PRESENT'
+                          if (status === 'PRESENT') nextStatus = 'ABSENT'
+                          else if (status === 'ABSENT') nextStatus = null
+                          attendanceHook.markAttendance(dateStr, entry.id, nextStatus)
                         }
                       }
 
@@ -256,7 +261,7 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                             </>
                           )}
                           {editMode && <div style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '7px', color: 'var(--cad-accent)', opacity: 0.5 }}>✎</div>}
-                          {!editMode && attendanceHook && (
+                          {!editMode && attendanceHook && showTodayOnly && (
                             <div style={{ position: 'absolute', top: '4px', right: '4px', display: 'flex', flexDirection: 'column', gap: '2px', zIndex: 10 }}>
                               {['PRESENT', 'ABSENT', 'CANCELLED'].map(type => {
                                 const isActive = status === type
@@ -305,7 +310,7 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                               })}
                             </div>
                           )}
-                          {editMode && status && (
+                          {(editMode || (!showTodayOnly && status)) && (
                             <div style={{
                               position: 'absolute', top: '3px', right: '3px',
                               fontFamily: 'var(--cad-font-mono)', fontSize: '7px', fontWeight: 'bold',
