@@ -39,6 +39,7 @@ export function Auth() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
+    API.clearLocalData();
     window.location.reload(); // Reload to reset state to local
   };
 
@@ -61,6 +62,23 @@ export function Auth() {
           }}
         >
           DISCONNECT (SIGN OUT)
+        </button>
+        <button 
+          onClick={async () => {
+            await supabase.auth.signOut({ scope: 'others' });
+            // No reload needed — we stay logged in on this device
+          }}
+          className="py-2 btn-mech panel-chamfer-sm"
+          style={{
+            fontFamily:   'var(--cad-font-mono)',
+            fontSize:     '10px',
+            letterSpacing:'0.15em',
+            border:       '1px solid var(--cad-border)',
+            color:        'var(--cad-text-mid)',
+            background:   'transparent',
+          }}
+        >
+          SIGN OUT ALL OTHER DEVICES
         </button>
       </div>
     );

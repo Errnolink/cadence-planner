@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import { SUBJECT_COLORS, WEEK_LABELS, MONTH_NAMES, DAYS, parseTimeToMins, generateSubjectCode, isSecondOrFourthSaturday } from '../../data/index.js'
 import { DayDetailModal } from './DayDetailModal.jsx'
 import { useSettings } from '../../hooks/useSettings.jsx'
+import { Dropdown } from '../ui/Dropdown.jsx'
 
 const DAYS_SET = new Set(DAYS)
 
@@ -65,22 +66,21 @@ export function CalendarView({ timetable, subjects, attendanceHook }) {
         >◀</button>
 
         <div className="flex gap-2 text-center items-center">
-          <select 
-            value={month} 
-            onChange={e => setMonth(Number(e.target.value))}
-            className="btn-mech panel-chamfer-sm"
-            style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '13px', letterSpacing: '0.1em', color: 'var(--cad-accent)', background: 'transparent', border: '1px solid var(--cad-border)', padding: '2px 12px', outline: 'none', cursor: 'pointer', appearance: 'none', textAlign: 'center' }}
-          >
-            {MONTH_NAMES.map((m, i) => <option key={i} value={i} style={{color: 'var(--cad-text-hi)', background: 'var(--cad-bg-panel)'}}>{m}</option>)}
-          </select>
-          <select 
-            value={year} 
-            onChange={e => setYear(Number(e.target.value))}
-            className="btn-mech panel-chamfer-sm"
-            style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '13px', letterSpacing: '0.1em', color: 'var(--cad-accent)', background: 'transparent', border: '1px solid var(--cad-border)', padding: '2px 12px', outline: 'none', cursor: 'pointer', appearance: 'none', textAlign: 'center' }}
-          >
-            {Array.from({length: 20}, (_, i) => today.getFullYear() - 10 + i).map(y => <option key={y} value={y} style={{color: 'var(--cad-text-hi)', background: 'var(--cad-bg-panel)'}}>{y}</option>)}
-          </select>
+          <Dropdown
+            value={month}
+            options={MONTH_NAMES.map((m, i) => ({ value: i, label: m }))}
+            onChange={setMonth}
+            minWidth="130px"
+          />
+          <Dropdown
+            value={year}
+            options={Array.from({length: 20}, (_, i) => {
+              const y = today.getFullYear() - 10 + i
+              return { value: y, label: String(y) }
+            })}
+            onChange={setYear}
+            minWidth="80px"
+          />
         </div>
 
         <button

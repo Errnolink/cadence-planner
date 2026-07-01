@@ -24,7 +24,7 @@ export function useSemesters() {
   }, [semesters])
 
   const activeSem = useMemo(
-    () => semesters.find(s => s.id === activeSemId),
+    () => semesters.find(s => String(s.id) === String(activeSemId)),
     [semesters, activeSemId]
   )
 

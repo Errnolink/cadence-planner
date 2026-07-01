@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import { THEMES } from './index.js'
 import { API } from '../data/api.js'
+import { ALLOWED_EFFECTS } from './effects.js'
 
 const ThemeContext = createContext(null)
 
@@ -49,6 +50,16 @@ function validateThemeImport(themeObj) {
     if (typeof v !== 'string' || v.length > MAX_VALUE_LEN) throw new Error(`INVALID VALUE FOR ${k}`)
     if (DANGEROUS_VALUE_RE.test(v)) throw new Error(`UNSAFE CSS VALUE FOR ${k}`)
   }
+
+  const BUILTIN_IDS = THEMES.map(t => t.id)
+  if (BUILTIN_IDS.includes(themeObj.id)) throw new Error(`CANNOT REUSE BUILT-IN THEME ID: ${themeObj.id}`)
+
+  if (themeObj.effects !== undefined) {
+    if (!Array.isArray(themeObj.effects)) throw new Error('EFFECTS MUST BE AN ARRAY')
+    for (const fx of themeObj.effects) {
+      if (!ALLOWED_EFFECTS.includes(fx)) throw new Error(`UNKNOWN EFFECT: ${fx}`)
+    }
+  }
 }
 
 export function ThemeProvider({ children }) {
@@ -72,6 +83,23 @@ export function ThemeProvider({ children }) {
     document.documentElement.setAttribute('data-theme', themeId)
     API.set('cadence-theme', themeId)
   }, [themeId])
+
+  // Apply theme effects as data-fx-* attributes on <html>
+  useEffect(() => {
+    const html = document.documentElement
+    // Clear all existing fx attributes
+    ALLOWED_EFFECTS.forEach(fx => html.removeAttribute(`data-fx-${fx}`))
+    // Find the active theme's effects array
+    const builtIn = THEMES.find(t => t.id === themeId)
+    const custom = customThemes.find(t => t.id === themeId)
+    const effects = builtIn?.effects ?? custom?.effects ?? []
+    // Apply only allowed effects
+    effects.forEach(fx => {
+      if (ALLOWED_EFFECTS.includes(fx)) {
+        html.setAttribute(`data-fx-${fx}`, '')
+      }
+    })
+  }, [themeId, customThemes])
 
   // Inject custom styles
   useEffect(() => {

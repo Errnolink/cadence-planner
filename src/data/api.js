@@ -33,7 +33,7 @@ export const API = {
 
     if (data) {
       if (data.semesters) localStorage.setItem(KEYS.DATA, JSON.stringify(data.semesters));
-      if (data.active_sem_id) localStorage.setItem(KEYS.ACTIVE_SEM, JSON.stringify(data.active_sem_id));
+      if (data.active_sem_id != null) localStorage.setItem(KEYS.ACTIVE_SEM, JSON.stringify(Number(data.active_sem_id)));
       if (data.settings) localStorage.setItem(KEYS.SETTINGS, JSON.stringify(data.settings));
       if (data.attendance) localStorage.setItem(KEYS.ATTENDANCE, JSON.stringify(data.attendance));
       if (data.custom_themes) localStorage.setItem(KEYS.CUSTOM_THEMES, JSON.stringify(data.custom_themes));
@@ -174,5 +174,9 @@ export const API = {
     if (data.attendance !== undefined) API.saveAttendance(data.attendance)
     if (data.customThemes !== undefined) API.saveCustomThemes(data.customThemes)
     if (data.themeId !== undefined) API.set('cadence-theme', data.themeId)
+  },
+  clearLocalData: () => {
+    Object.values(KEYS).forEach(k => localStorage.removeItem(k))
+    localStorage.removeItem('cadence-theme')
   }
 }

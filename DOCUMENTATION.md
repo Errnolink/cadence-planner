@@ -52,8 +52,8 @@ Cadence Planner uses a highly stylized, terminal/mech-inspired UI.
 - **Tailwind CSS** is used for layout, spacing, and structural utility classes.
 - **Vanilla CSS Variables** (`var(--cad-bg-primary)`, `var(--cad-accent)`, etc.) are used for colors, borders, and typography.
 
-### Theme Switching
-Themes are simply JSON objects containing color hex codes. When a theme is selected (via `useTheme.jsx`), the app maps these hex codes to standard CSS variables and injects them onto the `document.documentElement` (`:root`). This allows instantaneous, app-wide theme switching without re-rendering components.
+### Theme Switching (`src/themes/ThemeContext.jsx`)
+Themes are simply JSON objects containing color hex codes. When a theme is selected (via `ThemeContext.jsx`), the app maps these hex codes to standard CSS variables and injects them onto the `document.documentElement` (`:root`). This allows instantaneous, app-wide theme switching without re-rendering components.
 
 ---
 

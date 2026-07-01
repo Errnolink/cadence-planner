@@ -4,7 +4,7 @@ export function SemDropdown({ semesters, activeSemId, onChange, onRemove, onAdd,
   const [open, setOpen] = useState(false)
   const [deleteStage, setDeleteStage] = useState({})
   const ref    = useRef(null)
-  const active = semesters.find(s => s.id === activeSemId)
+  const active = semesters.find(s => String(s.id) === String(activeSemId))
 
   useEffect(() => {
     const h = e => { if (ref.current && !ref.current.contains(e.target)) { setOpen(false); setDeleteStage({}) } }
@@ -42,6 +42,8 @@ export function SemDropdown({ semesters, activeSemId, onChange, onRemove, onAdd,
             minWidth:     '140px',
             borderRadius: 'var(--cad-radius)',
             overflow:     'hidden',
+            maxHeight:    'min(60vh, 400px)',
+            overflowY:    'auto',
           }}
         >
           {semesters.map(s => (
@@ -52,8 +54,8 @@ export function SemDropdown({ semesters, activeSemId, onChange, onRemove, onAdd,
                   fontFamily:   'var(--cad-font-mono)',
                   fontSize:     '11px',
                   letterSpacing:'0.1em',
-                  borderLeft:   s.id === activeSemId ? '2px solid var(--cad-accent)' : '2px solid transparent',
-                  color:        s.id === activeSemId ? 'var(--cad-accent-text)' : 'var(--cad-text-mid)',
+                  borderLeft:   String(s.id) === String(activeSemId) ? '2px solid var(--cad-accent)' : '2px solid transparent',
+                  color:        String(s.id) === String(activeSemId) ? 'var(--cad-accent-text)' : 'var(--cad-text-mid)',
                   background:   'transparent',
                 }}
                 onMouseEnter={e => { e.currentTarget.style.background = 'var(--cad-accent-dim)' }}

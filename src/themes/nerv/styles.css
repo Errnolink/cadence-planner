@@ -4,7 +4,7 @@
    ──────────────────────────────────────────────────────────────── */
 
 /* Tactical grid & CRT background */
-:root[data-theme="nerv"] body::after {
+:root[data-fx-crt-scanlines] body::after {
   content: '';
   position: fixed;
   inset: 0;
@@ -19,7 +19,7 @@
   to { background-position: 0 400px; }
 }
 
-:root[data-theme="nerv"] .theme-bg {
+:root[data-fx-grid-background] .theme-bg {
   background-image:
     linear-gradient(rgba(255,152,48,0.03) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255,152,48,0.03) 1px, transparent 1px);
@@ -27,14 +27,14 @@
 }
 
 /* Hazard Borders */
-:root[data-theme="nerv"] .hazard-border-top {
+:root[data-fx-hazard-border] .hazard-border-top {
   height: 6px;
   width: 100%;
   background: repeating-linear-gradient(45deg, var(--cad-accent) 0, var(--cad-accent) 10px, #000 10px, #000 20px);
   flex-shrink: 0;
   border-bottom: 2px solid #000;
 }
-:root[data-theme="nerv"] .hazard-border-bot {
+:root[data-fx-hazard-border] .hazard-border-bot {
   height: 6px;
   width: 100%;
   background: repeating-linear-gradient(-45deg, var(--cad-accent) 0, var(--cad-accent) 10px, #000 10px, #000 20px);
@@ -43,38 +43,38 @@
 }
 
 /* Chamfered corners — NERV panel style */
-:root[data-theme="nerv"] .panel-chamfer {
+:root[data-fx-chamfer] .panel-chamfer {
   clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
 }
-:root[data-theme="nerv"] .panel-chamfer-sm {
+:root[data-fx-chamfer] .panel-chamfer-sm {
   clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
 }
 
 /* Glow effects */
-:root[data-theme="nerv"] .glow-accent {
+:root[data-fx-glow] .glow-accent {
   text-shadow: 0 0 8px rgba(255,152,48,0.7);
 }
-:root[data-theme="nerv"] .glow-success {
+:root[data-fx-glow] .glow-success {
   text-shadow: 0 0 8px rgba(80,255,80,0.7);
 }
-:root[data-theme="nerv"] .glow-danger {
+:root[data-fx-glow] .glow-danger {
   text-shadow: 0 0 8px rgba(255,48,48,0.7);
 }
 
 /* HUD flicker on top bar */
-:root[data-theme="nerv"] .hud-flicker {
+:root[data-fx-hud-flicker] .hud-flicker {
   animation: hud-flicker 7s infinite;
 }
 
 /* Status dot pulse — only in NERV */
-:root[data-theme="nerv"] .status-pulse {
+:root[data-fx-status-pulse] .status-pulse {
   animation: status-pulse 2s ease-in-out infinite;
 }
 
 /* Force all text inputs to appear uppercase in NERV theme */
-:root[data-theme="nerv"] input[type="text"],
-:root[data-theme="nerv"] input:not([type]),
-:root[data-theme="nerv"] select,
-:root[data-theme="nerv"] textarea {
+:root[data-fx-force-uppercase] input[type="text"],
+:root[data-fx-force-uppercase] input:not([type]),
+:root[data-fx-force-uppercase] select,
+:root[data-fx-force-uppercase] textarea {
   text-transform: uppercase;
 }

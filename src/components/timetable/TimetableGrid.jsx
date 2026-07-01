@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef } from 'react'
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { SUBJECT_COLORS, DAYS, GRID_START_HOUR, GRID_END_HOUR, pad2, getTodayDayIdx, parseTimeToMins, generateSubjectCode } from '../../data/index.js'
 import { DataHr } from '../ui/DataHr.jsx'
 
@@ -41,6 +41,20 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
     const fmt   = m => `${pad2(Math.floor(m / 60))}:${pad2(m % 60)}`
     onCellClick(day, fmt(mins), fmt(endMs))
   }, [editMode, onCellClick])
+
+  const scrollRef = useRef(null)
+
+  // Auto-scroll to current time on mount
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const now = new Date()
+    const nowMins = now.getHours() * 60 + now.getMinutes()
+    const offset = (nowMins - GRID_START_HOUR * 60) / TOTAL_MINS
+    // Position "now" at ~1/3 from top of visible area
+    const scrollTarget = offset * el.scrollHeight - el.clientHeight / 3
+    el.scrollTo({ top: Math.max(0, scrollTarget), behavior: 'smooth' })
+  }, [])
 
   const [showTodayOnly, setShowTodayOnly] = useState(false)
   const displayDays = showTodayOnly ? [DAYS[todayIdx]] : DAYS
@@ -90,7 +104,7 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
       </div>
 
       {/* Scrollable Container (Both X and Y) */}
-      <div className="flex-1 overflow-auto min-h-0 min-w-0" style={{ position: 'relative' }}>
+      <div ref={scrollRef} className="flex-1 overflow-auto min-h-0 min-w-0" style={{ position: 'relative' }}>
         <div style={{ position: 'relative', minHeight: '1440px', height: '100%', minWidth: `${TIME_COL_W + displayDays.length * DAY_MIN_W}px`, display: 'flex', flexDirection: 'column' }}>
 
           {/* Sticky Day Header */}
@@ -143,7 +157,7 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                     transform:   'translateY(-50%)',
                     textAlign:   'center',
                     fontFamily:  'var(--cad-font-mono)',
-                    fontSize:    '8px',
+                    fontSize:    'clamp(8px, 1.2vw, 11px)',
                     color:       'var(--cad-text-lo)',
                     pointerEvents:'none',
                     userSelect:  'none',
@@ -185,6 +199,24 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                         }}
                       />
                     ))}
+
+                    {/* Now line */}
+                    {DAYS.indexOf(day) === todayIdx && (() => {
+                      const now = new Date()
+                      const nowMins = now.getHours() * 60 + now.getMinutes()
+                      const nowPct = ((nowMins - GRID_START_HOUR * 60) / TOTAL_MINS) * 100
+                      return (
+                        <div style={{
+                          position: 'absolute', left: 0, right: 0,
+                          top: `${Math.max(0, Math.min(100, nowPct))}%`,
+                          height: '2px',
+                          background: 'var(--cad-danger)',
+                          zIndex: 4,
+                          pointerEvents: 'none',
+                          boxShadow: '0 0 6px var(--cad-danger)',
+                        }} />
+                      )
+                    })()}
 
                     {/* Event blocks */}
                     {dayEntries.map(entry => {
@@ -252,10 +284,10 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                           >{subj.code || generateSubjectCode(subj.name)}</div>
                           {!isShort && (
                             <>
-                              <div style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '8px', color: color.text, opacity: 0.8, marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              <div style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'clamp(8px, 1.1vw, 10px)', color: color.text, opacity: 0.85, marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                 {entry.room}
                               </div>
-                              <div style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '7px', color: color.text, opacity: 0.6, marginTop: 'auto', paddingTop: '4px' }}>
+                              <div style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'clamp(7px, 1vw, 10px)', color: color.text, opacity: 0.85, marginTop: 'auto', paddingTop: '4px' }}>
                                 {entry.startTime}–{entry.endTime}
                               </div>
                             </>

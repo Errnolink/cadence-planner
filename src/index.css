@@ -87,4 +87,8 @@ input[type='number'] { -moz-appearance: textfield; }
   font-family: var(--cad-font-mono);
   font-size:   10px;
   color:       var(--cad-hex-color);
+  display:     none;
+}
+:root[data-fx-hex-labels] .hex-val {
+  display:     inline;
 }

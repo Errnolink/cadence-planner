@@ -15,24 +15,7 @@
   border-radius: var(--cad-radius);
 }
 
-/* No glow effects */
-:root[data-theme="minimal"] .glow-accent,
-:root[data-theme="minimal"] .glow-success,
-:root[data-theme="minimal"] .glow-danger {
-  text-shadow: none;
-}
 
-/* No HUD flicker or blinking */
-:root[data-theme="minimal"] .hud-flicker,
-:root[data-theme="minimal"] .blink {
-  animation: none !important;
-  opacity: 1 !important;
-}
-
-/* Disable hex-val computer stuff */
-:root[data-theme="minimal"] .hex-val {
-  display: none !important;
-}
 
 /* Status dot pulse — still keep for minimal */
 :root[data-theme="minimal"] .status-pulse {

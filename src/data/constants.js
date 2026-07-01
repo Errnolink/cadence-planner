@@ -21,3 +21,6 @@ export const GRADE_MAP = [
   { gp: 4,  label: 'P'  },
   { gp: 0,  label: 'F'  },
 ]
+
+// ─── ATTENDANCE ──────────────────────────────────────────────────
+export const ATTENDANCE_THRESHOLD = 0.75

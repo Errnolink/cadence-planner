@@ -21,7 +21,7 @@ export function ControlBar({ semesters, activeSemId, onSemChange, onRemoveSem, e
         borderBottom: '2px solid var(--cad-accent)',
         background:   'var(--cad-bg-header)',
         boxShadow:    '0 2px 20px var(--cad-accent-glow)',
-        zIndex:       10,
+        zIndex:       50,
       }}
     >
       {/* Logo — hidden on very small screens */}
