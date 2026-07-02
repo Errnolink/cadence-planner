@@ -62,8 +62,10 @@ Themes are simply JSON objects containing color hex codes. When a theme is selec
 ### 1. Semester & Roster Management
 Users create Semesters, which act as isolated data containers. Inside a semester, users add "Subjects" (with properties like Name, Code, Credits, Color). These subjects populate dropdowns in the Timetable view.
 
-### 2. Timetable Grid
-The `TimetableGrid` component maps out a 7-day week against time blocks. Clicking empty slots opens a modal (`TimetableModal.jsx`) to create a new class block. 
+### 2. Timetable Grid & Class Instances
+The `TimetableGrid` component maps out a 7-day week against time blocks. 
+- In **EDIT MODE**: Clicking empty slots opens a modal (`TimetableModal.jsx`) to create a new repeating class block.
+- In **VIEW MODE**: Clicking a scheduled class block opens the `ClassInstanceModal.jsx`. This allows users to mark attendance (Present/Absent/Cancelled) and write notes specifically for that date and class instance. To maintain backward compatibility and data simplicity, notes are stored in the existing attendance state object alongside the attendance status.
 
 ### 3. Classified Operations (Easter Egg)
 The app includes a secret Konami Code listener inside `App.jsx` (`ArrowUp, ArrowUp, ArrowDown, ArrowDown, ArrowLeft, ArrowRight, ArrowLeft, ArrowRight, b, a`). When triggered, it opens a "Classified Operations" panel that allows users to purge all room locations across all semesters at once.

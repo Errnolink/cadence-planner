@@ -16,7 +16,7 @@ function pctH(start, end) {
   return `${Math.max(0, ((e - s) / TOTAL_MINS) * 100)}%`
 }
 
-export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBlockClick, attendanceHook }) {
+export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBlockClick, onInstanceClick, attendanceHook }) {
   const todayIdx = getTodayDayIdx()
 
   const subjectMap = useMemo(() => {
@@ -241,10 +241,9 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                         if (editMode) {
                           onBlockClick(entry)
                         } else if (attendanceHook && !showTodayOnly) {
-                          let nextStatus = 'PRESENT'
-                          if (status === 'PRESENT') nextStatus = 'ABSENT'
-                          else if (status === 'ABSENT') nextStatus = null
-                          attendanceHook.markAttendance(dateStr, entry.id, nextStatus)
+                          if (onInstanceClick) onInstanceClick(entry, dateStr)
+                        } else if (attendanceHook && showTodayOnly) {
+                          if (onInstanceClick) onInstanceClick(entry, dateStr)
                         }
                       }
 

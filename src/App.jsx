@@ -7,6 +7,7 @@ import { MobileTabBar } from './components/layout/MobileTabBar.jsx'
 import { SubjectRoster } from './components/roster/SubjectRoster.jsx'
 import { TimetableGrid } from './components/timetable/TimetableGrid.jsx'
 import { TimetableModal } from './components/timetable/TimetableModal.jsx'
+import { ClassInstanceModal } from './components/timetable/ClassInstanceModal.jsx'
 import { SettingsModal } from './components/layout/SettingsModal.jsx'
 import { CalendarView }  from './components/calendar/CalendarView.jsx'
 import { AttendanceView } from './components/attendance/AttendanceView.jsx'
@@ -24,6 +25,7 @@ export default function App() {
 
   const [editMode,  setEditMode]  = useState(false)
   const [ttModal,   setTtModal]   = useState(null)
+  const [instanceModal, setInstanceModal] = useState(null)
   const [showSettings, setShowSettings] = useState(false)
   const [activeTab, setActiveTab] = useState('timetable')
   const [showSecretMenu, setShowSecretMenu] = useState(false)
@@ -213,6 +215,7 @@ export default function App() {
               attendanceHook={attendanceHook}
               onCellClick={(day, startTime, endTime) => setTtModal({ mode: 'add', initialData: { day, startTime, endTime } })}
               onBlockClick={entry => setTtModal({ mode: 'edit', initialData: entry })}
+              onInstanceClick={(entry, dateStr) => setInstanceModal({ entry, dateStr })}
             />
           )}
         </div>
@@ -231,6 +234,17 @@ export default function App() {
           onSave={handleSave}
           onDelete={handleDelete}
           onClose={() => setTtModal(null)}
+        />
+      )}
+
+      {/* Class Instance modal */}
+      {instanceModal && (
+        <ClassInstanceModal
+          entry={instanceModal.entry}
+          dateStr={instanceModal.dateStr}
+          subjects={activeSem?.subjects ?? []}
+          attendanceHook={attendanceHook}
+          onClose={() => setInstanceModal(null)}
         />
       )}
 

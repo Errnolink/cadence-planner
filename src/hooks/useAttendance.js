@@ -22,6 +22,19 @@ export function useAttendance() {
     })
   }
 
+  const setNote = (dateStr, entryId, note) => {
+    setAttendance(prev => {
+      const dayData = prev[dateStr] || {}
+      return {
+        ...prev,
+        [dateStr]: {
+          ...dayData,
+          [`${entryId}_note`]: note,
+        }
+      }
+    })
+  }
+
   // Calculate subject stats across all days
   const getSubjectStats = (subjectId, timetable) => {
     let present = 0
@@ -95,5 +108,5 @@ export function useAttendance() {
     return 'safe'
   }
 
-  return { attendance, markAttendance, getSubjectStats, getOverallStats, getMarginToThreshold, getRecoveryPath, getStatusTier }
+  return { attendance, markAttendance, setNote, getSubjectStats, getOverallStats, getMarginToThreshold, getRecoveryPath, getStatusTier }
 }
