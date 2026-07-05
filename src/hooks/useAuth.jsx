@@ -19,6 +19,8 @@ export function AuthProvider({ children }) {
       setSession(session)
       if (session) {
         API.setUserId(session.user.id)
+        // Background sync on boot
+        API.syncFromServer(session.user.id).catch(console.error)
       }
       setLoading(false)
     })

@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from 'react'
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { INITIAL_SEMESTERS, SUBJECT_COLORS, genId } from '../data/index.js'
 import { API } from '../data/api.js'
 
@@ -7,6 +7,8 @@ import { API } from '../data/api.js'
  * Returns derived state + action callbacks.
  */
 export function useSemesters() {
+  const isSyncUpdate = useRef(false)
+
   const [semesters, setSemesters] = useState(() => {
     return API.getSemesters(INITIAL_SEMESTERS)
   })
@@ -16,10 +18,26 @@ export function useSemesters() {
   })
 
   useEffect(() => {
+    const handleSync = () => {
+      isSyncUpdate.current = true
+      setSemesters(API.getSemesters(INITIAL_SEMESTERS))
+      
+      const newSems = API.getSemesters(INITIAL_SEMESTERS)
+      setActiveSemId(API.getActiveSemId(newSems[0]?.id || 1))
+      
+      setTimeout(() => { isSyncUpdate.current = false }, 0)
+    }
+    window.addEventListener('cadence-data-updated', handleSync)
+    return () => window.removeEventListener('cadence-data-updated', handleSync)
+  }, [])
+
+  useEffect(() => {
+    if (isSyncUpdate.current) return
     API.saveActiveSemId(activeSemId)
   }, [activeSemId])
 
   useEffect(() => {
+    if (isSyncUpdate.current) return
     API.saveSemesters(semesters)
   }, [semesters])
 

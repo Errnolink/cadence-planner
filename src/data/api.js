@@ -14,6 +14,7 @@ const KEYS = {
   SETTINGS: 'cadence_settings',
   ATTENDANCE: 'cadence_attendance',
   CUSTOM_THEMES: 'cadence_custom_themes',
+  UPDATED_AT: 'cadence_updated_at',
 }
 
 export const API = {
@@ -32,15 +33,40 @@ export const API = {
       .single();
 
     if (data) {
-      if (data.semesters) localStorage.setItem(KEYS.DATA, JSON.stringify(data.semesters));
-      if (data.active_sem_id != null) localStorage.setItem(KEYS.ACTIVE_SEM, JSON.stringify(Number(data.active_sem_id)));
-      if (data.settings) localStorage.setItem(KEYS.SETTINGS, JSON.stringify(data.settings));
-      if (data.attendance) localStorage.setItem(KEYS.ATTENDANCE, JSON.stringify(data.attendance));
-      if (data.custom_themes) localStorage.setItem(KEYS.CUSTOM_THEMES, JSON.stringify(data.custom_themes));
-      if (data.theme_id) localStorage.setItem('cadence-theme', data.theme_id);
+      const localUpdated = localStorage.getItem(KEYS.UPDATED_AT);
+      const serverUpdated = data.updated_at;
       
-      // Reload to ensure all React state reads the fresh data from localStorage
-      window.location.reload();
+      let shouldUpdateLocal = true;
+      let shouldPushToServer = false;
+
+      if (localUpdated && serverUpdated) {
+        const localTime = new Date(localUpdated).getTime();
+        const serverTime = new Date(serverUpdated).getTime();
+        
+        if (localTime > serverTime) {
+          shouldUpdateLocal = false;
+          shouldPushToServer = true;
+        } else if (localTime === serverTime) {
+          shouldUpdateLocal = false;
+        }
+      }
+
+      if (shouldUpdateLocal) {
+        if (data.semesters) localStorage.setItem(KEYS.DATA, JSON.stringify(data.semesters));
+        if (data.active_sem_id != null) localStorage.setItem(KEYS.ACTIVE_SEM, JSON.stringify(Number(data.active_sem_id)));
+        if (data.settings) localStorage.setItem(KEYS.SETTINGS, JSON.stringify(data.settings));
+        if (data.attendance) localStorage.setItem(KEYS.ATTENDANCE, JSON.stringify(data.attendance));
+        if (data.custom_themes) localStorage.setItem(KEYS.CUSTOM_THEMES, JSON.stringify(data.custom_themes));
+        if (data.theme_id) localStorage.setItem('cadence-theme', data.theme_id);
+        if (data.updated_at) localStorage.setItem(KEYS.UPDATED_AT, data.updated_at);
+        
+        // Dispatch event instead of reloading to allow React to update state seamlessly
+        window.dispatchEvent(new CustomEvent('cadence-data-updated'));
+      }
+      
+      if (shouldPushToServer) {
+        await API.syncToServer();
+      }
     } else if (error && error.code === 'PGRST116') {
       // No rows returned, meaning this is a new user or new device with local data only.
       // Let's push their local data up to the server.
@@ -61,7 +87,7 @@ export const API = {
       attendance: API.getAttendance({}),
       custom_themes: API.getCustomThemes([]),
       theme_id: localStorage.getItem('cadence-theme') || 'nerv',
-      updated_at: new Date().toISOString()
+      updated_at: localStorage.getItem(KEYS.UPDATED_AT) || new Date().toISOString()
     };
     
     const { error } = await supabase.from('user_data').upsert(payload);
@@ -90,9 +116,14 @@ export const API = {
     return defaultValue
   },
   
-  set: (key, value) => {
+  set: (key, value, skipTimestampUpdate = false) => {
     try {
       localStorage.setItem(key, JSON.stringify(value))
+      
+      if (!skipTimestampUpdate && key !== KEYS.UPDATED_AT) {
+        localStorage.setItem(KEYS.UPDATED_AT, new Date().toISOString())
+      }
+
       // Trigger debounced cloud sync in the background if logged in
       if (API.userId) {
         clearTimeout(_syncTimer)
