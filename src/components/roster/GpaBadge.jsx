@@ -1,22 +1,43 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useSettings } from '../../hooks/useSettings.jsx'
 
 export function GpaBadge({ label, hex, value, gradedCount, totalCount }) {
   const [glitching, setGlitching] = useState(true)
   const [displayValue, setDisplayValue] = useState("---")
   const { settings } = useSettings()
+  const badgeRef = useRef(null)
 
   useEffect(() => {
     const shouldGlitch = settings.enableGlitch !== false && settings.themeMode !== 'minimal'
+    let t1, t2;
     
-    if (shouldGlitch) {
-      setGlitching(true)
-      const t1 = setTimeout(() => setDisplayValue(value), 75)
-      const t2 = setTimeout(() => setGlitching(false), 150)
-      return () => { clearTimeout(t1); clearTimeout(t2) }
-    } else {
+    if (!shouldGlitch) {
       setDisplayValue(value)
       setGlitching(false)
+      return
+    }
+
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        setGlitching(true)
+        setDisplayValue("---")
+        
+        clearTimeout(t1)
+        clearTimeout(t2)
+        
+        t1 = setTimeout(() => setDisplayValue(value), 75)
+        t2 = setTimeout(() => setGlitching(false), 150)
+      }
+    }, { threshold: 0.1 })
+
+    if (badgeRef.current) {
+      observer.observe(badgeRef.current)
+    }
+
+    return () => {
+      clearTimeout(t1)
+      clearTimeout(t2)
+      observer.disconnect()
     }
   }, [value, settings.enableGlitch, settings.themeMode])
   const gpaFloat = value !== null && value !== undefined ? parseFloat(value) : null
@@ -40,6 +61,7 @@ export function GpaBadge({ label, hex, value, gradedCount, totalCount }) {
 
   return (
     <div
+      ref={badgeRef}
       className="shrink-0 px-2 py-2 panel-chamfer-sm"
       style={{ border: '1px solid var(--cad-border)', background: 'var(--cad-bg-input)', overflow: 'hidden' }}
     >
