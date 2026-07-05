@@ -40,7 +40,7 @@ export function Dropdown({ value, options, onChange, renderLabel, minWidth = '10
 
       {open && (
         <div
-          className="absolute left-0 top-full mt-1 z-30"
+          className="absolute left-0 top-full mt-1 z-30 anim-dropdown-enter"
           style={{
             border:       '1px solid var(--cad-accent)',
             background:   'var(--cad-bg-panel)',

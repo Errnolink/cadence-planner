@@ -92,3 +92,129 @@ input[type='number'] { -moz-appearance: textfield; }
 :root[data-fx-hex-labels] .hex-val {
   display:     inline;
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   ANIMATION SYSTEM — Shared keyframes & utility classes
+   All GPU-composited (transform + opacity only).
+   Gated behind prefers-reduced-motion for accessibility.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ─── Keyframes ───────────────────────────────────────────────── */
+@keyframes cad-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes cad-slide-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes cad-slide-in-left {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes cad-scale-in {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes cad-modal-enter {
+  from { opacity: 0; transform: scale(0.92) translateY(12px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes cad-modal-exit {
+  from { opacity: 1; transform: scale(1) translateY(0); }
+  to   { opacity: 0; transform: scale(0.95) translateY(8px); }
+}
+
+@keyframes cad-backdrop-enter {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes cad-backdrop-exit {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+@keyframes cad-dropdown-enter {
+  from { opacity: 0; transform: scaleY(0.9) translateY(-4px); }
+  to   { opacity: 1; transform: scaleY(1) translateY(0); }
+}
+
+@keyframes cad-stagger-row {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes cad-tab-enter {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Utility animation classes ──────────────────────────────── */
+@media (prefers-reduced-motion: no-preference) {
+  .anim-fade-in {
+    animation: cad-fade-in var(--anim-duration, 200ms) var(--anim-delay, 0ms) ease-out both;
+  }
+  .anim-slide-up {
+    animation: cad-slide-up var(--anim-duration, 250ms) var(--anim-delay, 0ms) ease-out both;
+  }
+  .anim-slide-in-left {
+    animation: cad-slide-in-left var(--anim-duration, 200ms) var(--anim-delay, 0ms) ease-out both;
+  }
+  .anim-scale-in {
+    animation: cad-scale-in var(--anim-duration, 200ms) var(--anim-delay, 0ms) ease-out both;
+  }
+
+  /* Modal animations */
+  .anim-modal-backdrop-enter {
+    animation: cad-backdrop-enter 200ms ease-out both;
+  }
+  .anim-modal-backdrop-exit {
+    animation: cad-backdrop-exit 150ms ease-in both;
+  }
+  .anim-modal-panel-enter {
+    animation: cad-modal-enter 250ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .anim-modal-panel-exit {
+    animation: cad-modal-exit 150ms ease-in both;
+  }
+
+  /* Dropdown */
+  .anim-dropdown-enter {
+    animation: cad-dropdown-enter 120ms ease-out both;
+    transform-origin: top center;
+  }
+
+  /* Roster row stagger */
+  .anim-stagger-row {
+    animation: cad-stagger-row 200ms ease-out both;
+    animation-delay: var(--stagger-delay, 0ms);
+  }
+
+  /* Tab crossfade */
+  .anim-tab-enter {
+    animation: cad-tab-enter 200ms ease-out both;
+  }
+}
+
+/* Reduced-motion fallback — instant, no animation */
+@media (prefers-reduced-motion: reduce) {
+  .anim-fade-in,
+  .anim-slide-up,
+  .anim-slide-in-left,
+  .anim-scale-in,
+  .anim-modal-backdrop-enter,
+  .anim-modal-backdrop-exit,
+  .anim-modal-panel-enter,
+  .anim-modal-panel-exit,
+  .anim-dropdown-enter,
+  .anim-stagger-row,
+  .anim-tab-enter {
+    animation: none !important;
+  }
+}

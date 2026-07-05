@@ -299,13 +299,23 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                             padding:         '4px 6px',
                             overflow:        'hidden',
                             cursor:          isHoliday ? 'not-allowed' : 'pointer',
-                            transition:      'filter 0.15s, opacity 0.3s',
+                            transition:      'transform 0.18s ease-out, box-shadow 0.18s ease-out, opacity 0.3s',
                             borderRadius:    '0 2px 2px 0',
                             opacity:         isHoliday ? 0.3 : 1,
                             filter:          isHoliday ? 'grayscale(100%)' : 'none',
                           }}
-                          onMouseEnter={e => { if (!isHoliday) e.currentTarget.style.filter = 'brightness(1.2)' }}
-                          onMouseLeave={e => { if (!isHoliday) e.currentTarget.style.filter = 'brightness(1)' }}
+                          onMouseEnter={e => {
+                            if (!isHoliday) {
+                              e.currentTarget.style.transform = 'translateY(-1px)'
+                              e.currentTarget.style.boxShadow = `inset 0 0 0 1px ${color.border}22, 0 4px 12px ${color.border}40`
+                            }
+                          }}
+                          onMouseLeave={e => {
+                            if (!isHoliday) {
+                              e.currentTarget.style.transform = 'translateY(0)'
+                              e.currentTarget.style.boxShadow = `inset 0 0 0 1px ${color.border}22`
+                            }
+                          }}
                         >
                           <div
                             style={{

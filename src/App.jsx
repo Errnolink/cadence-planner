@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useSemesters } from './hooks/useSemesters.js'
 import { useAttendance } from './hooks/useAttendance.js'
 import { Dot } from './components/ui/Dot.jsx'
@@ -11,6 +11,15 @@ import { ClassInstanceModal } from './components/timetable/ClassInstanceModal.js
 import { SettingsModal } from './components/layout/SettingsModal.jsx'
 import { CalendarView }  from './components/calendar/CalendarView.jsx'
 import { AttendanceView } from './components/attendance/AttendanceView.jsx'
+
+/** Lightweight wrapper that re-triggers the tab-enter animation on key change */
+function AnimatedTab({ tabKey, children }) {
+  return (
+    <div key={tabKey} className="anim-tab-enter flex flex-col flex-1 overflow-hidden min-h-0">
+      {children}
+    </div>
+  )
+}
 
 export default function App() {
   const {
@@ -203,21 +212,23 @@ export default function App() {
             </div>
           </div>
 
-          {activeTab === 'calendar' ? (
-            <CalendarView timetable={activeSem?.timetable ?? []} subjects={activeSem?.subjects ?? []} attendanceHook={attendanceHook} />
-          ) : activeTab === 'attendance' ? (
-            <AttendanceView timetable={activeSem?.timetable ?? []} subjects={activeSem?.subjects ?? []} attendanceHook={attendanceHook} />
-          ) : (
-            <TimetableGrid
-              subjects={activeSem?.subjects ?? []}
-              timetable={activeSem?.timetable ?? []}
-              editMode={editMode}
-              attendanceHook={attendanceHook}
-              onCellClick={(day, startTime, endTime) => setTtModal({ mode: 'add', initialData: { day, startTime, endTime } })}
-              onBlockClick={entry => setTtModal({ mode: 'edit', initialData: entry })}
-              onInstanceClick={(entry, dateStr) => setInstanceModal({ entry, dateStr })}
-            />
-          )}
+          <AnimatedTab tabKey={activeTab}>
+            {activeTab === 'calendar' ? (
+              <CalendarView timetable={activeSem?.timetable ?? []} subjects={activeSem?.subjects ?? []} attendanceHook={attendanceHook} />
+            ) : activeTab === 'attendance' ? (
+              <AttendanceView timetable={activeSem?.timetable ?? []} subjects={activeSem?.subjects ?? []} attendanceHook={attendanceHook} />
+            ) : (
+              <TimetableGrid
+                subjects={activeSem?.subjects ?? []}
+                timetable={activeSem?.timetable ?? []}
+                editMode={editMode}
+                attendanceHook={attendanceHook}
+                onCellClick={(day, startTime, endTime) => setTtModal({ mode: 'add', initialData: { day, startTime, endTime } })}
+                onBlockClick={entry => setTtModal({ mode: 'edit', initialData: entry })}
+                onInstanceClick={(entry, dateStr) => setInstanceModal({ entry, dateStr })}
+              />
+            )}
+          </AnimatedTab>
         </div>
       </div>
 

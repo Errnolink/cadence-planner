@@ -2,16 +2,17 @@ import { useState } from 'react'
 import { SUBJECT_COLORS, GRADE_MAP, gpToLabel, generateSubjectCode } from '../../data/index.js'
 import { ColorPicker } from '../ui/ColorPicker.jsx'
 
-export function SubjectRow({ subject, editMode, onUpdate, onRemove }) {
+export function SubjectRow({ subject, editMode, onUpdate, onRemove, staggerIndex = 0 }) {
   const color = SUBJECT_COLORS[subject.colorIdx % SUBJECT_COLORS.length]
   const [showColors, setShowColors] = useState(false)
 
   return (
     <div
-      className="mb-1.5"
+      className="mb-1.5 anim-stagger-row"
       style={{
         borderLeft: `3px solid ${color.border}`,
         background: `linear-gradient(90deg, ${color.bg} 0%, transparent 70%)`,
+        '--stagger-delay': `${staggerIndex * 40}ms`,
       }}
     >
       <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-1.5 px-2 py-1.5">
