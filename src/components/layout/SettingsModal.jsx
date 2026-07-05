@@ -33,6 +33,7 @@ export function SettingsModal({ onClose }) {
 {
   "id": "theme-unique-id",
   "label": "DISPLAY NAME",
+  "effects": ["glow", "crt-scanlines"], // Optional array of effects
   "tokens": {
     "cad-bg-primary": "#0a0a0a",
     "cad-bg-panel": "#111111",
@@ -56,6 +57,9 @@ export function SettingsModal({ onClose }) {
     "cad-font-ui": "'Share Tech Mono', monospace"
   }
 }
+
+Allowed effects are: "crt-scanlines", "grid-background", "hazard-border", "chamfer", "glow", "hud-flicker", "status-pulse", "hex-labels", "force-uppercase".
+
 Please output ONLY the raw JSON format without markdown wrapping or codeblocks.`
     
     navigator.clipboard.writeText(prompt).then(() => {
