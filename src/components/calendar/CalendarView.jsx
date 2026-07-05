@@ -46,12 +46,13 @@ export function CalendarView({ timetable, subjects, attendanceHook }) {
   for (let i = 0; i < firstOffset; i++) cells.push(null)
   for (let d = 1; d <= daysInMonth; d++) cells.push(d)
 
-  const handleDayClick = (day) => {
+  const handleDayClick = (e, day) => {
     const wday = dayLabel(year, month, day)
     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
     const isManualHoliday = attendanceHook?.attendance?.[dateStr]?.isHoliday
     const isHoliday = (settings.holidays2nd4thSat && isSecondOrFourthSaturday(year, month, day)) || isManualHoliday
-    setDetail({ year, month, day, weekday: (!isHoliday && DAYS_SET.has(wday)) ? wday : null, isHoliday, isManualHoliday })
+    const rect = e.currentTarget.getBoundingClientRect()
+    setDetail({ year, month, day, weekday: (!isHoliday && DAYS_SET.has(wday)) ? wday : null, isHoliday, isManualHoliday, sourceRect: rect })
   }
 
   const wheelTimeout = useRef(null)
@@ -145,7 +146,7 @@ export function CalendarView({ timetable, subjects, attendanceHook }) {
             return (
               <div
                 key={day}
-                onClick={() => handleDayClick(day)}
+                onClick={(e) => handleDayClick(e, day)}
                 style={{
                   borderRight:  '1px solid var(--cad-border-dim)',
                   borderBottom: '1px solid var(--cad-border-dim)',
@@ -244,6 +245,7 @@ export function CalendarView({ timetable, subjects, attendanceHook }) {
           timetable={timetable}
           subjects={subjects}
           attendanceHook={attendanceHook}
+          sourceRect={detail.sourceRect}
           onClose={() => setDetail(null)}
         />
       )}

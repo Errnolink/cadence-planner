@@ -224,7 +224,7 @@ export default function App() {
                 editMode={editMode}
                 attendanceHook={attendanceHook}
                 onCellClick={(day, startTime, endTime) => setTtModal({ mode: 'add', initialData: { day, startTime, endTime } })}
-                onBlockClick={entry => setTtModal({ mode: 'edit', initialData: entry })}
+                onBlockClick={(entry) => setTtModal({ mode: 'edit', initialData: entry })}
                 onInstanceClick={(entry, dateStr) => setInstanceModal({ entry, dateStr })}
               />
             )}

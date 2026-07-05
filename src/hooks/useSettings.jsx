@@ -5,6 +5,7 @@ const defaultSettings = {
   showLocation: false,
   themeMode: 'dark', // 'dark' or 'light'
   holidays2nd4thSat: true,
+  enableGlitch: true,
 }
 
 const SettingsContext = createContext(null)

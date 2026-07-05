@@ -33,14 +33,8 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
     return m
   }, [timetable])
 
-  const handleColClick = useCallback((day, e) => {
-    if (!editMode) return
-    const rect  = e.currentTarget.getBoundingClientRect()
-    const ratio = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height))
-    const mins  = Math.round((GRID_START_HOUR * 60 + ratio * TOTAL_MINS) / 30) * 30
-    const endMs = Math.min(mins + 60, GRID_END_HOUR * 60)
-    const fmt   = m => `${pad2(Math.floor(m / 60))}:${pad2(m % 60)}`
-    onCellClick(day, fmt(mins), fmt(endMs))
+  const handleCellClick = useCallback((day, startTime, endTime) => {
+    if (editMode && onCellClick) onCellClick(day, startTime, endTime)
   }, [editMode, onCellClick])
 
   const scrollRef = useRef(null)
@@ -275,10 +269,11 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                         e.stopPropagation()
                         if (isHoliday) return
                         
+                        const rect = e.currentTarget.getBoundingClientRect()
                         if (editMode) {
-                          onBlockClick(entry)
+                          onBlockClick(entry, rect)
                         } else if (attendanceHook && onInstanceClick) {
-                          onInstanceClick(entry, dateStr)
+                          onInstanceClick(entry, dateStr, rect)
                         }
                       }
 
@@ -367,7 +362,7 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                                       borderRadius: '2px',
                                       textAlign: 'center',
                                       cursor: 'pointer',
-                                      transition: 'all 0.15s',
+                                      transition: 'background 0.15s, border-color 0.15s, color 0.15s',
                                     }}
                                     onMouseEnter={e => {
                                       if (!isActive) {

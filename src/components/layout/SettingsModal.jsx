@@ -120,6 +120,10 @@ Please output ONLY the raw JSON format without markdown wrapping or codeblocks.`
               <input type="checkbox" checked={settings.holidays2nd4thSat} onChange={e => updateSettings({ holidays2nd4thSat: e.target.checked })} style={{ accentColor: 'var(--cad-accent)', width: '14px', height: '14px' }} />
               ENABLE 2ND/4TH SATURDAY HOLIDAYS
             </label>
+            <label className="flex items-center gap-3 cursor-pointer p-2 panel-chamfer-sm transition-colors" style={{ opacity: settings.themeMode === 'minimal' ? 0.5 : 1, fontFamily: 'var(--cad-font-mono)', fontSize: '11px', color: 'var(--cad-text-hi)', background: 'var(--cad-bg-elevated)', border: '1px solid var(--cad-border-dim)' }}>
+              <input type="checkbox" disabled={settings.themeMode === 'minimal'} checked={settings.themeMode !== 'minimal' && settings.enableGlitch} onChange={e => updateSettings({ enableGlitch: e.target.checked })} style={{ accentColor: 'var(--cad-accent)', width: '14px', height: '14px' }} />
+              ENABLE GLITCH EFFECTS
+            </label>
           </div>
         </div>
 

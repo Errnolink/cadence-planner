@@ -1,3 +1,4 @@
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { SUBJECT_COLORS, DAYS, WEEK_LABELS, MONTH_NAMES, parseTimeToMins } from '../../data/index.js'
 
 /**
@@ -20,27 +21,46 @@ export function DayDetailModal({ date, weekday, timetable, subjects, attendanceH
   const dayName  = date ? new Date(date.year, date.month, date.day).toLocaleDateString('en-US', { weekday: 'long' }) : ''
   const dateFull = date ? new Date(date.year, date.month, date.day).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : ''
 
+  const backdropRef = useRef(null)
+  const [closing, setClosing] = useState(false)
+
+  const handleClose = useCallback(() => {
+    if (closing) return
+    setClosing(true)
+    setTimeout(() => onClose(), 200)
+  }, [closing, onClose])
+
+  useEffect(() => {
+    const h = e => { if (e.key === 'Escape') handleClose() }
+    window.addEventListener('keydown', h)
+    return () => window.removeEventListener('keydown', h)
+  }, [handleClose])
+
+  const backdropAnimClass = closing ? 'anim-modal-backdrop-exit' : 'anim-modal-backdrop-enter'
+  const panelAnimClass = closing ? 'anim-modal-panel-exit' : 'anim-modal-panel-enter'
+
   return (
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 z-40"
-        style={{ background: 'rgba(0,0,0,0.7)' }}
-        onClick={onClose}
+        ref={backdropRef}
+        className={`fixed inset-0 z-40 ${backdropAnimClass}`}
+        style={{ background: 'rgba(0,0,0,0.85)' }}
+        onClick={handleClose}
       />
 
       {/* Panel — slides up on mobile, centered on desktop */}
       <div
         className="fixed z-50 left-0 right-0 bottom-0 md:inset-0 md:flex md:items-center md:justify-center md:p-4"
-        onClick={onClose}
+        onClick={handleClose}
       >
         <div
-          className="w-full md:max-w-sm panel-chamfer"
+          className={`w-full md:max-w-sm panel-chamfer ${panelAnimClass}`}
           style={{
             background:  'var(--cad-bg-panel)',
             border:      '2px solid var(--cad-accent)',
             boxShadow:   'var(--cad-shadow-panel)',
-            borderRadius:'var(--cad-radius) var(--cad-radius) 0 0',
+            position:    'relative',
             maxHeight:   '80vh',
             display:     'flex',
             flexDirection:'column',
@@ -80,7 +100,7 @@ export function DayDetailModal({ date, weekday, timetable, subjects, attendanceH
                 </button>
               )}
               <button
-                onClick={onClose}
+                onClick={handleClose}
                 style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '11px', color: 'var(--cad-text-lo)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}
                 onMouseEnter={e => { e.currentTarget.style.color = 'var(--cad-danger)' }}
                 onMouseLeave={e => { e.currentTarget.style.color = 'var(--cad-text-lo)' }}

@@ -2,9 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { Dot } from './Dot.jsx'
 
 /**
- * Theme-aware modal wrapper. Replaces NervModal.
- * Uses CSS variables so it looks correct in any theme.
- * Includes enter/exit animations via shared keyframes.
+ * Theme-aware modal with NERV mechanical transition.
  */
 export function Modal({ title, hex, onClose, children }) {
   const backdropRef = useRef(null)
@@ -13,8 +11,7 @@ export function Modal({ title, hex, onClose, children }) {
   const handleClose = useCallback(() => {
     if (closing) return
     setClosing(true)
-    // Wait for exit animation to finish before unmounting
-    setTimeout(() => onClose(), 150)
+    setTimeout(() => onClose(), 200) // matches exit animation duration
   }, [closing, onClose])
 
   useEffect(() => {
@@ -23,28 +20,28 @@ export function Modal({ title, hex, onClose, children }) {
     return () => window.removeEventListener('keydown', h)
   }, [handleClose])
 
+  const backdropAnimClass = closing ? 'anim-modal-backdrop-exit' : 'anim-modal-backdrop-enter'
+  const panelAnimClass = closing ? 'anim-modal-panel-exit' : 'anim-modal-panel-enter'
+
   return (
     <div
       ref={backdropRef}
-      className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${
-        closing ? 'anim-modal-backdrop-exit' : 'anim-modal-backdrop-enter'
-      }`}
-      style={{ background: 'rgba(0,0,0,0.82)' }}
+      className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${backdropAnimClass}`}
+      style={{ background: 'rgba(0,0,0,0.85)' }}
       onClick={e => { if (e.target === backdropRef.current) handleClose() }}
     >
       <div
-        className={`w-full max-w-sm panel-chamfer overflow-hidden ${
-          closing ? 'anim-modal-panel-exit' : 'anim-modal-panel-enter'
-        }`}
+        className={`w-full max-w-sm panel-chamfer overflow-hidden ${panelAnimClass}`}
         style={{
-          border:     '2px solid var(--cad-accent)',
+          border: '2px solid var(--cad-accent)',
           background: 'var(--cad-bg-panel)',
-          boxShadow:  'var(--cad-shadow-panel)',
+          boxShadow: 'var(--cad-shadow-panel)',
+          position: 'relative'
         }}
       >
         {/* Header */}
         <div
-          className="flex items-center justify-between px-3 py-2"
+          className="flex items-center justify-between px-3 py-2 shrink-0"
           style={{
             borderBottom: '1px solid var(--cad-border)',
             background:   'var(--cad-bg-header)',

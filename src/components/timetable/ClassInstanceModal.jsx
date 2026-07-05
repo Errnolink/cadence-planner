@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { SUBJECT_COLORS, generateSubjectCode } from '../../data/index.js'
 import { Modal } from '../ui/Modal.jsx'
 
-export function ClassInstanceModal({ entry, dateStr, subjects, attendanceHook, onClose }) {
+export function ClassInstanceModal({ entry, dateStr, sourceRect, subjects, attendanceHook, onClose }) {
   const subj = subjects.find(s => s.id === entry.subjectId)
   const color = subj ? SUBJECT_COLORS[subj.colorIdx % SUBJECT_COLORS.length] : { bg: '#000', text: '#fff', border: '#fff' }
   const code = subj ? (subj.code || generateSubjectCode(subj.name)) : '???'
@@ -26,7 +26,7 @@ export function ClassInstanceModal({ entry, dateStr, subjects, attendanceHook, o
   const sectionStyle = { marginBottom: '16px' }
 
   return (
-    <Modal title={`CLASS INSTANCE :: ${dateStr}`} hex="0xC003" onClose={onClose}>
+    <Modal title={`CLASS INSTANCE :: ${dateStr}`} hex="0xC003" onClose={onClose} sourceRect={sourceRect}>
       <div>
         {/* Header Details */}
         <div style={{ ...sectionStyle, display: 'flex', gap: '8px', alignItems: 'center' }}>

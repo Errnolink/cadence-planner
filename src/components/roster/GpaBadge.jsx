@@ -1,4 +1,24 @@
+import { useState, useEffect } from 'react'
+import { useSettings } from '../../hooks/useSettings.jsx'
+
 export function GpaBadge({ label, hex, value, gradedCount, totalCount }) {
+  const [glitching, setGlitching] = useState(true)
+  const [displayValue, setDisplayValue] = useState("---")
+  const { settings } = useSettings()
+
+  useEffect(() => {
+    const shouldGlitch = settings.enableGlitch !== false && settings.themeMode !== 'minimal'
+    
+    if (shouldGlitch) {
+      setGlitching(true)
+      const t1 = setTimeout(() => setDisplayValue(value), 75)
+      const t2 = setTimeout(() => setGlitching(false), 150)
+      return () => { clearTimeout(t1); clearTimeout(t2) }
+    } else {
+      setDisplayValue(value)
+      setGlitching(false)
+    }
+  }, [value, settings.enableGlitch, settings.themeMode])
   const gpaFloat = value !== null && value !== undefined ? parseFloat(value) : null
 
   const colorStyle = gpaFloat === null
@@ -21,7 +41,7 @@ export function GpaBadge({ label, hex, value, gradedCount, totalCount }) {
   return (
     <div
       className="shrink-0 px-2 py-2 panel-chamfer-sm"
-      style={{ border: '1px solid var(--cad-border)', background: 'var(--cad-bg-input)' }}
+      style={{ border: '1px solid var(--cad-border)', background: 'var(--cad-bg-input)', overflow: 'hidden' }}
     >
       <div className="flex justify-between items-center mb-1">
         <span style={{ fontSize: '8px', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--cad-text-lo)', fontFamily: 'var(--cad-font-mono)' }}>
@@ -35,8 +55,12 @@ export function GpaBadge({ label, hex, value, gradedCount, totalCount }) {
       {value !== null && value !== undefined ? (
         <>
           <div className="flex items-baseline gap-2">
-            <span className={glowClass} style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '24px', lineHeight: 1, color: colorStyle }}>
-              {value}
+            <span 
+              className={`${glowClass} glitch-num ${glitching ? 'transitioning' : ''}`} 
+              data-text={displayValue}
+              style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '24px', lineHeight: 1, color: colorStyle }}
+            >
+              {displayValue}
             </span>
             <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '9px', color: 'var(--cad-text-lo)' }}>/ 10.0</span>
             {rankLabel && (
