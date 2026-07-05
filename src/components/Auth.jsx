@@ -42,7 +42,11 @@ export function Auth() {
     setMessage(null);
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
-      setError(error.message);
+      if (error.message === 'Invalid login credentials') {
+        setError('THERE EXISTS NO ACCOUNT WITH THAT EMAIL (OR INVALID PASSWORD). PLEASE INITIALIZE FIRST.');
+      } else {
+        setError(error.message);
+      }
     } else if (data?.session) {
       await API.syncFromServer(data.session.user.id);
     }
