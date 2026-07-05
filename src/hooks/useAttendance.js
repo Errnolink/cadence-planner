@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { API } from '../data/api.js'
 import { ATTENDANCE_THRESHOLD } from '../data/constants.js'
 
@@ -49,7 +49,7 @@ export function useAttendance() {
   }
 
   // Calculate subject stats across all days
-  const getSubjectStats = (subjectId, timetable) => {
+  const getSubjectStats = useCallback((subjectId, timetable) => {
     let present = 0
     let absent = 0
     let cancelled = 0
@@ -80,10 +80,10 @@ export function useAttendance() {
       total, 
       percentage: total === 0 ? 100 : Math.round((present / total) * 100) 
     }
-  }
+  }, [attendance])
 
   // Calculate overall stats
-  const getOverallStats = (subjects, timetable) => {
+  const getOverallStats = useCallback((subjects, timetable) => {
     let present = 0, absent = 0, cancelled = 0, total = 0
     
     subjects.forEach(subj => {
@@ -98,7 +98,7 @@ export function useAttendance() {
       present, absent, cancelled, total,
       percentage: total === 0 ? 100 : Math.round((present / total) * 100)
     }
-  }
+  }, [getSubjectStats])
 
   const getMarginToThreshold = (present, total, threshold = ATTENDANCE_THRESHOLD) => {
     // How many more classes can be missed while staying >= threshold

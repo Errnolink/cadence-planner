@@ -63,8 +63,10 @@ export function Dropdown({ value, options, onChange, renderLabel, minWidth = '10
                 letterSpacing:'0.1em',
                 color:        opt.value === value ? 'var(--cad-accent-text)' : 'var(--cad-text-mid)',
                 borderLeft:   opt.value === value ? '2px solid var(--cad-accent)' : '2px solid transparent',
+                borderTop:    'none',
+                borderRight:  'none',
+                borderBottom: 'none',
                 background:   'transparent',
-                border:       'none',
                 cursor:       'pointer',
               }}
               onMouseEnter={e => { e.currentTarget.style.background = 'var(--cad-accent-dim)' }}

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { SUBJECT_COLORS, WEEK_LABELS, MONTH_NAMES, DAYS, parseTimeToMins, generateSubjectCode, isSecondOrFourthSaturday } from '../../data/index.js'
 import { DayDetailModal } from './DayDetailModal.jsx'
 import { useSettings } from '../../hooks/useSettings.jsx'
@@ -48,12 +48,26 @@ export function CalendarView({ timetable, subjects, attendanceHook }) {
 
   const handleDayClick = (day) => {
     const wday = dayLabel(year, month, day)
-    const isHoliday = settings.holidays2nd4thSat && isSecondOrFourthSaturday(year, month, day)
-    setDetail({ year, month, day, weekday: (!isHoliday && DAYS_SET.has(wday)) ? wday : null, isHoliday })
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+    const isManualHoliday = attendanceHook?.attendance?.[dateStr]?.isHoliday
+    const isHoliday = (settings.holidays2nd4thSat && isSecondOrFourthSaturday(year, month, day)) || isManualHoliday
+    setDetail({ year, month, day, weekday: (!isHoliday && DAYS_SET.has(wday)) ? wday : null, isHoliday, isManualHoliday })
+  }
+
+  const wheelTimeout = useRef(null)
+  const handleWheel = (e) => {
+    if (wheelTimeout.current) return
+    if (e.deltaY > 20) {
+      nextMonth()
+      wheelTimeout.current = setTimeout(() => { wheelTimeout.current = null }, 300)
+    } else if (e.deltaY < -20) {
+      prevMonth()
+      wheelTimeout.current = setTimeout(() => { wheelTimeout.current = null }, 300)
+    }
   }
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="flex flex-col h-full overflow-hidden" onWheel={handleWheel}>
 
       {/* Month navigator */}
       <div className="flex items-center justify-between shrink-0 py-2 px-1">
@@ -123,7 +137,9 @@ export function CalendarView({ timetable, subjects, attendanceHook }) {
             const todayCell = isToday(day)
             const isWeekend = !DAYS_SET.has(wday)
             
-            const isHoliday = settings.holidays2nd4thSat && isSecondOrFourthSaturday(year, month, day)
+            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+            const isManualHoliday = attendanceHook?.attendance?.[dateStr]?.isHoliday
+            const isHoliday = (settings.holidays2nd4thSat && isSecondOrFourthSaturday(year, month, day)) || isManualHoliday
             if (isHoliday) entries = []
 
             return (
@@ -189,7 +205,7 @@ export function CalendarView({ timetable, subjects, attendanceHook }) {
                   )
                 })}
                 {!isHoliday && entries.length > 3 && (
-                  <div style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '7px', color: 'var(--cad-text-lo)', paddingLeft: '4px' }}>
+                  <div style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '7px', color: 'var(--cad-text-mid)', paddingLeft: '4px' }}>
                     +{entries.length - 3} more
                   </div>
                 )}
@@ -206,15 +222,15 @@ export function CalendarView({ timetable, subjects, attendanceHook }) {
       >
         <div className="flex items-center gap-1.5">
           <div style={{ width: '8px', height: '8px', background: 'var(--cad-accent-dim)', border: '1px solid var(--cad-accent)' }} />
-          <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '8px', color: 'var(--cad-text-lo)' }}>TODAY</span>
+          <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '8px', color: 'var(--cad-text-mid)' }}>TODAY</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div style={{ width: '8px', height: '8px', background: 'rgba(249,115,22,0.3)', borderLeft: '2px solid var(--cad-accent)' }} />
-          <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '8px', color: 'var(--cad-text-lo)' }}>SCHEDULED</span>
+          <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '8px', color: 'var(--cad-text-mid)' }}>SCHEDULED</span>
         </div>
         <div
           className="ml-auto"
-          style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '8px', color: 'var(--cad-text-lo)', letterSpacing: '0.1em' }}
+          style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '8px', color: 'var(--cad-text-mid)', letterSpacing: '0.1em' }}
         >
           CADENCE v3 ∷ TAP DAY TO VIEW SCHEDULE
         </div>

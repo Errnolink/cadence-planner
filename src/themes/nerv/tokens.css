@@ -17,10 +17,10 @@
   --cad-accent-glow:  rgba(255, 152, 48, 0.30);
 
   /* Text */
-  --cad-text-hi:      #D8D8D0;
-  --cad-text-mid:     #665a48;
-  --cad-text-lo:      #332b21;
-  --cad-text-xlo:     #1a1612;
+  --cad-text-hi:      #E8E8DF;
+  --cad-text-mid:     #9A8A70;
+  --cad-text-lo:      #665a48;
+  --cad-text-xlo:     #4D4436;
 
   /* Borders */
   --cad-border:       #332b21;

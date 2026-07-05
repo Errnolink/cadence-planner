@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { supabase } from '../data/supabaseClient';
 import { API } from '../data/api';
 import { useAuth } from '../hooks/useAuth.jsx';
@@ -15,6 +15,11 @@ export function Auth() {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    if (password.length < 8) {
+      setError('PASSWORD MUST BE AT LEAST 8 CHARACTERS');
+      setLoading(false);
+      return;
+    }
     const { data, error } = await supabase.auth.signUp({ email, password });
     if (error) {
       setError(error.message);
@@ -94,6 +99,7 @@ export function Auth() {
       <div className="flex flex-col gap-3">
         <input
           type="email"
+          autoComplete="email"
           placeholder="EMAIL IDENTIFIER"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
@@ -109,6 +115,7 @@ export function Auth() {
         />
         <input
           type="password"
+          autoComplete="current-password"
           placeholder="ACCESS CODE (PASSWORD)"
           value={password}
           onChange={(e) => setPassword(e.target.value)}

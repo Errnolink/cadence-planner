@@ -29,7 +29,7 @@ export function useSemesters() {
   )
 
   const updateSem = useCallback((updater) => {
-    setSemesters(prev => prev.map(s => s.id === activeSemId ? updater(s) : s))
+    setSemesters(prev => prev.map(s => String(s.id) === String(activeSemId) ? updater(s) : s))
   }, [activeSemId])
 
   const addSemester = useCallback(() => {
@@ -50,18 +50,19 @@ export function useSemesters() {
   const removeSemester = useCallback((id) => {
     setSemesters(prev => {
       if (prev.length <= 1) return prev // Can't delete the last one
-      const next = prev.filter(s => s.id !== id)
+      const next = prev.filter(s => String(s.id) !== String(id))
+      queueMicrotask(() => {
+        setActiveSemId(prevId => {
+          if (String(prevId) === String(id)) {
+            // If we deleted the active sem, switch to the first available one
+            return next.length > 0 ? next[0].id : prevId
+          }
+          return prevId
+        })
+      })
       return next
     })
-    setActiveSemId(prevId => {
-      if (prevId === id) {
-        // If we deleted the active sem, switch to the first available one
-        const remaining = semesters.filter(s => s.id !== id)
-        return remaining.length > 0 ? remaining[0].id : prevId
-      }
-      return prevId
-    })
-  }, [semesters])
+  }, [])
 
   // ── Subject CRUD ───────────────────────────────────────────────
   const addSubject = useCallback(() => {

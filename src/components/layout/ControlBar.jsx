@@ -3,15 +3,31 @@ import { pad2 } from '../../data/index.js'
 import { useTheme } from '../../themes/ThemeContext.jsx'
 import { SemDropdown } from './SemDropdown.jsx'
 
-export function ControlBar({ semesters, activeSemId, onSemChange, onRemoveSem, editMode, onToggleEdit, onAddSem, onOpenSettings }) {
+function Clock() {
   const [now, setNow] = useState(new Date())
-  const { currentTheme, cycleTheme, themes } = useTheme()
-
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000)
     return () => clearInterval(t)
   }, [])
 
+  return (
+    <div className="text-right shrink-0">
+      <div
+        className="glow-accent"
+        style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '11px', color: 'var(--cad-accent)', letterSpacing: '0.1em' }}
+      >
+        <span className="hidden sm:inline">{pad2(now.getHours())}:{pad2(now.getMinutes())}:{pad2(now.getSeconds())}</span>
+        <span className="sm:hidden">{pad2(now.getHours())}:{pad2(now.getMinutes())}</span>
+      </div>
+      <div style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '8px', color: 'var(--cad-text-lo)' }}>
+        {now.getFullYear()}.{pad2(now.getMonth() + 1)}.{pad2(now.getDate())}
+      </div>
+    </div>
+  )
+}
+
+export function ControlBar({ semesters, activeSemId, onSemChange, onRemoveSem, editMode, onToggleEdit, onAddSem, onOpenSettings }) {
+  const { currentTheme, cycleTheme, themes } = useTheme()
   const nextTheme = themes[(themes.findIndex(t => t.id === currentTheme.id) + 1) % themes.length]
 
   return (
@@ -88,18 +104,7 @@ export function ControlBar({ semesters, activeSemId, onSemChange, onRemoveSem, e
       </button>
 
       {/* Clock — HH:MM:SS on desktop, HH:MM on mobile */}
-      <div className="text-right shrink-0">
-        <div
-          className="glow-accent"
-          style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '11px', color: 'var(--cad-accent)', letterSpacing: '0.1em' }}
-        >
-          <span className="hidden sm:inline">{pad2(now.getHours())}:{pad2(now.getMinutes())}:{pad2(now.getSeconds())}</span>
-          <span className="sm:hidden">{pad2(now.getHours())}:{pad2(now.getMinutes())}</span>
-        </div>
-        <div style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '8px', color: 'var(--cad-text-lo)' }}>
-          {now.getFullYear()}.{pad2(now.getMonth() + 1)}.{pad2(now.getDate())}
-        </div>
-      </div>
+      <Clock />
     </div>
   )
 }

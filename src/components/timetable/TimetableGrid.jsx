@@ -18,6 +18,7 @@ function pctH(start, end) {
 
 export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBlockClick, onInstanceClick, attendanceHook }) {
   const todayIdx = getTodayDayIdx()
+  const baseDate = useMemo(() => new Date(), [])
 
   const subjectMap = useMemo(() => {
     const m = {}
@@ -48,7 +49,7 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
   useEffect(() => {
     const el = scrollRef.current
     if (!el) return
-    const now = new Date()
+    const now = new Date(baseDate.getTime())
     const nowMins = now.getHours() * 60 + now.getMinutes()
     const offset = (nowMins - GRID_START_HOUR * 60) / TOTAL_MINS
     // Position "now" at ~1/3 from top of visible area
@@ -114,7 +115,7 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
               const isToday = DAYS.indexOf(day) === todayIdx
               const colIdx = DAYS.indexOf(day)
               const diff = colIdx - todayIdx
-              const d = new Date()
+              const d = new Date(baseDate.getTime())
               d.setDate(d.getDate() + diff)
               const dateStr = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
               const isHoliday = attendanceHook?.attendance?.[dateStr]?.isHoliday
@@ -140,13 +141,13 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                       className="mt-1 px-1 py-0.5 rounded transition-colors"
                       style={{
                         fontSize: '7px',
-                        border: isHoliday ? '1px solid var(--cad-accent)' : '1px solid var(--cad-border-dim)',
-                        background: isHoliday ? 'var(--cad-accent-dim)' : 'transparent',
-                        color: isHoliday ? 'var(--cad-accent)' : 'var(--cad-text-lo)',
-                        opacity: isHoliday ? 1 : 0.5,
+                        border: '1px solid var(--cad-accent)',
+                        background: isHoliday ? 'var(--cad-accent)' : 'transparent',
+                        color: isHoliday ? 'var(--cad-bg-primary)' : 'var(--cad-accent)',
+                        opacity: isHoliday ? 1 : 0.7,
                       }}
-                      onMouseEnter={(e) => { if (!isHoliday) e.currentTarget.style.opacity = 1 }}
-                      onMouseLeave={(e) => { if (!isHoliday) e.currentTarget.style.opacity = 0.5 }}
+                      onMouseEnter={(e) => { if (!isHoliday) e.currentTarget.style.opacity = '1' }}
+                      onMouseLeave={(e) => { if (!isHoliday) e.currentTarget.style.opacity = '0.7' }}
                     >
                       {isHoliday ? 'HOLIDAY' : 'SET HOLIDAY'}
                     </button>
@@ -198,7 +199,7 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                 
                 const colIdx = DAYS.indexOf(day)
                 const diff = colIdx - todayIdx
-                const d = new Date()
+                const d = new Date(baseDate.getTime())
                 d.setDate(d.getDate() + diff)
                 const dateStr = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
                 const dayData = attendanceHook?.attendance?.[dateStr] || {}
@@ -234,7 +235,7 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
 
                     {/* Now line */}
                     {DAYS.indexOf(day) === todayIdx && (() => {
-                      const now = new Date()
+                      const now = new Date(baseDate.getTime())
                       const nowMins = now.getHours() * 60 + now.getMinutes()
                       const nowPct = ((nowMins - GRID_START_HOUR * 60) / TOTAL_MINS) * 100
                       return (
@@ -276,10 +277,8 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                         
                         if (editMode) {
                           onBlockClick(entry)
-                        } else if (attendanceHook && !showTodayOnly) {
-                          if (onInstanceClick) onInstanceClick(entry, dateStr)
-                        } else if (attendanceHook && showTodayOnly) {
-                          if (onInstanceClick) onInstanceClick(entry, dateStr)
+                        } else if (attendanceHook && onInstanceClick) {
+                          onInstanceClick(entry, dateStr)
                         }
                       }
 

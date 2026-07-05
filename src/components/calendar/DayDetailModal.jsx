@@ -60,12 +60,32 @@ export function DayDetailModal({ date, weekday, timetable, subjects, attendanceH
                 {dateFull}
               </div>
             </div>
-            <button
-              onClick={onClose}
-              style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '11px', color: 'var(--cad-text-lo)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}
-              onMouseEnter={e => { e.currentTarget.style.color = 'var(--cad-danger)' }}
-              onMouseLeave={e => { e.currentTarget.style.color = 'var(--cad-text-lo)' }}
-            >✕ CLOSE</button>
+            <div className="flex gap-3 items-center">
+              {attendanceHook && date && !(date.isHoliday && !date.isManualHoliday) && (
+                <button
+                  onClick={() => attendanceHook.toggleHoliday(dateStr)}
+                  className="px-2 py-1 rounded transition-colors"
+                  style={{
+                    fontFamily: 'var(--cad-font-mono)',
+                    fontSize: '9px',
+                    border: '1px solid var(--cad-accent)',
+                    background: dayData.isHoliday ? 'var(--cad-accent)' : 'transparent',
+                    color: dayData.isHoliday ? 'var(--cad-bg-primary)' : 'var(--cad-accent)',
+                    opacity: dayData.isHoliday ? 1 : 0.7,
+                  }}
+                  onMouseEnter={(e) => { if (!dayData.isHoliday) e.currentTarget.style.opacity = '1' }}
+                  onMouseLeave={(e) => { if (!dayData.isHoliday) e.currentTarget.style.opacity = '0.7' }}
+                >
+                  {dayData.isHoliday ? 'HOLIDAY' : 'SET HOLIDAY'}
+                </button>
+              )}
+              <button
+                onClick={onClose}
+                style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '11px', color: 'var(--cad-text-lo)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}
+                onMouseEnter={e => { e.currentTarget.style.color = 'var(--cad-danger)' }}
+                onMouseLeave={e => { e.currentTarget.style.color = 'var(--cad-text-lo)' }}
+              >✕ CLOSE</button>
+            </div>
           </div>
 
           {/* Entry list */}

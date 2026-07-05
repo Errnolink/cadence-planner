@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import { SUBJECT_COLORS, DAYS, GRADE_MAP, GRID_START_HOUR, GRID_END_HOUR, genId, pad2, parseTimeToMins } from '../../data/index.js'
+import { SUBJECT_COLORS, DAYS, GRID_START_HOUR, GRID_END_HOUR, genId, pad2, parseTimeToMins } from '../../data/index.js'
 import { Modal } from '../ui/Modal.jsx'
 import { TimeInput } from '../ui/TimeInput.jsx'
 import { useSettings } from '../../hooks/useSettings.jsx'
