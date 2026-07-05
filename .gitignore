@@ -25,5 +25,4 @@ dist-ssr
 
 # AI Agents
 .agents/
-references/  
- 
+references/

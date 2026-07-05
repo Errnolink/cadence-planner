@@ -77,7 +77,7 @@ export function ControlBar({ semesters, activeSemId, onSemChange, onRemoveSem, e
           fontSize:     '9px',
           letterSpacing:'0.15em',
           borderRadius: 'var(--cad-radius)',
-          transition:   'all 0.15s',
+          transition:   'background 0.15s, border-color 0.15s, color 0.15s',
         }}
       >
         <span style={{ fontSize: '11px' }}>⚙</span>
@@ -96,7 +96,7 @@ export function ControlBar({ semesters, activeSemId, onSemChange, onRemoveSem, e
           fontSize:     '9px',
           letterSpacing:'0.15em',
           borderRadius: 'var(--cad-radius)',
-          transition:   'all 0.15s',
+          transition:   'background 0.15s, border-color 0.15s, color 0.15s',
         }}
       >
         <span style={{ fontSize: '11px' }}>{editMode ? '⊠' : '✎'}</span>

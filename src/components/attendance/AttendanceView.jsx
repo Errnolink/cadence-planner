@@ -1,12 +1,18 @@
-import { useState, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { SUBJECT_COLORS } from '../../data/index.js'
 import { ATTENDANCE_THRESHOLD } from '../../data/constants.js'
 import { SubjectAttendanceModal } from './SubjectAttendanceModal.jsx'
 
 export function AttendanceView({ timetable, subjects, attendanceHook }) {
   const { attendance, getSubjectStats, getOverallStats, getMarginToThreshold, getRecoveryPath, getStatusTier } = attendanceHook
-  const [selectedSubject, setSelectedSubject] = useState(null)
+  const [selectedSubjectData, setSelectedSubjectData] = useState(null)
   const [filter, setFilter] = useState('ALL')
+  const [animated, setAnimated] = useState(false)
+  
+  useEffect(() => {
+    const t = setTimeout(() => setAnimated(true), 50)
+    return () => clearTimeout(t)
+  }, [])
   
   const overallStats = getOverallStats(subjects, timetable)
 
@@ -93,7 +99,7 @@ export function AttendanceView({ timetable, subjects, attendanceHook }) {
                 key={subj.id} 
                 className="p-2 cursor-pointer btn-mech" 
                 style={{ border: '1px solid var(--cad-border-dim)', borderLeft: `3px solid ${color.border}`, borderRadius: '0 var(--cad-radius) var(--cad-radius) 0', background: 'var(--cad-bg-elevated)', textAlign: 'left' }}
-                onClick={() => setSelectedSubject(subj)}
+                onClick={(e) => setSelectedSubjectData({ subject: subj, sourceRect: e.currentTarget.getBoundingClientRect() })}
               >
                 <div className="flex justify-between items-start mb-2">
                   <div style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '11px', color: color.text, fontWeight: 'bold' }}>{subj.name}</div>
@@ -109,8 +115,8 @@ export function AttendanceView({ timetable, subjects, attendanceHook }) {
                   </div>
                 </div>
 
-                <div style={{ position: 'relative', width: '100%', height: '4px', background: 'var(--cad-bg-primary)', borderRadius: '2px', overflow: 'visible' }}>
-                  <div style={{ width: `${stats.percentage}%`, height: '100%', background: color.border, transition: 'width 0.3s', borderRadius: '2px' }} />
+                <div style={{ position: 'relative', width: '100%', height: '4px', background: 'var(--cad-bg-primary)', borderRadius: '2px', overflow: 'hidden' }}>
+                  <div style={{ width: '100%', height: '100%', background: color.border, transform: `scaleX(${animated ? stats.percentage / 100 : 0})`, transformOrigin: 'left', transition: 'transform 600ms cubic-bezier(0.25, 1, 0.5, 1)', borderRadius: '2px' }} />
                   {/* 75% threshold marker */}
                   <div style={{
                     position: 'absolute', left: '75%', top: '-3px', width: '1px', height: '10px',
@@ -133,12 +139,13 @@ export function AttendanceView({ timetable, subjects, attendanceHook }) {
         </div>
       </div>
 
-      {selectedSubject && (
+      {selectedSubjectData && (
         <SubjectAttendanceModal
-          subject={selectedSubject}
+          subject={selectedSubjectData.subject}
+          sourceRect={selectedSubjectData.sourceRect}
           timetable={timetable}
           attendanceHook={attendanceHook}
-          onClose={() => setSelectedSubject(null)}
+          onClose={() => setSelectedSubjectData(null)}
         />
       )}
 

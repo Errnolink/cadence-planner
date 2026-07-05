@@ -33,14 +33,8 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
     return m
   }, [timetable])
 
-  const handleColClick = useCallback((day, e) => {
-    if (!editMode) return
-    const rect  = e.currentTarget.getBoundingClientRect()
-    const ratio = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height))
-    const mins  = Math.round((GRID_START_HOUR * 60 + ratio * TOTAL_MINS) / 30) * 30
-    const endMs = Math.min(mins + 60, GRID_END_HOUR * 60)
-    const fmt   = m => `${pad2(Math.floor(m / 60))}:${pad2(m % 60)}`
-    onCellClick(day, fmt(mins), fmt(endMs))
+  const handleCellClick = useCallback((day, startTime, endTime) => {
+    if (editMode && onCellClick) onCellClick(day, startTime, endTime)
   }, [editMode, onCellClick])
 
   const scrollRef = useRef(null)
@@ -275,10 +269,11 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                         e.stopPropagation()
                         if (isHoliday) return
                         
+                        const rect = e.currentTarget.getBoundingClientRect()
                         if (editMode) {
-                          onBlockClick(entry)
+                          onBlockClick(entry, rect)
                         } else if (attendanceHook && onInstanceClick) {
-                          onInstanceClick(entry, dateStr)
+                          onInstanceClick(entry, dateStr, rect)
                         }
                       }
 
@@ -299,13 +294,23 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                             padding:         '4px 6px',
                             overflow:        'hidden',
                             cursor:          isHoliday ? 'not-allowed' : 'pointer',
-                            transition:      'filter 0.15s, opacity 0.3s',
+                            transition:      'transform 0.18s ease-out, box-shadow 0.18s ease-out, opacity 0.3s',
                             borderRadius:    '0 2px 2px 0',
                             opacity:         isHoliday ? 0.3 : 1,
                             filter:          isHoliday ? 'grayscale(100%)' : 'none',
                           }}
-                          onMouseEnter={e => { if (!isHoliday) e.currentTarget.style.filter = 'brightness(1.2)' }}
-                          onMouseLeave={e => { if (!isHoliday) e.currentTarget.style.filter = 'brightness(1)' }}
+                          onMouseEnter={e => {
+                            if (!isHoliday) {
+                              e.currentTarget.style.transform = 'translateY(-1px)'
+                              e.currentTarget.style.boxShadow = `inset 0 0 0 1px ${color.border}22, 0 4px 12px ${color.border}40`
+                            }
+                          }}
+                          onMouseLeave={e => {
+                            if (!isHoliday) {
+                              e.currentTarget.style.transform = 'translateY(0)'
+                              e.currentTarget.style.boxShadow = `inset 0 0 0 1px ${color.border}22`
+                            }
+                          }}
                         >
                           <div
                             style={{
@@ -357,7 +362,7 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                                       borderRadius: '2px',
                                       textAlign: 'center',
                                       cursor: 'pointer',
-                                      transition: 'all 0.15s',
+                                      transition: 'background 0.15s, border-color 0.15s, color 0.15s',
                                     }}
                                     onMouseEnter={e => {
                                       if (!isActive) {

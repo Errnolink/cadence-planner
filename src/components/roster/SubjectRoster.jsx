@@ -70,8 +70,8 @@ export function SubjectRoster({ sem, semesters, editMode, onUpdateSem, onAddSubj
       <div className="flex-1 overflow-y-auto min-h-0">
         {subjects.length === 0
           ? <div style={{ padding: '24px 0', textAlign: 'center', fontFamily: 'var(--cad-font-mono)', fontSize: '10px', color: 'var(--cad-text-lo)' }}>// NO SUBJECTS</div>
-          : subjects.map(s => (
-            <SubjectRow key={s.id} subject={s} editMode={editMode} onUpdate={onUpdate} onRemove={onRemove} />
+          : subjects.map((s, i) => (
+            <SubjectRow key={s.id} subject={s} editMode={editMode} onUpdate={onUpdate} onRemove={onRemove} staggerIndex={i} />
           ))
         }
       </div>

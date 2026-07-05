@@ -43,7 +43,7 @@ export function SyncChip({ className, style }) {
           fontSize:     '9px',
           letterSpacing:'0.15em',
           borderRadius: 'var(--cad-radius)',
-          transition:   'all 0.15s',
+          transition:   'opacity 0.15s, color 0.15s',
           ...style
         }}
       >
