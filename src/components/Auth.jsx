@@ -9,12 +9,14 @@ export function Auth() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
+  const [message, setMessage] = useState(null);
 
 
   const handleSignUp = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setMessage(null);
     if (password.length < 8) {
       setError('PASSWORD MUST BE AT LEAST 8 CHARACTERS');
       setLoading(false);
@@ -23,6 +25,10 @@ export function Auth() {
     const { data, error } = await supabase.auth.signUp({ email, password });
     if (error) {
       setError(error.message);
+    } else if (data?.user?.identities?.length === 0) {
+      setError('USER ALREADY REGISTERED. PLEASE AUTHENTICATE INSTEAD.');
+    } else if (data?.user && !data?.session) {
+      setMessage('CONFIRMATION EMAIL SENT. PLEASE CHECK YOUR INBOX.');
     } else if (data?.session) {
       await API.syncFromServer(data.session.user.id);
     }
@@ -33,6 +39,7 @@ export function Auth() {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setMessage(null);
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
       setError(error.message);
@@ -94,6 +101,11 @@ export function Auth() {
       {error && (
         <div className="p-2 text-center panel-chamfer-sm" style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '9px', color: 'var(--cad-danger)', border: '1px solid var(--cad-danger)', background: 'var(--cad-danger-dim)' }}>
           {error.toUpperCase()}
+        </div>
+      )}
+      {message && (
+        <div className="p-2 text-center panel-chamfer-sm" style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '9px', color: 'var(--cad-success)', border: '1px solid var(--cad-success)', background: 'transparent' }}>
+          {message.toUpperCase()}
         </div>
       )}
       <div className="flex flex-col gap-3">
