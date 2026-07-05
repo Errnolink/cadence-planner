@@ -22,6 +22,19 @@ export function useAttendance() {
     })
   }
 
+  const toggleHoliday = (dateStr) => {
+    setAttendance(prev => {
+      const dayData = prev[dateStr] || {}
+      return {
+        ...prev,
+        [dateStr]: {
+          ...dayData,
+          isHoliday: !dayData.isHoliday
+        }
+      }
+    })
+  }
+
   const setNote = (dateStr, entryId, note) => {
     setAttendance(prev => {
       const dayData = prev[dateStr] || {}
@@ -46,6 +59,7 @@ export function useAttendance() {
     const subjectEntryIds = timetable.filter(t => t.subjectId === subjectId).map(t => t.id)
     
     Object.values(attendance).forEach(dayData => {
+      if (dayData.isHoliday) return
       subjectEntryIds.forEach(id => {
         if (dayData[id] === 'PRESENT') {
           present++
@@ -108,5 +122,5 @@ export function useAttendance() {
     return 'safe'
   }
 
-  return { attendance, markAttendance, setNote, getSubjectStats, getOverallStats, getMarginToThreshold, getRecoveryPath, getStatusTier }
+  return { attendance, markAttendance, toggleHoliday, setNote, getSubjectStats, getOverallStats, getMarginToThreshold, getRecoveryPath, getStatusTier }
 }

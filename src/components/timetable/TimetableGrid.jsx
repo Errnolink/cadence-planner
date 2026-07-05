@@ -112,9 +112,16 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
             <div style={{ width: `${TIME_COL_W}px`, flexShrink: 0, borderRight: '1px solid var(--cad-border-dim)', background: 'var(--cad-bg-primary)' }} />
             {displayDays.map((day) => {
               const isToday = DAYS.indexOf(day) === todayIdx
+              const colIdx = DAYS.indexOf(day)
+              const diff = colIdx - todayIdx
+              const d = new Date()
+              d.setDate(d.getDate() + diff)
+              const dateStr = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
+              const isHoliday = attendanceHook?.attendance?.[dateStr]?.isHoliday
+
               return (
                 <div key={day}
-                  className="flex-1 text-center py-1"
+                  className="flex-1 text-center py-1 flex flex-col items-center justify-center relative group"
                   style={{
                     minWidth:     `${DAY_MIN_W}px`,
                     fontFamily:   'var(--cad-font-mono)',
@@ -125,8 +132,25 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                     background:   isToday ? 'var(--cad-accent-dim)' : 'transparent',
                   }}
                 >
-                  {day}
+                  <div>{day}</div>
                   {isToday && <div className="text-[7px] blink" style={{ color: 'var(--cad-accent)', opacity: 0.5 }}>▸NOW</div>}
+                  {attendanceHook && !editMode && (
+                    <button
+                      onClick={() => attendanceHook.toggleHoliday(dateStr)}
+                      className="mt-1 px-1 py-0.5 rounded transition-colors"
+                      style={{
+                        fontSize: '7px',
+                        border: isHoliday ? '1px solid var(--cad-accent)' : '1px solid var(--cad-border-dim)',
+                        background: isHoliday ? 'var(--cad-accent-dim)' : 'transparent',
+                        color: isHoliday ? 'var(--cad-accent)' : 'var(--cad-text-lo)',
+                        opacity: isHoliday ? 1 : 0.5,
+                      }}
+                      onMouseEnter={(e) => { if (!isHoliday) e.currentTarget.style.opacity = 1 }}
+                      onMouseLeave={(e) => { if (!isHoliday) e.currentTarget.style.opacity = 0.5 }}
+                    >
+                      {isHoliday ? 'HOLIDAY' : 'SET HOLIDAY'}
+                    </button>
+                  )}
                 </div>
               )
             })}
@@ -171,6 +195,14 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
               {displayDays.map((day) => {
                 const isToday    = DAYS.indexOf(day) === todayIdx
                 const dayEntries = byDay[day] ?? []
+                
+                const colIdx = DAYS.indexOf(day)
+                const diff = colIdx - todayIdx
+                const d = new Date()
+                d.setDate(d.getDate() + diff)
+                const dateStr = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
+                const dayData = attendanceHook?.attendance?.[dateStr] || {}
+                const isHoliday = dayData.isHoliday
 
                 return (
                   <div
@@ -181,9 +213,9 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                       position:   'relative',
                       borderRight:'1px solid var(--cad-border-dim)',
                       background: isToday ? 'var(--cad-accent-dim)' : 'transparent',
-                      cursor:     editMode ? 'crosshair' : 'default',
+                      cursor:     editMode && !isHoliday ? 'crosshair' : 'default',
                     }}
-                    onClick={editMode ? e => handleColClick(day, e) : undefined}
+                    onClick={editMode && !isHoliday ? e => handleColClick(day, e) : undefined}
                   >
                     {/* Hour grid lines */}
                     {TICK_HOURS.map(h => (
@@ -236,8 +268,12 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                       const dayData = attendanceHook?.attendance?.[dateStr] || {}
                       const status = dayData[entry.id]
 
+                      const isHoliday = dayData.isHoliday
+
                       const handleBlockAction = (e) => {
                         e.stopPropagation()
+                        if (isHoliday) return
+                        
                         if (editMode) {
                           onBlockClick(entry)
                         } else if (attendanceHook && !showTodayOnly) {
@@ -263,12 +299,14 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                             boxShadow:       `inset 0 0 0 1px ${color.border}22`,
                             padding:         '4px 6px',
                             overflow:        'hidden',
-                            cursor:          'pointer',
-                            transition:      'filter 0.15s',
+                            cursor:          isHoliday ? 'not-allowed' : 'pointer',
+                            transition:      'filter 0.15s, opacity 0.3s',
                             borderRadius:    '0 2px 2px 0',
+                            opacity:         isHoliday ? 0.3 : 1,
+                            filter:          isHoliday ? 'grayscale(100%)' : 'none',
                           }}
-                          onMouseEnter={e => { e.currentTarget.style.filter = 'brightness(1.2)' }}
-                          onMouseLeave={e => { e.currentTarget.style.filter = 'brightness(1)' }}
+                          onMouseEnter={e => { if (!isHoliday) e.currentTarget.style.filter = 'brightness(1.2)' }}
+                          onMouseLeave={e => { if (!isHoliday) e.currentTarget.style.filter = 'brightness(1)' }}
                         >
                           <div
                             style={{
@@ -292,7 +330,7 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                             </>
                           )}
                           {editMode && <div style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '7px', color: 'var(--cad-accent)', opacity: 0.5 }}>✎</div>}
-                          {!editMode && attendanceHook && showTodayOnly && (
+                          {!editMode && attendanceHook && showTodayOnly && !isHoliday && (
                             <div style={{ position: 'absolute', top: '4px', right: '4px', display: 'flex', flexDirection: 'column', gap: '2px', zIndex: 10 }}>
                               {['PRESENT', 'ABSENT', 'CANCELLED'].map(type => {
                                 const isActive = status === type
