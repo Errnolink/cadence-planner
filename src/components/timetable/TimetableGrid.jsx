@@ -33,8 +33,26 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
     return m
   }, [timetable])
 
-  const handleCellClick = useCallback((day, startTime, endTime) => {
-    if (editMode && onCellClick) onCellClick(day, startTime, endTime)
+  const handleColClick = useCallback((day, e) => {
+    if (!editMode || !onCellClick) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    const y = e.clientY - rect.top
+    const pct = Math.max(0, Math.min(1, y / rect.height))
+    const mins = GRID_START_HOUR * 60 + pct * TOTAL_MINS
+    
+    // Snap to nearest 30 mins
+    const snappedMins = Math.floor(mins / 30) * 30
+    const startH = Math.floor(snappedMins / 60)
+    const startM = snappedMins % 60
+    
+    const endMins = Math.min(GRID_END_HOUR * 60, snappedMins + 60)
+    const endH = Math.floor(endMins / 60)
+    const endM = endMins % 60
+    
+    const startTime = `${pad2(startH)}:${pad2(startM)}`
+    const endTime = `${pad2(endH)}:${pad2(endM)}`
+    
+    onCellClick(day, startTime, endTime)
   }, [editMode, onCellClick])
 
   const scrollRef = useRef(null)
@@ -49,7 +67,7 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
     // Position "now" at ~1/3 from top of visible area
     const scrollTarget = offset * el.scrollHeight - el.clientHeight / 3
     el.scrollTo({ top: Math.max(0, scrollTarget), behavior: 'smooth' })
-  }, [])
+  }, [baseDate])
 
   const [showTodayOnly, setShowTodayOnly] = useState(false)
   const displayDays = showTodayOnly ? [DAYS[todayIdx]] : DAYS
@@ -300,13 +318,13 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                             filter:          isHoliday ? 'grayscale(100%)' : 'none',
                           }}
                           onMouseEnter={e => {
-                            if (!isHoliday) {
+                            if (!isHoliday && window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
                               e.currentTarget.style.transform = 'translateY(-1px)'
                               e.currentTarget.style.boxShadow = `inset 0 0 0 1px ${color.border}22, 0 4px 12px ${color.border}40`
                             }
                           }}
                           onMouseLeave={e => {
-                            if (!isHoliday) {
+                            if (!isHoliday && window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
                               e.currentTarget.style.transform = 'translateY(0)'
                               e.currentTarget.style.boxShadow = `inset 0 0 0 1px ${color.border}22`
                             }

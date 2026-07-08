@@ -82,7 +82,7 @@ Please output ONLY the raw JSON format without markdown wrapping or codeblocks.`
       URL.revokeObjectURL(url)
       setDataSyncMsg('BACKUP DOWNLOADED.')
       setTimeout(() => setDataSyncMsg(''), 3000)
-    } catch (e) {
+    } catch {
       setDataSyncMsg('DOWNLOAD FAILED.')
       setTimeout(() => setDataSyncMsg(''), 3000)
     }
@@ -97,7 +97,7 @@ Please output ONLY the raw JSON format without markdown wrapping or codeblocks.`
         const data = JSON.parse(ev.target.result)
         API.importAllData(data)
         window.location.reload()
-      } catch (err) {
+      } catch {
         setDataSyncMsg('INVALID BACKUP FILE.')
         setTimeout(() => setDataSyncMsg(''), 3000)
       }

@@ -1,16 +1,23 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 
 export function SemDropdown({ semesters, activeSemId, onChange, onRemove, onAdd, editMode }) {
   const [open, setOpen] = useState(false)
+  const [closing, setClosing] = useState(false)
   const [deleteStage, setDeleteStage] = useState({})
   const ref    = useRef(null)
   const active = semesters.find(s => String(s.id) === String(activeSemId))
 
+  const closeDropdown = useCallback(() => {
+    if (closing || !open) return
+    setClosing(true)
+    setTimeout(() => { setOpen(false); setClosing(false); setDeleteStage({}) }, 120)
+  }, [closing, open])
+
   useEffect(() => {
-    const h = e => { if (ref.current && !ref.current.contains(e.target)) { setOpen(false); setDeleteStage({}) } }
+    const h = e => { if (ref.current && !ref.current.contains(e.target)) closeDropdown() }
     document.addEventListener('mousedown', h)
     return () => document.removeEventListener('mousedown', h)
-  }, [])
+  }, [closeDropdown])
 
   const btnStyle = {
     background:   open ? 'var(--cad-accent-dim)' : 'var(--cad-accent-dim)',
@@ -22,19 +29,19 @@ export function SemDropdown({ semesters, activeSemId, onChange, onRemove, onAdd,
   return (
     <div className="relative" ref={ref}>
       <button
-        onClick={() => setOpen(v => !v)}
+        onClick={() => open ? closeDropdown() : setOpen(true)}
         className="flex items-center gap-2 px-2.5 py-1.5 panel-chamfer-sm btn-mech"
         style={btnStyle}
       >
         <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '11px', color: 'var(--cad-accent-text)', letterSpacing: '0.1em', flex: 1, textAlign: 'left' }}>
           {active?.label ?? '—'}
         </span>
-        <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '10px', color: 'var(--cad-accent)', transition: 'transform 0.2s', display: 'inline-block', transform: open ? 'rotate(-180deg)' : 'none' }}>▾</span>
+        <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '10px', color: 'var(--cad-accent)', transition: 'transform 200ms cubic-bezier(0.22, 1, 0.36, 1)', display: 'inline-block', transform: open ? 'rotate(-180deg)' : 'none' }}>▾</span>
       </button>
 
       {open && (
         <div
-          className="absolute left-0 top-full mt-1 z-30 anim-dropdown-enter"
+          className={`absolute left-0 top-full mt-1 z-30 ${closing ? 'anim-dropdown-exit' : 'anim-dropdown-enter'}`}
           style={{
             border:       '1px solid var(--cad-accent)',
             background:   'var(--cad-bg-panel)',
@@ -62,7 +69,7 @@ export function SemDropdown({ semesters, activeSemId, onChange, onRemove, onAdd,
                 onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
               >
                 <button
-                  onClick={() => { onChange(s.id); setOpen(false) }}
+                  onClick={() => { onChange(s.id); closeDropdown() }}
                   className="flex-1 text-left"
                   style={{ background: 'none', border: 'none', color: 'inherit', fontFamily: 'inherit', fontSize: 'inherit', cursor: 'pointer' }}
                 >
@@ -83,7 +90,7 @@ export function SemDropdown({ semesters, activeSemId, onChange, onRemove, onAdd,
                           setDeleteStage(prev => ({ ...prev, [s.id]: 2 }))
                         } else {
                           onRemove(s.id)
-                          if (s.id === activeSemId) setOpen(false)
+                          if (s.id === activeSemId) closeDropdown()
                         }
                       }}
                       className="btn-mech"
@@ -100,7 +107,7 @@ export function SemDropdown({ semesters, activeSemId, onChange, onRemove, onAdd,
           {editMode && (
             <div className="w-full" style={{ borderTop: '1px solid var(--cad-border-dim)' }}>
               <button
-                onClick={() => { onAdd(); setOpen(false); }}
+                onClick={() => { onAdd(); closeDropdown(); }}
                 className="w-full px-3 py-2 text-center transition-colors"
                 style={{
                   fontFamily:   'var(--cad-font-mono)',

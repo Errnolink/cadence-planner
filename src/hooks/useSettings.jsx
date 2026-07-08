@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect, useRef } from 'react'
 import { API } from '../data/api.js'
 
 const defaultSettings = {
@@ -15,8 +15,27 @@ export function SettingsProvider({ children }) {
     return API.getSettings(defaultSettings)
   })
 
+  const isSyncUpdate = useRef(false)
+  const isFirstRender = useRef(true)
+  
   useEffect(() => {
-    API.saveSettings(settings)
+    const handleSync = () => {
+      isSyncUpdate.current = true
+      setSettings(API.getSettings(defaultSettings))
+      setTimeout(() => { isSyncUpdate.current = false }, 0)
+    }
+    window.addEventListener('cadence-data-updated', handleSync)
+    return () => window.removeEventListener('cadence-data-updated', handleSync)
+  }, [])
+
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false
+    } else {
+      if (!isSyncUpdate.current) {
+        API.saveSettings(settings)
+      }
+    }
     // Also apply data-mode to documentElement here so CSS can react
     document.documentElement.setAttribute('data-mode', settings.themeMode)
   }, [settings])

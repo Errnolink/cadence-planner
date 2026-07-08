@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect, useRef } from 'react'
 import { THEMES } from './index.js'
 import { API } from '../data/api.js'
 import { ALLOWED_EFFECTS } from './effects.js'
@@ -71,7 +71,27 @@ export function ThemeProvider({ children }) {
     return API.getCustomThemes([])
   })
 
+  const isSyncUpdate = useRef(false)
+  const isFirstRenderTheme = useRef(true)
+  const isFirstRenderCustomThemes = useRef(true)
+
   useEffect(() => {
+    const handleSync = () => {
+      isSyncUpdate.current = true
+      setThemeId(API.get('cadence-theme', DEFAULT_ID))
+      setCustomThemes(API.getCustomThemes([]))
+      setTimeout(() => { isSyncUpdate.current = false }, 0)
+    }
+    window.addEventListener('cadence-data-updated', handleSync)
+    return () => window.removeEventListener('cadence-data-updated', handleSync)
+  }, [])
+
+  useEffect(() => {
+    if (isFirstRenderCustomThemes.current) {
+      isFirstRenderCustomThemes.current = false
+      return
+    }
+    if (isSyncUpdate.current) return
     API.saveCustomThemes(customThemes)
   }, [customThemes])
 
@@ -80,8 +100,25 @@ export function ThemeProvider({ children }) {
 
   // Apply theme attribute to <html> so CSS vars take effect immediately
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', themeId)
-    API.set('cadence-theme', themeId)
+    const html = document.documentElement
+    // Suppress transition ripple during theme switch
+    html.setAttribute('data-theme-switching', '')
+    html.setAttribute('data-theme', themeId)
+    
+    if (isFirstRenderTheme.current) {
+      isFirstRenderTheme.current = false
+    } else {
+      if (!isSyncUpdate.current) {
+        API.set('cadence-theme', themeId)
+      }
+    }
+    
+    // Re-enable transitions after the browser has painted the new theme
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        html.removeAttribute('data-theme-switching')
+      })
+    })
   }, [themeId])
 
   // Apply theme effects as data-fx-* attributes on <html>

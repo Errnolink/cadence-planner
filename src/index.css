@@ -37,6 +37,11 @@ body {
   transition:  background 0.3s ease, color 0.3s ease;
 }
 
+/* Disable transitions during theme switch to prevent ripple */
+[data-theme-switching] * {
+  transition: none !important;
+}
+
 :root[data-theme="nerv"] {
   color-scheme: dark;
 }
@@ -151,8 +156,13 @@ input[type='number'] { -moz-appearance: textfield; }
   100% { clip-path: polygon(0 20%, 100% 20%, 100% 40%, 0 40%); transform: translate(3px, 0px); }
 }
 @keyframes cad-dropdown-enter {
-  from { opacity: 0; transform: scaleY(0); }
+  from { opacity: 0; transform: scaleY(0.6); }
   to   { opacity: 1; transform: scaleY(1); }
+}
+
+@keyframes cad-dropdown-exit {
+  from { opacity: 1; transform: scaleY(1); }
+  to   { opacity: 0; transform: scaleY(0.6); }
 }
 
 @keyframes cad-stagger-row {
@@ -202,12 +212,18 @@ input[type='number'] { -moz-appearance: textfield; }
 
   /* List row stagger (Sidebar) */
   .anim-stagger-row {
-    animation: cad-stagger-row 200ms ease-out both;
+    animation: cad-stagger-row 200ms cubic-bezier(0.22, 1, 0.36, 1) both;
     animation-delay: var(--stagger-delay, 0ms);
   }
 
   .anim-tab-enter {
-    animation: cad-tab-enter 200ms ease-out both;
+    animation: cad-tab-enter 200ms cubic-bezier(0.25, 1, 0.5, 1) both;
+  }
+
+  /* Dropdown exit */
+  .anim-dropdown-exit {
+    animation: cad-dropdown-exit 120ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    transform-origin: top center;
   }
 
   /* HTML Reference Glitch Effect */
@@ -253,6 +269,7 @@ input[type='number'] { -moz-appearance: textfield; }
   .anim-modal-panel-enter,
   .anim-modal-panel-exit,
   .anim-dropdown-enter,
+  .anim-dropdown-exit,
   .anim-stagger-row,
   .anim-tab-enter {
     animation: none !important;

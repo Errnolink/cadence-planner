@@ -16,7 +16,13 @@ export function useAttendance() {
     return () => window.removeEventListener('cadence-data-updated', handleSync)
   }, [])
 
+  const isFirstRender = useRef(true)
+
   useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false
+      return
+    }
     if (isSyncUpdate.current) return
     API.saveAttendance(attendance)
   }, [attendance])

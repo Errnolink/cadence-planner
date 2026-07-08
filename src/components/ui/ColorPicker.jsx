@@ -10,7 +10,7 @@ export function ColorPicker({ value, onChange }) {
       <div className="grid grid-cols-6 gap-1.5">
         {SUBJECT_COLORS.map(c => (
           <button key={c.id} onClick={() => onChange(c.id)} title={c.name}
-            className="w-7 h-7 transition-all"
+            className="w-7 h-7"
             style={{
               background:    c.bg,
               border:        `2px solid ${c.border}`,
@@ -18,6 +18,7 @@ export function ColorPicker({ value, onChange }) {
               outline:       value === c.id ? '1px solid white' : 'none',
               outlineOffset: '1px',
               transform:     value === c.id ? 'scale(1.15)' : 'scale(1)',
+              transition:    'transform 150ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 150ms ease-out',
               borderRadius:  'var(--cad-radius)',
             }}
           />

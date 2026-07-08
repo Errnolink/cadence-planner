@@ -31,12 +31,23 @@ export function useSemesters() {
     return () => window.removeEventListener('cadence-data-updated', handleSync)
   }, [])
 
+  const isFirstRenderActiveSem = useRef(true)
+  const isFirstRenderSem = useRef(true)
+
   useEffect(() => {
+    if (isFirstRenderActiveSem.current) {
+      isFirstRenderActiveSem.current = false
+      return
+    }
     if (isSyncUpdate.current) return
     API.saveActiveSemId(activeSemId)
   }, [activeSemId])
 
   useEffect(() => {
+    if (isFirstRenderSem.current) {
+      isFirstRenderSem.current = false
+      return
+    }
     if (isSyncUpdate.current) return
     API.saveSemesters(semesters)
   }, [semesters])
