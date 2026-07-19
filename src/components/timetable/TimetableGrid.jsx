@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { SUBJECT_COLORS, DAYS, GRID_START_HOUR, GRID_END_HOUR, pad2, getTodayDayIdx, parseTimeToMins, generateSubjectCode } from '../../data/index.js'
+import { DayDetailModal } from '../calendar/DayDetailModal.jsx'
 
 
 const TOTAL_MINS = (GRID_END_HOUR - GRID_START_HOUR) * 60
@@ -19,6 +20,7 @@ function pctH(start, end) {
 export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBlockClick, onInstanceClick, attendanceHook }) {
   const todayIdx = getTodayDayIdx()
   const baseDate = useMemo(() => new Date(), [])
+  const [activeDayDetail, setActiveDayDetail] = useState(null)
 
   const subjectMap = useMemo(() => {
     const m = {}
@@ -134,7 +136,15 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
 
               return (
                 <div key={day}
-                  className="flex-1 text-center py-1 flex flex-col items-center justify-center relative group"
+                  className="flex-1 text-center py-2 flex flex-col items-center justify-center gap-1 relative group"
+                  onClick={() => {
+                    if (!editMode) {
+                      setActiveDayDetail({
+                        date: { year: d.getFullYear(), month: d.getMonth(), day: d.getDate() },
+                        weekday: day
+                      })
+                    }
+                  }}
                   style={{
                     minWidth:     `${DAY_MIN_W}px`,
                     fontFamily:   'var(--cad-font-mono)',
@@ -143,26 +153,21 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                     textTransform:'uppercase',
                     color:        isToday ? 'var(--cad-accent)'   : 'var(--cad-text-mid)',
                     background:   isToday ? 'var(--cad-accent-dim)' : 'transparent',
+                    cursor:       !editMode ? 'pointer' : 'default',
                   }}
                 >
-                  <div>{day}</div>
+                  <div className="font-bold">{day}</div>
                   {isToday && <div className="text-[7px] blink" style={{ color: 'var(--cad-accent)', opacity: 0.5 }}>▸NOW</div>}
-                  {attendanceHook && !editMode && (
-                    <button
-                      onClick={() => attendanceHook.toggleHoliday(dateStr)}
-                      className="mt-1 px-1 py-0.5 rounded transition-colors"
-                      style={{
-                        fontSize: '7px',
-                        border: '1px solid var(--cad-accent)',
-                        background: isHoliday ? 'var(--cad-accent)' : 'transparent',
-                        color: isHoliday ? 'var(--cad-bg-primary)' : 'var(--cad-accent)',
-                        opacity: isHoliday ? 1 : 0.7,
-                      }}
-                      onMouseEnter={(e) => { if (!isHoliday) e.currentTarget.style.opacity = '1' }}
-                      onMouseLeave={(e) => { if (!isHoliday) e.currentTarget.style.opacity = '0.7' }}
-                    >
-                      {isHoliday ? 'HOLIDAY' : 'SET HOLIDAY'}
-                    </button>
+                  {isHoliday ? (
+                    <div className="text-[7px] px-1 py-0.5 rounded" style={{ fontSize: '7px', border: '1px solid var(--cad-danger)', color: 'var(--cad-danger)', background: 'rgba(239,68,68,0.1)' }}>
+                      HOLIDAY
+                    </div>
+                  ) : (
+                    !editMode && (
+                      <div className="text-[6px] opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: 'var(--cad-text-lo)', fontSize: '6px' }}>
+                        ● VIEW
+                      </div>
+                    )
                   )}
                 </div>
               )
@@ -437,6 +442,18 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
           )
         })}
       </div>
+      
+      {/* Day detail modal */}
+      {activeDayDetail && (
+        <DayDetailModal
+          date={activeDayDetail.date}
+          weekday={activeDayDetail.weekday}
+          timetable={timetable}
+          subjects={subjects}
+          attendanceHook={attendanceHook}
+          onClose={() => setActiveDayDetail(null)}
+        />
+      )}
     </div>
   )
 }

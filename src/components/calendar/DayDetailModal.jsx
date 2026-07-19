@@ -7,7 +7,7 @@ import { SUBJECT_COLORS, DAYS, WEEK_LABELS, MONTH_NAMES, parseTimeToMins } from 
  * Slide-up on mobile, centered overlay on desktop.
  */
 export function DayDetailModal({ date, weekday, timetable, subjects, attendanceHook, onClose }) {
-  const { attendance, markAttendance } = attendanceHook || {}
+  const { attendance, markAttendance, markDayAttendance } = attendanceHook || {}
   const dateStr = date ? `${date.year}-${String(date.month + 1).padStart(2, '0')}-${String(date.day).padStart(2, '0')}` : ''
   const dayData = attendance && dateStr ? (attendance[dateStr] || {}) : {}
   // weekday: 'MON','TUE', etc. — null means no classes (weekend or no match)
@@ -107,6 +107,56 @@ export function DayDetailModal({ date, weekday, timetable, subjects, attendanceH
               >✕ CLOSE</button>
             </div>
           </div>
+          
+          {/* Quick Mark Toolbar */}
+          {entries.length > 0 && !dayData.isHoliday && markDayAttendance && (
+            <div
+              className="flex gap-2 px-4 py-2 justify-end shrink-0 items-center"
+              style={{ borderBottom: '1px solid var(--cad-border-dim)', background: 'var(--cad-bg-elevated)' }}
+            >
+              <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '8px', color: 'var(--cad-text-lo)', letterSpacing: '0.05em', marginRight: 'auto' }}>
+                QUICK MARK:
+              </span>
+              <button
+                onClick={() => {
+                  const entryIds = entries.map(e => e.id)
+                  markDayAttendance(dateStr, entryIds, 'PRESENT')
+                }}
+                className="px-2 py-0.5 rounded transition-colors"
+                style={{
+                  fontFamily: 'var(--cad-font-mono)',
+                  fontSize: '8px',
+                  border: '1px solid var(--cad-success)',
+                  background: 'transparent',
+                  color: 'var(--cad-success)',
+                  cursor: 'pointer'
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(34,197,94,0.1)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+              >
+                ALL PRESENT
+              </button>
+              <button
+                onClick={() => {
+                  const entryIds = entries.map(e => e.id)
+                  markDayAttendance(dateStr, entryIds, 'ABSENT')
+                }}
+                className="px-2 py-0.5 rounded transition-colors"
+                style={{
+                  fontFamily: 'var(--cad-font-mono)',
+                  fontSize: '8px',
+                  border: '1px solid var(--cad-danger)',
+                  background: 'transparent',
+                  color: 'var(--cad-danger)',
+                  cursor: 'pointer'
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+              >
+                ALL ABSENT
+              </button>
+            </div>
+          )}
 
           {/* Entry list */}
           <div className="overflow-y-auto flex-1 p-3">

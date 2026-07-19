@@ -38,6 +38,19 @@ export function useAttendance() {
     })
   }
 
+  const markDayAttendance = (dateStr, entryIds, status) => {
+    setAttendance(prev => {
+      const dayData = { ...(prev[dateStr] || {}) }
+      entryIds.forEach(id => {
+        dayData[id] = status // 'PRESENT' or 'ABSENT'
+      })
+      return {
+        ...prev,
+        [dateStr]: dayData
+      }
+    })
+  }
+
   const toggleHoliday = (dateStr) => {
     setAttendance(prev => {
       const dayData = prev[dateStr] || {}
@@ -138,5 +151,5 @@ export function useAttendance() {
     return 'safe'
   }
 
-  return { attendance, markAttendance, toggleHoliday, setNote, getSubjectStats, getOverallStats, getMarginToThreshold, getRecoveryPath, getStatusTier }
+  return { attendance, markAttendance, markDayAttendance, toggleHoliday, setNote, getSubjectStats, getOverallStats, getMarginToThreshold, getRecoveryPath, getStatusTier }
 }
