@@ -2,7 +2,7 @@ import { useState, useMemo, useRef } from 'react'
 import { SUBJECT_COLORS, WEEK_LABELS, MONTH_NAMES, DAYS, parseTimeToMins, generateSubjectCode, isSecondOrFourthSaturday } from '../../data/index.js'
 import { DayDetailModal } from './DayDetailModal.jsx'
 import { useSettings } from '../../hooks/useSettings.jsx'
-import { Dropdown } from '../ui/Dropdown.jsx'
+
 
 const DAYS_SET = new Set(DAYS)
 
@@ -81,21 +81,47 @@ export function CalendarView({ timetable, subjects, attendanceHook }) {
         >◀</button>
 
         <div className="flex gap-2 text-center items-center">
-          <Dropdown
+          <select
             value={month}
-            options={MONTH_NAMES.map((m, i) => ({ value: i, label: m }))}
-            onChange={setMonth}
-            minWidth="130px"
-          />
-          <Dropdown
+            onChange={e => setMonth(Number(e.target.value))}
+            style={{
+              fontFamily:   'var(--cad-font-mono)',
+              fontSize:     '11px',
+              background:   'var(--cad-bg-input)',
+              border:       '1px solid var(--cad-border)',
+              color:        'var(--cad-accent)',
+              padding:      '4px 8px',
+              outline:      'none',
+              borderRadius: 'var(--cad-radius)',
+              cursor:       'pointer',
+              minWidth:     '130px',
+            }}
+          >
+            {MONTH_NAMES.map((m, i) => (
+              <option key={i} value={i}>{m}</option>
+            ))}
+          </select>
+          <select
             value={year}
-            options={Array.from({length: 20}, (_, i) => {
+            onChange={e => setYear(Number(e.target.value))}
+            style={{
+              fontFamily:   'var(--cad-font-mono)',
+              fontSize:     '11px',
+              background:   'var(--cad-bg-input)',
+              border:       '1px solid var(--cad-border)',
+              color:        'var(--cad-accent)',
+              padding:      '4px 8px',
+              outline:      'none',
+              borderRadius: 'var(--cad-radius)',
+              cursor:       'pointer',
+              minWidth:     '80px',
+            }}
+          >
+            {Array.from({length: 20}, (_, i) => {
               const y = today.getFullYear() - 10 + i
-              return { value: y, label: String(y) }
+              return <option key={y} value={y}>{y}</option>
             })}
-            onChange={setYear}
-            minWidth="80px"
-          />
+          </select>
         </div>
 
         <button

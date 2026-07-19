@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { SUBJECT_COLORS, DAYS, GRID_START_HOUR, GRID_END_HOUR, pad2, getTodayDayIdx, parseTimeToMins, generateSubjectCode } from '../../data/index.js'
-import { DataHr } from '../ui/DataHr.jsx'
+
 
 const TOTAL_MINS = (GRID_END_HOUR - GRID_START_HOUR) * 60
 const TICK_HOURS = Array.from({ length: GRID_END_HOUR - GRID_START_HOUR + 1 }, (_, i) => GRID_START_HOUR + i)
@@ -425,7 +425,7 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
       </div>
 
       {/* Legend */}
-      <DataHr />
+      <hr style={{ border: 'none', borderTop: '1px solid var(--cad-border-dim)', margin: '4px 0' }} />
       <div className="flex flex-wrap gap-x-4 gap-y-1 pt-1 pb-0.5 shrink-0 overflow-x-auto">
         {subjects.map(s => {
           const c = SUBJECT_COLORS[s.colorIdx % SUBJECT_COLORS.length]

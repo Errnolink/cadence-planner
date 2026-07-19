@@ -1,5 +1,5 @@
 import { SUBJECT_COLORS, calcGPA, calcCGPA } from '../../data/index.js'
-import { DataHr } from '../ui/DataHr.jsx'
+
 import { SubjectRow } from './SubjectRow.jsx'
 import { GpaBadge } from './GpaBadge.jsx'
 import { Dot } from '../ui/Dot.jsx'
@@ -64,7 +64,7 @@ export function SubjectRoster({ sem, semesters, editMode, onUpdateSem, onAddSubj
         <span style={{ fontSize: '8px', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--cad-text-lo)', fontFamily: 'var(--cad-font-mono)', width: '32px', textAlign: 'right' }}>GP</span>
         {editMode && <span className="w-4" />}
       </div>
-      <DataHr />
+      <hr style={{ border: 'none', borderTop: '1px solid var(--cad-border-dim)', margin: '4px 0' }} />
 
       {/* Subject list */}
       <div className="flex-1 overflow-y-auto min-h-0">
@@ -78,7 +78,7 @@ export function SubjectRoster({ sem, semesters, editMode, onUpdateSem, onAddSubj
 
       {editMode && (
         <>
-          <DataHr />
+          <hr style={{ border: 'none', borderTop: '1px solid var(--cad-border-dim)', margin: '4px 0' }} />
           <button
             onClick={onAddSubject}
             className="shrink-0 w-full py-1.5 panel-chamfer-sm btn-mech uppercase"
@@ -94,7 +94,7 @@ export function SubjectRoster({ sem, semesters, editMode, onUpdateSem, onAddSubj
         </>
       )}
 
-      <DataHr />
+      <hr style={{ border: 'none', borderTop: '1px solid var(--cad-border-dim)', margin: '4px 0' }} />
 
       {/* Current CGPA (all semesters) */}
       <GpaBadge label="CURRENT CGPA" hex="0xD000" value={cgpa} />

@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react'
 import { SUBJECT_COLORS, DAYS, GRID_START_HOUR, GRID_END_HOUR, genId, pad2, parseTimeToMins } from '../../data/index.js'
 import { Modal } from '../ui/Modal.jsx'
-import { TimeInput } from '../ui/TimeInput.jsx'
+
 import { useSettings } from '../../hooks/useSettings.jsx'
 
 export function TimetableModal({ mode, initialData, sourceRect, subjects, timetable, onSave, onDelete, onClose }) {
@@ -126,21 +126,48 @@ export function TimetableModal({ mode, initialData, sourceRect, subjects, timeta
 
         {/* Start / End time */}
         <div className="grid grid-cols-2 gap-3" style={sectionStyle}>
-          <TimeInput
-            label="START TIME"
-            value={form.startTime}
-            onChange={handleStartChange}
-            minHour={GRID_START_HOUR}
-            maxHour={GRID_END_HOUR}
-          />
-          <TimeInput
-            label="END TIME"
-            value={form.endTime}
-            onChange={v => upd('endTime', v)}
-            minHour={GRID_START_HOUR}
-            maxHour={GRID_END_HOUR}
-            minValue={form.startTime}
-          />
+          <div>
+            <div style={labelStyle}>START TIME</div>
+            <input
+              type="time"
+              value={form.startTime}
+              onChange={e => handleStartChange(e.target.value)}
+              min={`${pad2(GRID_START_HOUR)}:00`}
+              max={`${pad2(GRID_END_HOUR)}:00`}
+              style={{
+                width:        '100%',
+                fontFamily:   'var(--cad-font-mono)',
+                fontSize:     '12px',
+                color:        'var(--cad-accent-text)',
+                background:   'var(--cad-bg-input)',
+                border:       '1px solid var(--cad-border)',
+                padding:      '6px 8px',
+                outline:      'none',
+                borderRadius: 'var(--cad-radius)',
+              }}
+            />
+          </div>
+          <div>
+            <div style={labelStyle}>END TIME</div>
+            <input
+              type="time"
+              value={form.endTime}
+              onChange={e => upd('endTime', e.target.value)}
+              min={`${pad2(GRID_START_HOUR)}:00`}
+              max={`${pad2(GRID_END_HOUR)}:00`}
+              style={{
+                width:        '100%',
+                fontFamily:   'var(--cad-font-mono)',
+                fontSize:     '12px',
+                color:        'var(--cad-accent-text)',
+                background:   'var(--cad-bg-input)',
+                border:       '1px solid var(--cad-border)',
+                padding:      '6px 8px',
+                outline:      'none',
+                borderRadius: 'var(--cad-radius)',
+              }}
+            />
+          </div>
         </div>
 
         {/* Room - Conditional based on Settings */}
