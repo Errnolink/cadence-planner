@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useSemesters } from './hooks/useSemesters.js'
 import { useAttendance } from './hooks/useAttendance.js'
 import { Dot } from './components/ui/Dot.jsx'
@@ -23,7 +23,7 @@ function AnimatedTab({ tabKey, children }) {
 
 export default function App() {
   const {
-    semesters, setSemesters, activeSemId, activeSem,
+    semesters, activeSemId, activeSem,
     setActiveSemId, addSemester, updateSem, removeSemester,
     addSubject, updateSubject, removeSubject,
     saveTimetableEntry, deleteTimetableEntry, clearAllLocations,

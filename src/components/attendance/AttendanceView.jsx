@@ -4,7 +4,7 @@ import { ATTENDANCE_THRESHOLD } from '../../data/constants.js'
 import { SubjectAttendanceModal } from './SubjectAttendanceModal.jsx'
 
 export function AttendanceView({ timetable, subjects, attendanceHook }) {
-  const { attendance, getSubjectStats, getOverallStats, getMarginToThreshold, getRecoveryPath, getStatusTier } = attendanceHook
+  const { getSubjectStats, getOverallStats, getMarginToThreshold, getRecoveryPath, getStatusTier } = attendanceHook
   const [selectedSubjectData, setSelectedSubjectData] = useState(null)
   const [filter, setFilter] = useState('ALL')
   const [animated, setAnimated] = useState(false)

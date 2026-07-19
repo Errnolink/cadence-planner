@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef } from 'react'
-import { SUBJECT_COLORS, WEEK_LABELS, MONTH_NAMES, DAYS, parseTimeToMins, generateSubjectCode, isSecondOrFourthSaturday } from '../../data/index.js'
+import { SUBJECT_COLORS, WEEK_LABELS, MONTH_NAMES, DAYS, generateSubjectCode, isSecondOrFourthSaturday } from '../../data/index.js'
 import { DayDetailModal } from './DayDetailModal.jsx'
 import { useSettings } from '../../hooks/useSettings.jsx'
 

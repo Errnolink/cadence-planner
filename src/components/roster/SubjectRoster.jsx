@@ -1,8 +1,7 @@
-import { SUBJECT_COLORS, calcGPA, calcCGPA } from '../../data/index.js'
+import { calcGPA, calcCGPA } from '../../data/index.js'
 
 import { SubjectRow } from './SubjectRow.jsx'
 import { GpaBadge } from './GpaBadge.jsx'
-import { Dot } from '../ui/Dot.jsx'
 
 export function SubjectRoster({ sem, semesters, editMode, onUpdateSem, onAddSubject, onUpdate, onRemove }) {
   const subjects  = sem?.subjects ?? []
