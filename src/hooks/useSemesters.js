@@ -7,8 +7,6 @@ import { API } from '../data/api.js'
  * Returns derived state + action callbacks.
  */
 export function useSemesters() {
-  const isSyncUpdate = useRef(false)
-
   const [semesters, setSemesters] = useState(() => {
     return API.getSemesters(INITIAL_SEMESTERS)
   })
@@ -19,13 +17,9 @@ export function useSemesters() {
 
   useEffect(() => {
     const handleSync = () => {
-      isSyncUpdate.current = true
       setSemesters(API.getSemesters(INITIAL_SEMESTERS))
-      
       const newSems = API.getSemesters(INITIAL_SEMESTERS)
       setActiveSemId(API.getActiveSemId(newSems[0]?.id || 1))
-      
-      setTimeout(() => { isSyncUpdate.current = false }, 0)
     }
     window.addEventListener('cadence-data-updated', handleSync)
     return () => window.removeEventListener('cadence-data-updated', handleSync)
@@ -39,7 +33,8 @@ export function useSemesters() {
       isFirstRenderActiveSem.current = false
       return
     }
-    if (isSyncUpdate.current) return
+    const currentLocalId = API.getActiveSemId(null)
+    if (currentLocalId === activeSemId) return
     API.saveActiveSemId(activeSemId)
   }, [activeSemId])
 
@@ -48,7 +43,8 @@ export function useSemesters() {
       isFirstRenderSem.current = false
       return
     }
-    if (isSyncUpdate.current) return
+    const currentLocal = API.getSemesters(null)
+    if (JSON.stringify(currentLocal) === JSON.stringify(semesters)) return
     API.saveSemesters(semesters)
   }, [semesters])
 

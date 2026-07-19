@@ -15,6 +15,7 @@ const KEYS = {
   ATTENDANCE: 'cadence_attendance',
   CUSTOM_THEMES: 'cadence_custom_themes',
   UPDATED_AT: 'cadence_updated_at',
+  USER_ID: 'cadence_user_id',
 }
 
 export const API = {
@@ -25,6 +26,7 @@ export const API = {
   },
 
   syncFromServer: async (userId) => {
+    const localUserId = localStorage.getItem(KEYS.USER_ID);
     API.setUserId(userId);
     const { data, error } = await supabase
       .from('user_data')
@@ -39,7 +41,8 @@ export const API = {
       let shouldUpdateLocal = true;
       let shouldPushToServer = false;
 
-      if (localUpdated && serverUpdated) {
+      // Only compare timestamps if the local data belongs to the same user
+      if (localUserId === userId && localUpdated && serverUpdated) {
         const localTime = new Date(localUpdated).getTime();
         const serverTime = new Date(serverUpdated).getTime();
         
@@ -59,6 +62,7 @@ export const API = {
         if (data.custom_themes) localStorage.setItem(KEYS.CUSTOM_THEMES, JSON.stringify(data.custom_themes));
         if (data.theme_id) localStorage.setItem('cadence-theme', data.theme_id);
         if (data.updated_at) localStorage.setItem(KEYS.UPDATED_AT, data.updated_at);
+        localStorage.setItem(KEYS.USER_ID, userId);
         
         // Dispatch event instead of reloading to allow React to update state seamlessly
         window.dispatchEvent(new CustomEvent('cadence-data-updated'));
@@ -70,6 +74,7 @@ export const API = {
     } else if (error && error.code === 'PGRST116') {
       // No rows returned, meaning this is a new user or new device with local data only.
       // Let's push their local data up to the server.
+      localStorage.setItem(KEYS.USER_ID, userId);
       await API.syncToServer();
     }
   },
@@ -122,6 +127,9 @@ export const API = {
       
       if (!skipTimestampUpdate && key !== KEYS.UPDATED_AT) {
         localStorage.setItem(KEYS.UPDATED_AT, new Date().toISOString())
+        if (API.userId) {
+          localStorage.setItem(KEYS.USER_ID, API.userId)
+        }
       }
 
       // Trigger debounced cloud sync in the background if logged in

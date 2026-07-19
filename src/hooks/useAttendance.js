@@ -3,14 +3,11 @@ import { API } from '../data/api.js'
 import { ATTENDANCE_THRESHOLD } from '../data/constants.js'
 
 export function useAttendance() {
-  const isSyncUpdate = useRef(false)
   const [attendance, setAttendance] = useState(() => API.getAttendance({}))
 
   useEffect(() => {
     const handleSync = () => {
-      isSyncUpdate.current = true
       setAttendance(API.getAttendance({}))
-      setTimeout(() => { isSyncUpdate.current = false }, 0)
     }
     window.addEventListener('cadence-data-updated', handleSync)
     return () => window.removeEventListener('cadence-data-updated', handleSync)
@@ -23,7 +20,8 @@ export function useAttendance() {
       isFirstRender.current = false
       return
     }
-    if (isSyncUpdate.current) return
+    const currentLocal = API.getAttendance(null)
+    if (JSON.stringify(currentLocal) === JSON.stringify(attendance)) return
     API.saveAttendance(attendance)
   }, [attendance])
 
