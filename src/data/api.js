@@ -135,9 +135,7 @@ export const API = {
       // Trigger debounced cloud sync in the background if logged in
       if (API.userId) {
         clearTimeout(_syncTimer)
-        _syncTimer = setTimeout(() => {
-          API.syncToServer().catch(e => console.error("Cloud sync failed", e))
-        }, SYNC_DEBOUNCE_MS)
+        _syncTimer = setTimeout(() => API.syncToServer().catch(console.error), SYNC_DEBOUNCE_MS)
       }
     } catch (e) {
       console.error(`Failed to save ${key}`, e)

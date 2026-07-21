@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import { SUBJECT_COLORS, DAYS, GRID_START_HOUR, GRID_END_HOUR, genId, pad2, parseTimeToMins } from '../../data/index.js'
+import { SUBJECT_COLORS, DAYS, GRID_START_HOUR, GRID_END_HOUR, pad2, parseTimeToMins } from '../../data/index.js'
 import { Modal } from '../ui/Modal.jsx'
 
 import { useSettings } from '../../hooks/useSettings.jsx'
@@ -60,7 +60,7 @@ export function TimetableModal({ mode, initialData, sourceRect, subjects, timeta
     const err = validate()
     if (err) { setError(err); return }
     setError('')
-    onSave({ id: initialData?.id ?? genId(), ...form })
+    onSave({ id: initialData?.id ?? crypto.randomUUID(), ...form })
   }
 
   const handleDelete = () => {

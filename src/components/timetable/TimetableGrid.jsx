@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
-import { SUBJECT_COLORS, DAYS, GRID_START_HOUR, GRID_END_HOUR, pad2, getTodayDayIdx, parseTimeToMins, generateSubjectCode, isSecondOrFourthSaturday } from '../../data/index.js'
+import { SUBJECT_COLORS, DAYS, MONTH_NAMES, GRID_START_HOUR, GRID_END_HOUR, pad2, getTodayDayIdx, parseTimeToMins, generateSubjectCode, isSecondOrFourthSaturday } from '../../data/index.js'
 import { DayDetailModal } from '../calendar/DayDetailModal.jsx'
 import { useSettings } from '../../hooks/useSettings.jsx'
 
@@ -22,12 +22,36 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
   const { settings } = useSettings()
   const todayIdx = getTodayDayIdx()
   const [weekOffset, setWeekOffset] = useState(0)
+  const [showTodayOnly, setShowTodayOnly] = useState(false)
   const baseDate = useMemo(() => {
     const d = new Date()
     d.setDate(d.getDate() + weekOffset * 7)
     return d
   }, [weekOffset])
   const [activeDayDetail, setActiveDayDetail] = useState(null)
+
+  const weekRangeStr = useMemo(() => {
+    const monday = new Date(baseDate.getTime())
+    monday.setDate(monday.getDate() + (0 - todayIdx))
+    const sunday = new Date(baseDate.getTime())
+    sunday.setDate(sunday.getDate() + (6 - todayIdx))
+
+    const mMonth = MONTH_NAMES[monday.getMonth()]?.substring(0, 3)
+    const sMonth = MONTH_NAMES[sunday.getMonth()]?.substring(0, 3)
+
+    if (showTodayOnly && weekOffset === 0) {
+      const todayDate = new Date(baseDate.getTime())
+      return `${todayDate.getDate()} ${MONTH_NAMES[todayDate.getMonth()]?.substring(0, 3)} ${todayDate.getFullYear()}`
+    }
+
+    if (monday.getFullYear() !== sunday.getFullYear()) {
+      return `${monday.getDate()} ${mMonth} ${monday.getFullYear()} – ${sunday.getDate()} ${sMonth} ${sunday.getFullYear()}`
+    }
+    if (monday.getMonth() !== sunday.getMonth()) {
+      return `${monday.getDate()} ${mMonth} – ${sunday.getDate()} ${sMonth} ${sunday.getFullYear()}`
+    }
+    return `${monday.getDate()}–${sunday.getDate()} ${mMonth} ${sunday.getFullYear()}`
+  }, [baseDate, todayIdx, showTodayOnly, weekOffset])
 
   const subjectMap = useMemo(() => {
     const m = {}
@@ -78,7 +102,6 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
     el.scrollTo({ top: Math.max(0, scrollTarget), behavior: 'smooth' })
   }, [baseDate])
 
-  const [showTodayOnly, setShowTodayOnly] = useState(false)
   const displayDays = showTodayOnly && weekOffset === 0 ? [DAYS[todayIdx]] : DAYS
   const TIME_COL_W = 44 // px
 
@@ -103,32 +126,53 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
         )}
         
         <div className="flex gap-1 shrink-0 items-center">
-          {/* Week navigation */}
+          {/* TODAY button — highlighted/active on current week, outline when viewing other weeks */}
+          <button
+            onClick={() => setWeekOffset(0)}
+            className="px-2 py-0.5 btn-mech panel-chamfer-sm mr-0.5"
+            title={weekOffset === 0 ? "Currently viewing today's week" : "Jump to today's week"}
+            style={{
+              fontFamily: 'var(--cad-font-mono)', fontSize: '8px', letterSpacing: '0.1em',
+              border: weekOffset === 0 ? '1px solid var(--cad-accent)' : '1px solid var(--cad-border)',
+              color: weekOffset === 0 ? 'var(--cad-accent-text)' : 'var(--cad-text-mid)',
+              background: weekOffset === 0 ? 'var(--cad-accent-dim)' : 'transparent',
+              borderRadius: 'var(--cad-radius)',
+              cursor: weekOffset !== 0 ? 'pointer' : 'default',
+            }}
+          >TODAY</button>
+
+          {/* Week navigation: [◀] [ 20–26 JUL 2026 ] [▶] */}
           <button
             onClick={() => setWeekOffset(w => w - 1)}
             className="px-1.5 py-0.5 btn-mech panel-chamfer-sm"
             style={{
-              fontFamily: 'var(--cad-font-mono)', fontSize: '8px',
+              fontFamily: 'var(--cad-font-mono)', fontSize: '9px',
               border: '1px solid var(--cad-border)', color: 'var(--cad-text-lo)',
               background: 'transparent', borderRadius: 'var(--cad-radius)',
             }}
           >◀</button>
-          {weekOffset !== 0 && (
-            <button
-              onClick={() => setWeekOffset(0)}
-              className="px-1.5 py-0.5 btn-mech panel-chamfer-sm"
-              style={{
-                fontFamily: 'var(--cad-font-mono)', fontSize: '7px', letterSpacing: '0.1em',
-                border: '1px solid var(--cad-accent)', color: 'var(--cad-accent)',
-                background: 'var(--cad-accent-dim)', borderRadius: 'var(--cad-radius)',
-              }}
-            >TODAY</button>
-          )}
+
+          <div
+            className="px-2 py-0.5 panel-chamfer-sm"
+            style={{
+              fontFamily: 'var(--cad-font-mono)',
+              fontSize: '8px',
+              letterSpacing: '0.08em',
+              border: '1px solid var(--cad-border)',
+              color: 'var(--cad-accent)',
+              background: 'var(--cad-bg-input)',
+              borderRadius: 'var(--cad-radius)',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {weekRangeStr}
+          </div>
+
           <button
             onClick={() => setWeekOffset(w => w + 1)}
             className="px-1.5 py-0.5 btn-mech panel-chamfer-sm"
             style={{
-              fontFamily: 'var(--cad-font-mono)', fontSize: '8px',
+              fontFamily: 'var(--cad-font-mono)', fontSize: '9px',
               border: '1px solid var(--cad-border)', color: 'var(--cad-text-lo)',
               background: 'transparent', borderRadius: 'var(--cad-radius)',
             }}
@@ -136,11 +180,15 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
 
           <div style={{ width: '1px', height: '14px', background: 'var(--cad-border-dim)', margin: '0 2px' }} />
 
-          {['ALL WEEK', 'TODAY'].map(mode => {
-            const isActive = (mode === 'TODAY' && showTodayOnly) || (mode === 'ALL WEEK' && !showTodayOnly)
+          {/* View Mode Filter: All Week vs Single Day */}
+          {[
+            { label: 'ALL WEEK', todayOnly: false },
+            { label: 'SINGLE DAY', todayOnly: true },
+          ].map(mode => {
+            const isActive = (mode.todayOnly && showTodayOnly) || (!mode.todayOnly && !showTodayOnly)
             return (
-              <button key={mode}
-                onClick={() => setShowTodayOnly(mode === 'TODAY')}
+              <button key={mode.label}
+                onClick={() => setShowTodayOnly(mode.todayOnly)}
                 className="px-2 py-0.5 btn-mech panel-chamfer-sm"
                 style={{
                   fontFamily:   'var(--cad-font-mono)',
@@ -152,7 +200,7 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                   background:   isActive ? 'var(--cad-accent-dim)'         : 'transparent',
                   borderRadius: 'var(--cad-radius)',
                 }}
-              >{mode}</button>
+              >{mode.label}</button>
             )
           })}
         </div>
@@ -177,7 +225,7 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
 
               return (
                 <div key={day}
-                  className="flex-1 text-center py-2 flex flex-col items-center justify-center gap-1 relative group"
+                  className="flex-1 text-center py-1.5 flex flex-col items-center justify-center gap-0.5 relative group"
                   onClick={() => {
                     if (!editMode) {
                       setActiveDayDetail({
@@ -198,6 +246,9 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                   }}
                 >
                   <div className="font-bold">{day}</div>
+                  <div style={{ fontSize: '7.5px', color: isToday ? 'var(--cad-accent)' : 'var(--cad-text-lo)', opacity: 0.85, letterSpacing: '0.05em' }}>
+                    {pad2(d.getDate())} {MONTH_NAMES[d.getMonth()]?.substring(0, 3)}
+                  </div>
                   {isToday && <div className="text-[7px] blink" style={{ color: 'var(--cad-accent)', opacity: 0.5 }}>▸NOW</div>}
                   {isHoliday ? (
                     <div className="text-[7px] px-1 py-0.5 rounded" style={{ fontSize: '7px', border: '1px solid var(--cad-danger)', color: 'var(--cad-danger)', background: 'rgba(239,68,68,0.1)' }}>

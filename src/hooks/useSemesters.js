@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
-import { INITIAL_SEMESTERS, SUBJECT_COLORS, genId } from '../data/index.js'
+import { INITIAL_SEMESTERS, SUBJECT_COLORS } from '../data/index.js'
 import { API } from '../data/api.js'
 
 /**
@@ -96,7 +96,7 @@ export function useSemesters() {
       subjects: [
         ...sem.subjects,
         {
-          id:         genId(),
+          id:         crypto.randomUUID(),
           name:       'NEW SUBJECT',
           code:       '',
           credits:    3,
@@ -142,13 +142,6 @@ export function useSemesters() {
     }))
   }, [updateSem])
 
-  const clearAllLocations = useCallback(() => {
-    setSemesters(prev => prev.map(sem => ({
-      ...sem,
-      timetable: sem.timetable.map(t => ({ ...t, room: '' }))
-    })))
-  }, [])
-
   return {
     // State
     semesters,
@@ -167,6 +160,5 @@ export function useSemesters() {
     // Timetable actions
     saveTimetableEntry,
     deleteTimetableEntry,
-    clearAllLocations,
   }
 }

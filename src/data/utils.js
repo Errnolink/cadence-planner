@@ -2,10 +2,6 @@
 import { GRADE_MAP, GRID_START_HOUR, GRID_END_HOUR } from './constants.js'
 
 /** Collision-safe ID generator — uses timestamp so IDs survive page reloads */
-export const genId = () => {
-  return crypto.randomUUID()
-}
-
 export const pad2 = n => String(n).padStart(2, '0')
 
 /** "08:30" → 510 (minutes since midnight) */

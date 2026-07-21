@@ -14,6 +14,3 @@ export const SUBJECT_COLORS = [
   { id: 10, name: 'LIME',   bg: 'rgba(132,204,22,0.22)',  border: '#84cc16', text: '#a3e635' },
   { id: 11, name: 'ROSE',   bg: 'rgba(244,63,94,0.22)',   border: '#f43f5e', text: '#fb7185' },
 ]
-
-// Legacy alias kept for any code that still imports NERV_COLORS
-export const NERV_COLORS = SUBJECT_COLORS
