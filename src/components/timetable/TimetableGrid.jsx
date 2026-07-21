@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
-import { SUBJECT_COLORS, DAYS, GRID_START_HOUR, GRID_END_HOUR, pad2, getTodayDayIdx, parseTimeToMins, generateSubjectCode } from '../../data/index.js'
+import { SUBJECT_COLORS, DAYS, GRID_START_HOUR, GRID_END_HOUR, pad2, getTodayDayIdx, parseTimeToMins, generateSubjectCode, isSecondOrFourthSaturday } from '../../data/index.js'
 import { DayDetailModal } from '../calendar/DayDetailModal.jsx'
+import { useSettings } from '../../hooks/useSettings.jsx'
 
 
 const TOTAL_MINS = (GRID_END_HOUR - GRID_START_HOUR) * 60
@@ -18,8 +19,14 @@ function pctH(start, end) {
 }
 
 export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBlockClick, onInstanceClick, attendanceHook }) {
+  const { settings } = useSettings()
   const todayIdx = getTodayDayIdx()
-  const baseDate = useMemo(() => new Date(), [])
+  const [weekOffset, setWeekOffset] = useState(0)
+  const baseDate = useMemo(() => {
+    const d = new Date()
+    d.setDate(d.getDate() + weekOffset * 7)
+    return d
+  }, [weekOffset])
   const [activeDayDetail, setActiveDayDetail] = useState(null)
 
   const subjectMap = useMemo(() => {
@@ -72,7 +79,7 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
   }, [baseDate])
 
   const [showTodayOnly, setShowTodayOnly] = useState(false)
-  const displayDays = showTodayOnly ? [DAYS[todayIdx]] : DAYS
+  const displayDays = showTodayOnly && weekOffset === 0 ? [DAYS[todayIdx]] : DAYS
   const TIME_COL_W = 44 // px
 
   return (
@@ -95,7 +102,40 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
           </div>
         )}
         
-        <div className="flex gap-1 shrink-0">
+        <div className="flex gap-1 shrink-0 items-center">
+          {/* Week navigation */}
+          <button
+            onClick={() => setWeekOffset(w => w - 1)}
+            className="px-1.5 py-0.5 btn-mech panel-chamfer-sm"
+            style={{
+              fontFamily: 'var(--cad-font-mono)', fontSize: '8px',
+              border: '1px solid var(--cad-border)', color: 'var(--cad-text-lo)',
+              background: 'transparent', borderRadius: 'var(--cad-radius)',
+            }}
+          >◀</button>
+          {weekOffset !== 0 && (
+            <button
+              onClick={() => setWeekOffset(0)}
+              className="px-1.5 py-0.5 btn-mech panel-chamfer-sm"
+              style={{
+                fontFamily: 'var(--cad-font-mono)', fontSize: '7px', letterSpacing: '0.1em',
+                border: '1px solid var(--cad-accent)', color: 'var(--cad-accent)',
+                background: 'var(--cad-accent-dim)', borderRadius: 'var(--cad-radius)',
+              }}
+            >TODAY</button>
+          )}
+          <button
+            onClick={() => setWeekOffset(w => w + 1)}
+            className="px-1.5 py-0.5 btn-mech panel-chamfer-sm"
+            style={{
+              fontFamily: 'var(--cad-font-mono)', fontSize: '8px',
+              border: '1px solid var(--cad-border)', color: 'var(--cad-text-lo)',
+              background: 'transparent', borderRadius: 'var(--cad-radius)',
+            }}
+          >▶</button>
+
+          <div style={{ width: '1px', height: '14px', background: 'var(--cad-border-dim)', margin: '0 2px' }} />
+
           {['ALL WEEK', 'TODAY'].map(mode => {
             const isActive = (mode === 'TODAY' && showTodayOnly) || (mode === 'ALL WEEK' && !showTodayOnly)
             return (
@@ -126,13 +166,14 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
           <div className="shrink-0 flex" style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--cad-bg-primary)', borderBottom: '1px solid var(--cad-border-dim)' }}>
             <div style={{ width: `${TIME_COL_W}px`, flexShrink: 0, borderRight: '1px solid var(--cad-border-dim)', background: 'var(--cad-bg-primary)' }} />
             {displayDays.map((day) => {
-              const isToday = DAYS.indexOf(day) === todayIdx
+              const isToday = weekOffset === 0 && DAYS.indexOf(day) === todayIdx
               const colIdx = DAYS.indexOf(day)
               const diff = colIdx - todayIdx
               const d = new Date(baseDate.getTime())
               d.setDate(d.getDate() + diff)
               const dateStr = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
-              const isHoliday = attendanceHook?.attendance?.[dateStr]?.isHoliday
+              const isManualHoliday = attendanceHook?.attendance?.[dateStr]?.isHoliday
+              const isHoliday = (settings.holidays2nd4thSat && isSecondOrFourthSaturday(d.getFullYear(), d.getMonth(), d.getDate())) || isManualHoliday
 
               return (
                 <div key={day}
@@ -211,7 +252,7 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
             {/* Day columns */}
             <div style={{ display: 'flex', flex: 1, height: '100%' }}>
               {displayDays.map((day) => {
-                const isToday    = DAYS.indexOf(day) === todayIdx
+                const isToday    = weekOffset === 0 && DAYS.indexOf(day) === todayIdx
                 const dayEntries = byDay[day] ?? []
                 
                 const colIdx = DAYS.indexOf(day)
@@ -220,7 +261,8 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                 d.setDate(d.getDate() + diff)
                 const dateStr = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
                 const dayData = attendanceHook?.attendance?.[dateStr] || {}
-                const isHoliday = dayData.isHoliday
+                const isManualHoliday = dayData.isHoliday
+                const isHoliday = (settings.holidays2nd4thSat && isSecondOrFourthSaturday(d.getFullYear(), d.getMonth(), d.getDate())) || isManualHoliday
 
                 return (
                   <div
@@ -251,7 +293,7 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                     ))}
 
                     {/* Now line */}
-                    {DAYS.indexOf(day) === todayIdx && (() => {
+                    {weekOffset === 0 && DAYS.indexOf(day) === todayIdx && (() => {
                       const now = new Date(baseDate.getTime())
                       const nowMins = now.getHours() * 60 + now.getMinutes()
                       const nowPct = ((nowMins - GRID_START_HOUR * 60) / TOTAL_MINS) * 100
@@ -270,23 +312,19 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
 
                     {/* Event blocks */}
                     {dayEntries.map(entry => {
-                      const subj = subjectMap[entry.subjectId]
-                      if (!subj) return null
-                      const color    = SUBJECT_COLORS[subj.colorIdx % SUBJECT_COLORS.length]
+                      // Check for substitute subject on this specific date
+                      const subId = dayData[`${entry.id}_sub`]
+                      const displaySubj = subId ? subjectMap[subId] : subjectMap[entry.subjectId]
+                      if (!displaySubj) return null
+                      const isSubstitute = !!subId
+                      const color    = SUBJECT_COLORS[displaySubj.colorIdx % SUBJECT_COLORS.length]
                       const startMs  = parseTimeToMins(entry.startTime) - GRID_START_HOUR * 60
                       const endMs    = parseTimeToMins(entry.endTime)   - GRID_START_HOUR * 60
                       const durMins  = endMs - startMs
                       const isShort  = durMins <= 45
 
-                      const colIdx = DAYS.indexOf(day)
-                      const diff = colIdx - todayIdx
-                      const d = new Date()
-                      d.setDate(d.getDate() + diff)
-                      const dateStr = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
-                      const dayData = attendanceHook?.attendance?.[dateStr] || {}
                       const status = dayData[entry.id]
-
-                      const isHoliday = dayData.isHoliday
+                      const hasNote = !!dayData[`${entry.id}_note`]
 
                       const handleBlockAction = (e) => {
                         e.stopPropagation()
@@ -304,7 +342,7 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                         <div
                           key={entry.id}
                           onClick={handleBlockAction}
-                          title={`${subj.name} · ${entry.room} · ${entry.startTime}–${entry.endTime}`}
+                          title={`${displaySubj.name} · ${entry.room} · ${entry.startTime}–${entry.endTime}`}
                           style={{
                             position:        'absolute',
                             left:            '3px',
@@ -345,7 +383,7 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                               textOverflow: 'ellipsis',
                               whiteSpace: 'nowrap',
                             }}
-                          >{subj.code || generateSubjectCode(subj.name)}</div>
+                          >{isSubstitute ? `⇄ ${displaySubj.code || generateSubjectCode(displaySubj.name)}` : (displaySubj.code || generateSubjectCode(displaySubj.name))}</div>
                           {!isShort && (
                             <>
                               <div style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'clamp(8px, 1.1vw, 10px)', color: color.text, opacity: 0.85, marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -417,6 +455,13 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                             }}>
                               {status === 'PRESENT' ? 'P' : status === 'ABSENT' ? 'A' : 'C'}
                             </div>
+                          )}
+                          {hasNote && (
+                            <div style={{
+                              position: 'absolute', bottom: '3px', right: '3px',
+                              fontFamily: 'var(--cad-font-mono)', fontSize: '7px',
+                              color: 'var(--cad-accent)', opacity: 0.7,
+                            }}>📝</div>
                           )}
                         </div>
                       )

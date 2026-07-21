@@ -77,28 +77,47 @@ export function useAttendance() {
     })
   }
 
+  const setSubstitute = (dateStr, entryId, substituteSubjectId) => {
+    setAttendance(prev => {
+      const dayData = prev[dateStr] || {}
+      const updated = { ...dayData }
+      if (substituteSubjectId) {
+        updated[`${entryId}_sub`] = substituteSubjectId
+      } else {
+        delete updated[`${entryId}_sub`]
+      }
+      return { ...prev, [dateStr]: updated }
+    })
+  }
+
   // Calculate subject stats across all days
+  // Accounts for substitutes: if entry X has a sub pointing to subjectId, count that attendance toward subjectId
   const getSubjectStats = useCallback((subjectId, timetable) => {
     let present = 0
     let absent = 0
     let cancelled = 0
     let total = 0
     
-    // Find all timetable entries that belong to this subject
     const subjectEntryIds = timetable.filter(t => t.subjectId === subjectId).map(t => t.id)
+    const allEntryIds = timetable.map(t => t.id)
     
     Object.values(attendance).forEach(dayData => {
       if (dayData.isHoliday) return
+
+      // Count entries that originally belong to this subject (and aren't substituted away)
       subjectEntryIds.forEach(id => {
-        if (dayData[id] === 'PRESENT') {
-          present++
-          total++
-        } else if (dayData[id] === 'ABSENT') {
-          absent++
-          total++
-        } else if (dayData[id] === 'CANCELLED') {
-          cancelled++
-        }
+        if (dayData[`${id}_sub`]) return // substituted away, don't count here
+        if (dayData[id] === 'PRESENT') { present++; total++ }
+        else if (dayData[id] === 'ABSENT') { absent++; total++ }
+        else if (dayData[id] === 'CANCELLED') { cancelled++ }
+      })
+
+      // Count entries substituted INTO this subject
+      allEntryIds.forEach(id => {
+        if (dayData[`${id}_sub`] !== subjectId) return
+        if (dayData[id] === 'PRESENT') { present++; total++ }
+        else if (dayData[id] === 'ABSENT') { absent++; total++ }
+        else if (dayData[id] === 'CANCELLED') { cancelled++ }
       })
     })
 
@@ -151,5 +170,5 @@ export function useAttendance() {
     return 'safe'
   }
 
-  return { attendance, markAttendance, markDayAttendance, toggleHoliday, setNote, getSubjectStats, getOverallStats, getMarginToThreshold, getRecoveryPath, getStatusTier }
+  return { attendance, markAttendance, markDayAttendance, toggleHoliday, setNote, setSubstitute, getSubjectStats, getOverallStats, getMarginToThreshold, getRecoveryPath, getStatusTier }
 }

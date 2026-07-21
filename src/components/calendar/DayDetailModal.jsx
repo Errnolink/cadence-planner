@@ -176,22 +176,28 @@ export function DayDetailModal({ date, weekday, timetable, subjects, attendanceH
             ) : (
               <div className="flex flex-col gap-2">
                 {entries.map(entry => {
-                  const subj  = subjectMap[entry.subjectId]
-                  if (!subj) return null
-                  const color = SUBJECT_COLORS[subj.colorIdx % SUBJECT_COLORS.length]
+                  // Check for substitute
+                  const subId = dayData[`${entry.id}_sub`]
+                  const displaySubj = subId ? subjectMap[subId] : subjectMap[entry.subjectId]
+                  if (!displaySubj) return null
+                  const isSubstitute = !!subId
+                  const color = SUBJECT_COLORS[displaySubj.colorIdx % SUBJECT_COLORS.length]
+                  const entryNote = dayData[`${entry.id}_note`]
                   return (
                     <div
                       key={entry.id}
                       style={{
-                        display:     'flex',
-                        gap:         '12px',
-                        alignItems:  'stretch',
-                        padding:     '10px 12px',
                         background:  color.bg,
                         borderLeft:  `4px solid ${color.border}`,
                         borderRadius:'0 var(--cad-radius) var(--cad-radius) 0',
                       }}
                     >
+                      <div style={{
+                        display:     'flex',
+                        gap:         '12px',
+                        alignItems:  'stretch',
+                        padding:     '10px 12px',
+                      }}>
                       {/* Time column */}
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: '64px' }}>
                         <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '13px', color: color.text, fontWeight: '700' }}>
@@ -205,8 +211,11 @@ export function DayDetailModal({ date, weekday, timetable, subjects, attendanceH
                       {/* Info */}
                       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '2px' }}>
                         <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '11px', color: color.text, fontWeight: '600', letterSpacing: '0.05em' }}>
-                          {subj.name}
+                          {isSubstitute ? `⇄ ${displaySubj.name}` : displaySubj.name}
                         </span>
+                        {isSubstitute && (
+                          <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '7px', color: 'var(--cad-accent)', border: '1px solid var(--cad-accent)', padding: '1px 3px', borderRadius: '2px', alignSelf: 'flex-start' }}>SUB</span>
+                        )}
                         <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '9px', color: 'rgba(255,255,255,0.5)' }}>
                           {entry.room}
                         </span>
@@ -255,6 +264,13 @@ export function DayDetailModal({ date, weekday, timetable, subjects, attendanceH
                           </div>
                         )}
                       </div>
+                      </div>
+                      {/* Note indicator */}
+                      {entryNote && (
+                        <div style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '9px', color: 'var(--cad-text-lo)', padding: '2px 12px 6px', opacity: 0.8 }}>
+                          📝 {entryNote}
+                        </div>
+                      )}
                     </div>
                   )
                 })}

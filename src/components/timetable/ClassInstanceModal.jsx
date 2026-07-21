@@ -10,6 +10,7 @@ export function ClassInstanceModal({ entry, dateStr, sourceRect, subjects, atten
   const dayData = attendanceHook.attendance[dateStr] || {}
   const status = dayData[entry.id]
   const note = dayData[`${entry.id}_note`] || ''
+  const currentSubId = dayData[`${entry.id}_sub`] || ''
 
   const [currentNote, setCurrentNote] = useState(note)
 
@@ -21,6 +22,8 @@ export function ClassInstanceModal({ entry, dateStr, sourceRect, subjects, atten
     attendanceHook.setNote(dateStr, entry.id, currentNote)
     onClose()
   }
+
+  const otherSubjects = subjects.filter(s => s.id !== entry.subjectId)
 
   const labelStyle = { fontSize: '9px', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--cad-text-lo)', fontFamily: 'var(--cad-font-mono)', marginBottom: '4px' }
   const sectionStyle = { marginBottom: '16px' }
@@ -85,6 +88,39 @@ export function ClassInstanceModal({ entry, dateStr, sourceRect, subjects, atten
               )
             })}
           </div>
+        </div>
+
+        {/* Substitute */}
+        <div style={sectionStyle}>
+          <div style={labelStyle}>SUBSTITUTE CLASS (THIS DATE ONLY)</div>
+          <div className="flex gap-2 items-center">
+            <select
+              value={currentSubId}
+              onChange={e => attendanceHook.setSubstitute(dateStr, entry.id, e.target.value || null)}
+              style={{
+                flex: 1,
+                fontFamily: 'var(--cad-font-mono)',
+                fontSize: '11px',
+                color: currentSubId ? 'var(--cad-accent-text)' : 'var(--cad-text-lo)',
+                background: 'var(--cad-bg-input)',
+                border: currentSubId ? '1px solid var(--cad-accent)' : '1px solid var(--cad-border)',
+                padding: '6px 8px',
+                outline: 'none',
+                borderRadius: 'var(--cad-radius)',
+                cursor: 'pointer',
+              }}
+            >
+              <option value="">— NO SUBSTITUTE —</option>
+              {otherSubjects.map(s => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          </div>
+          {currentSubId && (
+            <div style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '8px', color: 'var(--cad-accent)', opacity: 0.7, marginTop: '4px' }}>
+              ⇄ Original: {subj?.name} → Substitute: {subjects.find(s => s.id === currentSubId)?.name}
+            </div>
+          )}
         </div>
 
         {/* Notes */}

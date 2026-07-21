@@ -207,9 +207,13 @@ export function CalendarView({ timetable, subjects, attendanceHook }) {
 
                 {/* Event chips (max 3 shown) */}
                 {!isHoliday && entries.slice(0, 3).map(entry => {
-                  const subj  = subjectMap[entry.subjectId]
-                  if (!subj) return null
-                  const color = SUBJECT_COLORS[subj.colorIdx % SUBJECT_COLORS.length]
+                  // Check for substitute on this date
+                  const dayAtt = attendanceHook?.attendance?.[dateStr] || {}
+                  const subId = dayAtt[`${entry.id}_sub`]
+                  const displaySubj = subId ? subjectMap[subId] : subjectMap[entry.subjectId]
+                  if (!displaySubj) return null
+                  const color = SUBJECT_COLORS[displaySubj.colorIdx % SUBJECT_COLORS.length]
+                  const hasNote = !!dayAtt[`${entry.id}_note`]
                   return (
                     <div
                       key={entry.id}
@@ -225,9 +229,13 @@ export function CalendarView({ timetable, subjects, attendanceHook }) {
                         textOverflow: 'ellipsis',
                         whiteSpace:   'nowrap',
                         borderRadius: '0 2px 2px 0',
+                        display:      'flex',
+                        alignItems:   'center',
+                        gap:          '2px',
                       }}
                     >
-                      {entry.startTime} {subj.code || generateSubjectCode(subj.name)}
+                      {entry.startTime} {subId ? '⇄' : ''}{displaySubj.code || generateSubjectCode(displaySubj.name)}
+                      {hasNote && <span style={{ fontSize: '7px', opacity: 0.7 }}>📝</span>}
                     </div>
                   )
                 })}
