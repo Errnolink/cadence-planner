@@ -3,7 +3,7 @@ import { SUBJECT_COLORS, generateSubjectCode } from '../../data/index.js'
 import { Modal } from '../ui/Modal.jsx'
 
 export function ClassInstanceModal({ entry, dateStr, sourceRect, subjects, attendanceHook, onClose }) {
-  const subj = subjects.find(s => s.id === entry.subjectId)
+  const subj = subjects.find(s => String(s.id) === String(entry.subjectId))
   const color = subj ? SUBJECT_COLORS[subj.colorIdx % SUBJECT_COLORS.length] : { bg: '#000', text: '#fff', border: '#fff' }
   const code = subj ? (subj.code || generateSubjectCode(subj.name)) : '???'
 
@@ -23,7 +23,7 @@ export function ClassInstanceModal({ entry, dateStr, sourceRect, subjects, atten
     onClose()
   }
 
-  const otherSubjects = subjects.filter(s => s.id !== entry.subjectId)
+  const otherSubjects = subjects.filter(s => String(s.id) !== String(entry.subjectId))
 
   const labelStyle = { fontSize: '9px', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--cad-text-lo)', fontFamily: 'var(--cad-font-mono)', marginBottom: '4px' }
   const sectionStyle = { marginBottom: '16px' }

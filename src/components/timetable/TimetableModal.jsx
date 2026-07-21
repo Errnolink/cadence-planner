@@ -50,7 +50,7 @@ export function TimetableModal({ mode, initialData, sourceRect, subjects, timeta
       return !(endMins <= ts || startMins >= te)
     })
     if (conflict) {
-      const cs = subjects.find(s => s.id === conflict.subjectId)
+      const cs = subjects.find(s => String(s.id) === String(conflict.subjectId))
       return `CONFLICT: ${cs?.name ?? '??'} @ ${conflict.startTime}–${conflict.endTime}`
     }
     return null
@@ -68,7 +68,7 @@ export function TimetableModal({ mode, initialData, sourceRect, subjects, timeta
     else { setConfirmDel(true); delRef.current = setTimeout(() => setConfirmDel(false), 2500) }
   }
 
-  const previewSubj = subjects.find(s => s.id === form.subjectId)
+  const previewSubj = subjects.find(s => String(s.id) === String(form.subjectId))
 
   const labelStyle = { fontSize: '9px', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--cad-text-lo)', fontFamily: 'var(--cad-font-mono)', marginBottom: '4px' }
   const sectionStyle = { marginBottom: '12px' }
@@ -81,7 +81,10 @@ export function TimetableModal({ mode, initialData, sourceRect, subjects, timeta
           <div style={labelStyle}>SUBJECT</div>
           <select
             value={form.subjectId ?? ''}
-            onChange={e => upd('subjectId', Number(e.target.value))}
+            onChange={e => {
+              const selected = subjects.find(s => String(s.id) === String(e.target.value))
+              upd('subjectId', selected ? selected.id : e.target.value)
+            }}
             style={{
               width:       '100%',
               fontFamily:  'var(--cad-font-mono)',

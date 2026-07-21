@@ -117,19 +117,19 @@ export function useSemesters() {
   const removeSubject = useCallback(id => {
     updateSem(sem => ({
       ...sem,
-      subjects:  sem.subjects.filter(s  => s.id !== id),
-      timetable: sem.timetable.filter(t => t.subjectId !== id),
+      subjects:  sem.subjects.filter(s  => String(s.id) !== String(id)),
+      timetable: sem.timetable.filter(t => String(t.subjectId) !== String(id)),
     }))
   }, [updateSem])
 
   // ── Timetable CRUD ─────────────────────────────────────────────
   const saveTimetableEntry = useCallback(entry => {
     updateSem(sem => {
-      const exists = sem.timetable.some(t => t.id === entry.id)
+      const exists = sem.timetable.some(t => String(t.id) === String(entry.id))
       return {
         ...sem,
         timetable: exists
-          ? sem.timetable.map(t => t.id === entry.id ? entry : t)
+          ? sem.timetable.map(t => String(t.id) === String(entry.id) ? entry : t)
           : [...sem.timetable, entry],
       }
     })
