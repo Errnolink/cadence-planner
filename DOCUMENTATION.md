@@ -70,6 +70,12 @@ The `TimetableGrid` component maps out a 7-day week against time blocks.
 ### 3. Classified Operations (Easter Egg)
 The app includes a secret Konami Code listener inside `App.jsx` (`ArrowUp, ArrowUp, ArrowDown, ArrowDown, ArrowLeft, ArrowRight, ArrowLeft, ArrowRight, b, a`). When triggered, it opens a "Classified Operations" panel that allows users to purge all room locations across all semesters at once.
 
+## Environment Variables
+
+To enable cloud syncing, create a `.env.local` file in the root directory with the following variables:
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+
 ---
 
 ## Deployment & Build
