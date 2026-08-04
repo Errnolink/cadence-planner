@@ -315,6 +315,7 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                 const isManualHoliday = dayData.isHoliday
                 const isHoliday = (settings.holidays2nd4thSat && isSecondOrFourthSaturday(d.getFullYear(), d.getMonth(), d.getDate())) || isManualHoliday
                 const dayExams = exams.filter(e => e.date === dateStr)
+                const isExamDay = dayExams.length > 0
 
                 return (
                   <div
@@ -325,9 +326,9 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                       position:   'relative',
                       borderRight:'1px solid var(--cad-border-dim)',
                       background: isToday ? 'var(--cad-accent-dim)' : 'transparent',
-                      cursor:     editMode && !isHoliday ? 'crosshair' : 'default',
+                      cursor:     editMode && !isHoliday && !isExamDay ? 'crosshair' : 'default',
                     }}
-                    onClick={editMode && !isHoliday ? e => handleColClick(day, e) : undefined}
+                    onClick={editMode && !isHoliday && !isExamDay ? e => handleColClick(day, e) : undefined}
                   >
                     {/* Hour grid lines */}
                     {TICK_HOURS.map(h => (
@@ -362,8 +363,8 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                       )
                     })()}
 
-                    {/* Event blocks */}
-                    {dayEntries.map(entry => {
+                    {/* Event blocks — hidden on exam days (classes suspended, exams shown instead) */}
+                    {!isExamDay && dayEntries.map(entry => {
                       // Check for substitute subject on this specific date
                       const subId = dayData[`${entry.id}_sub`]
                       const displaySubj = subId ? subjectMap[subId] : subjectMap[entry.subjectId]
