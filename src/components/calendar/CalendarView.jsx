@@ -12,7 +12,7 @@ function dayLabel(year, month, day) {
   return ['SUN','MON','TUE','WED','THU','FRI','SAT'][js]
 }
 
-export function CalendarView({ timetable, subjects, attendanceHook }) {
+export function CalendarView({ timetable, subjects, attendanceHook, examDates = new Set() }) {
   const { settings } = useSettings()
   const today      = new Date()
   const [year, setYear]   = useState(today.getFullYear())
@@ -168,6 +168,7 @@ export function CalendarView({ timetable, subjects, attendanceHook }) {
             const isManualHoliday = attendanceHook?.attendance?.[dateStr]?.isHoliday
             const isHoliday = (settings.holidays2nd4thSat && isSecondOrFourthSaturday(year, month, day)) || isManualHoliday
             if (isHoliday) entries = []
+            const isExamDay = examDates.has(dateStr)
 
             return (
               <div
@@ -202,6 +203,16 @@ export function CalendarView({ timetable, subjects, attendanceHook }) {
                 {isHoliday && (
                   <div style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '8px', color: 'var(--cad-danger)', opacity: 0.8 }}>
                     HOLIDAY
+                  </div>
+                )}
+
+                {isExamDay && !isHoliday && (
+                  <div style={{
+                    fontFamily: 'var(--cad-font-mono)', fontSize: '8px', color: 'var(--cad-accent)',
+                    opacity: 0.85, border: '1px solid var(--cad-accent)', borderRadius: '2px',
+                    padding: '0 3px', display: 'inline-block', marginBottom: '2px',
+                  }}>
+                    ✎ EXAM
                   </div>
                 )}
 
@@ -279,6 +290,7 @@ export function CalendarView({ timetable, subjects, attendanceHook }) {
           timetable={timetable}
           subjects={subjects}
           attendanceHook={attendanceHook}
+          examDates={examDates}
           sourceRect={detail.sourceRect}
           onClose={() => setDetail(null)}
         />

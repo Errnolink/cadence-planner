@@ -6,10 +6,14 @@ import { SUBJECT_COLORS, parseTimeToMins } from '../../data/index.js'
  * Shows all timetable entries for that weekday, sorted by start time.
  * Slide-up on mobile, centered overlay on desktop.
  */
-export function DayDetailModal({ date, weekday, timetable, subjects, attendanceHook, onClose }) {
-  const { attendance, markAttendance, markDayAttendance } = attendanceHook || {}
+export function DayDetailModal({ date, weekday, timetable, subjects, attendanceHook, examDates = new Set(), onClose }) {
+  const { attendance, markAttendance, markDayAttendance, setExamDayPresent } = attendanceHook || {}
   const dateStr = date ? `${date.year}-${String(date.month + 1).padStart(2, '0')}-${String(date.day).padStart(2, '0')}` : ''
   const dayData = attendance && dateStr ? (attendance[dateStr] || {}) : {}
+  const isExamDay = dateStr ? examDates.has(dateStr) : false
+  const countAsPresent = dayData.examCountAsPresent === true
+  // On an exam day, classes are suspended (skipped in stats) UNLESS the user opted to count them as present
+  const examSuspended = isExamDay && !countAsPresent
   // weekday: 'MON','TUE', etc. — null means no classes (weekend or no match)
   const entries = timetable
     .filter(t => t.day === weekday)
@@ -108,8 +112,35 @@ export function DayDetailModal({ date, weekday, timetable, subjects, attendanceH
             </div>
           </div>
           
+          {/* Exam day banner */}
+          {isExamDay && (
+            <div
+              className="flex items-center justify-between gap-2 px-4 py-2 shrink-0"
+              style={{ borderBottom: '1px solid var(--cad-border-dim)', background: 'var(--cad-accent-dim)' }}
+            >
+              <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '9px', color: 'var(--cad-accent)', letterSpacing: '0.1em' }}>
+                ✎ EXAM DAY — CLASSES SUSPENDED
+              </span>
+              {attendanceHook && setExamDayPresent && (
+                <button
+                  onClick={() => setExamDayPresent(dateStr, !countAsPresent)}
+                  title={countAsPresent ? "Count this day's classes as present in attendance" : "Count this day's scheduled classes as PRESENT"}
+                  style={{
+                    fontFamily: 'var(--cad-font-mono)', fontSize: '8px', letterSpacing: '0.1em',
+                    border: `1px solid ${countAsPresent ? 'var(--cad-success)' : 'var(--cad-border)'}`,
+                    background: countAsPresent ? 'var(--cad-success)' : 'transparent',
+                    color: countAsPresent ? '#000' : 'var(--cad-text-mid)',
+                    padding: '2px 6px', borderRadius: 'var(--cad-radius)', cursor: 'pointer',
+                  }}
+                >
+                  {countAsPresent ? 'COUNT AS PRESENT ✓' : 'COUNT DAY AS PRESENT'}
+                </button>
+              )}
+            </div>
+          )}
+
           {/* Quick Mark Toolbar */}
-          {entries.length > 0 && !dayData.isHoliday && markDayAttendance && (
+          {entries.length > 0 && !dayData.isHoliday && !examSuspended && markDayAttendance && (
             <div
               className="flex gap-2 px-4 py-2 justify-end shrink-0 items-center"
               style={{ borderBottom: '1px solid var(--cad-border-dim)', background: 'var(--cad-bg-elevated)' }}
@@ -227,7 +258,7 @@ export function DayDetailModal({ date, weekday, timetable, subjects, attendanceH
                           {Math.round((parseTimeToMins(entry.endTime) - parseTimeToMins(entry.startTime)))}m
                         </span>
                         
-                        {attendanceHook && date && !date.isHoliday && (
+                        {attendanceHook && date && !date.isHoliday && !examSuspended && (
                           <div className="flex flex-col gap-1 ml-2 border-l pl-2" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
                             {['PRESENT', 'ABSENT', 'CANCELLED'].map(type => {
                               const isActive = dayData[entry.id] === type

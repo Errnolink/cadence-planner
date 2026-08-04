@@ -1,10 +1,10 @@
 import { useMemo } from 'react'
 import { Modal } from '../ui/Modal.jsx'
 
-export function SubjectAttendanceModal({ subject, sourceRect, timetable, attendanceHook, onClose }) {
+export function SubjectAttendanceModal({ subject, sourceRect, timetable, attendanceHook, examDates, onClose }) {
   const { attendance, getSubjectStats } = attendanceHook
   
-  const stats = getSubjectStats(subject.id, timetable)
+  const stats = getSubjectStats(subject.id, timetable, examDates)
 
   const history = useMemo(() => {
     const subjectEntryIds = timetable.filter(t => t.subjectId === subject.id).map(t => t.id)

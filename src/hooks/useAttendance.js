@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { API } from '../data/api.js'
 import { ATTENDANCE_THRESHOLD } from '../data/constants.js'
 
+const EMPTY_EXAM_DATES = new Set()
+
 export function useAttendance() {
   const [attendance, setAttendance] = useState(() => API.getAttendance({}))
 
@@ -90,9 +92,20 @@ export function useAttendance() {
     })
   }
 
+  const setExamDayPresent = (dateStr, value) => {
+    setAttendance(prev => {
+      const dayData = { ...(prev[dateStr] || {}) }
+      if (value) dayData.examCountAsPresent = true
+      else delete dayData.examCountAsPresent
+      return { ...prev, [dateStr]: dayData }
+    })
+  }
+
   // Calculate subject stats across all days
   // Accounts for substitutes: if entry X has a sub pointing to subjectId, count that attendance toward subjectId
-  const getSubjectStats = useCallback((subjectId, timetable) => {
+  // Exam days (dates in examDates): skipped by default (classes don't occur). If the user opted the day
+  // in via "count as present", that day's scheduled classes are credited as PRESENT instead.
+  const getSubjectStats = useCallback((subjectId, timetable, examDates = EMPTY_EXAM_DATES) => {
     let present = 0
     let absent = 0
     let cancelled = 0
@@ -101,12 +114,17 @@ export function useAttendance() {
     const subjectEntryIds = timetable.filter(t => t.subjectId === subjectId).map(t => t.id)
     const allEntryIds = timetable.map(t => t.id)
     
-    Object.values(attendance).forEach(dayData => {
+    Object.entries(attendance).forEach(([dateStr, dayData]) => {
       if (dayData.isHoliday) return
+
+      const isExamDay = examDates.has(dateStr)
+      if (isExamDay && dayData.examCountAsPresent !== true) return
+      const examAsPresent = isExamDay
 
       // Count entries that originally belong to this subject (and aren't substituted away)
       subjectEntryIds.forEach(id => {
         if (dayData[`${id}_sub`]) return // substituted away, don't count here
+        if (examAsPresent) { present++; total++; return }
         if (dayData[id] === 'PRESENT') { present++; total++ }
         else if (dayData[id] === 'ABSENT') { absent++; total++ }
         else if (dayData[id] === 'CANCELLED') { cancelled++ }
@@ -115,6 +133,7 @@ export function useAttendance() {
       // Count entries substituted INTO this subject
       allEntryIds.forEach(id => {
         if (dayData[`${id}_sub`] !== subjectId) return
+        if (examAsPresent) { present++; total++; return }
         if (dayData[id] === 'PRESENT') { present++; total++ }
         else if (dayData[id] === 'ABSENT') { absent++; total++ }
         else if (dayData[id] === 'CANCELLED') { cancelled++ }
@@ -131,11 +150,11 @@ export function useAttendance() {
   }, [attendance])
 
   // Calculate overall stats
-  const getOverallStats = useCallback((subjects, timetable) => {
+  const getOverallStats = useCallback((subjects, timetable, examDates = EMPTY_EXAM_DATES) => {
     let present = 0, absent = 0, cancelled = 0, total = 0
     
     subjects.forEach(subj => {
-      const stats = getSubjectStats(subj.id, timetable)
+      const stats = getSubjectStats(subj.id, timetable, examDates)
       present += stats.present
       absent += stats.absent
       cancelled += stats.cancelled
@@ -170,5 +189,5 @@ export function useAttendance() {
     return 'safe'
   }
 
-  return { attendance, markAttendance, markDayAttendance, toggleHoliday, setNote, setSubstitute, getSubjectStats, getOverallStats, getMarginToThreshold, getRecoveryPath, getStatusTier }
+  return { attendance, markAttendance, markDayAttendance, toggleHoliday, setNote, setSubstitute, setExamDayPresent, getSubjectStats, getOverallStats, getMarginToThreshold, getRecoveryPath, getStatusTier }
 }

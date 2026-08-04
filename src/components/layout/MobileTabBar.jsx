@@ -1,6 +1,7 @@
 const TABS = [
   { id: 'roster',     icon: '☰', label: 'ROSTER'     },
   { id: 'timetable',  icon: '⊞', label: 'TIMETABLE' },
+  { id: 'exams',      icon: '✎', label: 'EXAMS'     },
   { id: 'calendar',   icon: '◫', label: 'CALENDAR'  },
   { id: 'attendance', icon: '✓', label: 'ATTENDANCE' },
 ]

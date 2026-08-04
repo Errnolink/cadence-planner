@@ -20,6 +20,10 @@ export const INITIAL_SEMESTERS = [
       { id: 8, subjectId: 3, day: 'FRI', startTime: '09:00', endTime: '11:00', room: '' },
       { id: 9, subjectId: 5, day: 'FRI', startTime: '14:00', endTime: '15:00', room: '' },
     ],
+    exams: [
+      { id: 'ex-1', subjectId: 1, date: '2026-08-15', startTime: '09:00', endTime: '11:00', room: 'HALL A', notes: 'Unit Test II — chapters 4–7' },
+      { id: 'ex-2', subjectId: 2, date: '2026-08-20', startTime: '14:00', endTime: '16:00', room: 'HALL B', notes: 'Data Structures internal' },
+    ],
   },
   {
     id: 2, label: 'SEM 02', startDate: '', endDate: '',
@@ -40,6 +44,7 @@ export const INITIAL_SEMESTERS = [
       { id: 16, subjectId: 11, day: 'FRI', startTime: '09:00', endTime: '11:00', room: ''  },
       { id: 17, subjectId: 12, day: 'FRI', startTime: '13:00', endTime: '14:00', room: ''  },
     ],
+    exams: [],
   },
   {
     id: 3, label: 'SEM 03', startDate: '', endDate: '',
@@ -59,5 +64,6 @@ export const INITIAL_SEMESTERS = [
       { id: 25, subjectId: 20, day: 'FRI', startTime: '10:00', endTime: '12:00', room: '' },
       { id: 26, subjectId: 22, day: 'FRI', startTime: '14:00', endTime: '15:00', room: '' },
     ],
+    exams: [],
   },
 ]

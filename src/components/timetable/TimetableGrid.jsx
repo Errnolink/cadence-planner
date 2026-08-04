@@ -18,7 +18,7 @@ function pctH(start, end) {
   return `${Math.max(0, ((e - s) / TOTAL_MINS) * 100)}%`
 }
 
-export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBlockClick, onInstanceClick, attendanceHook }) {
+export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBlockClick, onInstanceClick, attendanceHook, examDates }) {
   const { settings } = useSettings()
   const todayIdx = getTodayDayIdx()
   const [weekOffset, setWeekOffset] = useState(0)
@@ -547,6 +547,7 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
           timetable={timetable}
           subjects={subjects}
           attendanceHook={attendanceHook}
+          examDates={examDates}
           onClose={() => setActiveDayDetail(null)}
         />
       )}

@@ -3,7 +3,7 @@ import { SUBJECT_COLORS } from '../../data/index.js'
 import { ATTENDANCE_THRESHOLD } from '../../data/constants.js'
 import { SubjectAttendanceModal } from './SubjectAttendanceModal.jsx'
 
-export function AttendanceView({ timetable, subjects, attendanceHook }) {
+export function AttendanceView({ timetable, subjects, attendanceHook, examDates }) {
   const { getSubjectStats, getOverallStats, getMarginToThreshold, getRecoveryPath, getStatusTier } = attendanceHook
   const [selectedSubjectData, setSelectedSubjectData] = useState(null)
   const [filter, setFilter] = useState('ALL')
@@ -14,7 +14,7 @@ export function AttendanceView({ timetable, subjects, attendanceHook }) {
     return () => clearTimeout(t)
   }, [])
   
-  const overallStats = getOverallStats(subjects, timetable)
+  const overallStats = getOverallStats(subjects, timetable, examDates)
 
   const sectionStyle = { marginBottom: '24px' }
   const labelStyle = { fontSize: '10px', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--cad-text-lo)', fontFamily: 'var(--cad-font-mono)', marginBottom: '8px' }
@@ -22,7 +22,7 @@ export function AttendanceView({ timetable, subjects, attendanceHook }) {
   // Map and sort subjects worst-first
   const sortedSubjects = subjects
     .map(subj => {
-      const stats = getSubjectStats(subj.id, timetable)
+      const stats = getSubjectStats(subj.id, timetable, examDates)
       const tier = getStatusTier(stats.percentage)
       const margin = getMarginToThreshold(stats.present, stats.total)
       const recovery = getRecoveryPath(stats.present, stats.total)
@@ -144,6 +144,7 @@ export function AttendanceView({ timetable, subjects, attendanceHook }) {
           subject={selectedSubjectData.subject}
           sourceRect={selectedSubjectData.sourceRect}
           timetable={timetable}
+          examDates={examDates}
           attendanceHook={attendanceHook}
           onClose={() => setSelectedSubjectData(null)}
         />

@@ -142,6 +142,25 @@ export function useSemesters() {
     }))
   }, [updateSem])
 
+  // ── Exam CRUD ─────────────────────────────────────────────────
+  const addExam = useCallback(exam => {
+    updateSem(sem => ({ ...sem, exams: [...(sem.exams || []), exam] }))
+  }, [updateSem])
+
+  const updateExam = useCallback(exam => {
+    updateSem(sem => ({
+      ...sem,
+      exams: (sem.exams || []).map(e => String(e.id) === String(exam.id) ? exam : e),
+    }))
+  }, [updateSem])
+
+  const removeExam = useCallback(id => {
+    updateSem(sem => ({
+      ...sem,
+      exams: (sem.exams || []).filter(e => String(e.id) !== String(id)),
+    }))
+  }, [updateSem])
+
   return {
     // State
     semesters,
@@ -160,5 +179,9 @@ export function useSemesters() {
     // Timetable actions
     saveTimetableEntry,
     deleteTimetableEntry,
+    // Exam actions
+    addExam,
+    updateExam,
+    removeExam,
   }
 }

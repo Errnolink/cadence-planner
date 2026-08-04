@@ -68,3 +68,22 @@ export const isSecondOrFourthSaturday = (year, month, day) => {
   const n = Math.ceil(day / 7);
   return n === 2 || n === 4;
 }
+
+/** Local Date → "YYYY-MM-DD" (calendar/exam date format) */
+export const toDateStr = (date) => {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+/** Whole days from today (local midnight) until dateStr — negative means past */
+export const daysUntil = (dateStr) => {
+  if (!dateStr) return null
+  const [y, m, d] = dateStr.split('-').map(Number)
+  const target = new Date(y, (m || 1) - 1, d || 1)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  return Math.round((target - today) / 86400000)
+}
+

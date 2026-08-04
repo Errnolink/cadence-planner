@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import { useSemesters } from './hooks/useSemesters.js'
 import { useAttendance } from './hooks/useAttendance.js'
 import { Dot } from './components/ui/Dot.jsx'
@@ -11,6 +11,7 @@ import { ClassInstanceModal } from './components/timetable/ClassInstanceModal.js
 import { SettingsModal } from './components/layout/SettingsModal.jsx'
 import { CalendarView }  from './components/calendar/CalendarView.jsx'
 import { AttendanceView } from './components/attendance/AttendanceView.jsx'
+import { ExamsView } from './components/exams/ExamsView.jsx'
 
 /** Lightweight wrapper that re-triggers the tab-enter animation on key change */
 function AnimatedTab({ tabKey, children }) {
@@ -27,6 +28,7 @@ export default function App() {
     setActiveSemId, addSemester, updateSem, removeSemester,
     addSubject, updateSubject, removeSubject,
     saveTimetableEntry, deleteTimetableEntry,
+    addExam, updateExam, removeExam,
   } = useSemesters()
 
 
@@ -73,6 +75,9 @@ export default function App() {
   }, [deleteTimetableEntry])
 
   const totalCr = activeSem?.subjects.reduce((a, s) => a + (parseFloat(s.credits) || 0), 0).toFixed(1) ?? '0.0'
+
+  // Exam dates for the active semester — used to treat exam days as "no classes" in attendance
+  const examDates = useMemo(() => new Set((activeSem?.exams ?? []).map(e => e.date)), [activeSem])
 
   return (
     <div
@@ -156,7 +161,7 @@ export default function App() {
               )}
             </div>
             <div className="hidden md:flex gap-1">
-              {['timetable', 'calendar', 'attendance'].map(tab => (
+              {['timetable', 'exams', 'calendar', 'attendance'].map(tab => (
                 <button key={tab}
                   onClick={() => setActiveTab(tab)}
                   className="px-2 py-0.5 btn-mech"
@@ -177,15 +182,25 @@ export default function App() {
 
           <AnimatedTab tabKey={activeTab}>
             {activeTab === 'calendar' ? (
-              <CalendarView timetable={activeSem?.timetable ?? []} subjects={activeSem?.subjects ?? []} attendanceHook={attendanceHook} />
+              <CalendarView timetable={activeSem?.timetable ?? []} subjects={activeSem?.subjects ?? []} attendanceHook={attendanceHook} examDates={examDates} />
             ) : activeTab === 'attendance' ? (
-              <AttendanceView timetable={activeSem?.timetable ?? []} subjects={activeSem?.subjects ?? []} attendanceHook={attendanceHook} />
+              <AttendanceView timetable={activeSem?.timetable ?? []} subjects={activeSem?.subjects ?? []} attendanceHook={attendanceHook} examDates={examDates} />
+            ) : activeTab === 'exams' ? (
+              <ExamsView
+                exams={activeSem?.exams ?? []}
+                subjects={activeSem?.subjects ?? []}
+                editMode={editMode}
+                onAdd={addExam}
+                onUpdate={updateExam}
+                onRemove={removeExam}
+              />
             ) : (
               <TimetableGrid
                 subjects={activeSem?.subjects ?? []}
                 timetable={activeSem?.timetable ?? []}
                 editMode={editMode}
                 attendanceHook={attendanceHook}
+                examDates={examDates}
                 onCellClick={(day, startTime, endTime) => setTtModal({ mode: 'add', initialData: { day, startTime, endTime } })}
                 onBlockClick={(entry) => setTtModal({ mode: 'edit', initialData: entry })}
                 onInstanceClick={(entry, dateStr) => setInstanceModal({ entry, dateStr })}
