@@ -37,3 +37,8 @@ dist-ssr
 # AI Agents
 .agents/
 references/
+
+# Aider AI coding assistant
+.aider/
+.aider.*
+.aider.tags.cache.v4/

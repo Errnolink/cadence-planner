@@ -28,6 +28,8 @@ export const API = {
   syncFromServer: async (userId) => {
     const localUserId = localStorage.getItem(KEYS.USER_ID);
     API.setUserId(userId);
+    // Cancel any pending debounced push so it can't fire right after a server pull
+    clearTimeout(_syncTimer);
     const { data, error } = await supabase
       .from('user_data')
       .select('*')
@@ -81,24 +83,28 @@ export const API = {
 
   syncToServer: async () => {
     if (!API.userId) return;
-    
+
+    // Cancel any pending debounced sync so we don't double-push
+    clearTimeout(_syncTimer);
+
     window.dispatchEvent(new CustomEvent('cadence-sync', { detail: 'syncing' }));
 
-    const payload = {
-      user_id: API.userId,
-      semesters: API.getSemesters([]),
-      active_sem_id: API.getActiveSemId(null),
-      settings: API.getSettings({}),
-      attendance: API.getAttendance({}),
-      custom_themes: API.getCustomThemes([]),
-      theme_id: localStorage.getItem('cadence-theme') || 'nerv',
-      updated_at: localStorage.getItem(KEYS.UPDATED_AT) || new Date().toISOString()
-    };
-    
-    const { error } = await supabase.from('user_data').upsert(payload);
-    if (!error) {
-      window.dispatchEvent(new CustomEvent('cadence-sync', { detail: 'success' }));
-    } else {
+    try {
+      const payload = {
+        user_id: API.userId,
+        semesters: API.getSemesters([]),
+        active_sem_id: API.getActiveSemId(null),
+        settings: API.getSettings({}),
+        attendance: API.getAttendance({}),
+        custom_themes: API.getCustomThemes([]),
+        theme_id: localStorage.getItem('cadence-theme') || 'nerv',
+        updated_at: localStorage.getItem(KEYS.UPDATED_AT) || new Date().toISOString()
+      };
+
+      const { error } = await supabase.from('user_data').upsert(payload);
+      window.dispatchEvent(new CustomEvent('cadence-sync', { detail: error ? 'error' : 'success' }));
+    } catch (e) {
+      console.error('Cloud sync failed', e);
       window.dispatchEvent(new CustomEvent('cadence-sync', { detail: 'error' }));
     }
   },

@@ -1,14 +1,18 @@
 import { useState, useEffect, useRef } from 'react'
 import { useSettings } from '../../hooks/useSettings.jsx'
+import { useTheme } from '../../themes/ThemeContext.jsx'
 
 export function GpaBadge({ label, hex, value, gradedCount, totalCount }) {
   const [glitching, setGlitching] = useState(true)
   const [displayValue, setDisplayValue] = useState("---")
   const { settings } = useSettings()
+  const { currentTheme } = useTheme()
   const badgeRef = useRef(null)
 
   useEffect(() => {
-    const shouldGlitch = settings.enableGlitch !== false && settings.themeMode !== 'minimal'
+    // Glitch is a NERV-style flourish — only play it on non-minimal themes.
+    // (themeMode is 'dark' | 'light', so we key off the active theme id instead.)
+    const shouldGlitch = settings.enableGlitch !== false && currentTheme?.id !== 'minimal'
     let t1, t2;
     
     if (!shouldGlitch) {
@@ -39,7 +43,7 @@ export function GpaBadge({ label, hex, value, gradedCount, totalCount }) {
       clearTimeout(t2)
       observer.disconnect()
     }
-  }, [value, settings.enableGlitch, settings.themeMode])
+  }, [value, settings.enableGlitch, currentTheme?.id])
   const gpaFloat = value !== null && value !== undefined ? parseFloat(value) : null
 
   const colorStyle = gpaFloat === null

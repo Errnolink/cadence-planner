@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { SUBJECT_COLORS, DAYS, WEEK_LABELS, MONTH_NAMES, parseTimeToMins } from '../../data/index.js'
+import { SUBJECT_COLORS, parseTimeToMins } from '../../data/index.js'
 
 /**
  * DayDetailModal — opens when a calendar date is clicked.

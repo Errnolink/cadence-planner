@@ -1,5 +1,4 @@
 import { useMemo } from 'react'
-import { SUBJECT_COLORS } from '../../data/index.js'
 import { Modal } from '../ui/Modal.jsx'
 
 export function SubjectAttendanceModal({ subject, sourceRect, timetable, attendanceHook, onClose }) {

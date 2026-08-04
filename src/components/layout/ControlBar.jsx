@@ -27,8 +27,7 @@ function Clock() {
 }
 
 export function ControlBar({ semesters, activeSemId, onSemChange, onRemoveSem, editMode, onToggleEdit, onAddSem, onOpenSettings }) {
-  const { currentTheme, cycleTheme, themes } = useTheme()
-  const nextTheme = themes[(themes.findIndex(t => t.id === currentTheme.id) + 1) % themes.length]
+  const { currentTheme, cycleTheme } = useTheme()
 
   return (
     <div
@@ -64,6 +63,26 @@ export function ControlBar({ semesters, activeSemId, onSemChange, onRemoveSem, e
         editMode={editMode}
       />
       <div className="flex-1" />
+
+      {/* Theme cycle — instant switch, keeps NERV as the default active theme */}
+      <button
+        onClick={cycleTheme}
+        title={`Switch theme (currently: ${currentTheme.label})`}
+        className="flex items-center gap-1.5 px-2.5 py-1.5 panel-chamfer-sm btn-mech"
+        style={{
+          border:       '1px solid var(--cad-border)',
+          color:        'var(--cad-accent-text)',
+          background:   'var(--cad-accent-dim)',
+          fontFamily:   'var(--cad-font-mono)',
+          fontSize:     '9px',
+          letterSpacing:'0.15em',
+          borderRadius: 'var(--cad-radius)',
+          transition:   'background 0.15s, border-color 0.15s, color 0.15s',
+        }}
+      >
+        <span style={{ fontSize: '11px' }}>◈</span>
+        <span className="hidden sm:inline" style={{ textTransform: 'uppercase' }}>{currentTheme.label}</span>
+      </button>
 
       {/* Settings toggle */}
       <button
