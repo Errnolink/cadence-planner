@@ -18,7 +18,7 @@ function pctH(start, end) {
   return `${Math.max(0, ((e - s) / TOTAL_MINS) * 100)}%`
 }
 
-export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBlockClick, onInstanceClick, attendanceHook, examDates }) {
+export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBlockClick, onInstanceClick, attendanceHook, examDates, exams = [] }) {
   const { settings } = useSettings()
   const todayIdx = getTodayDayIdx()
   const [weekOffset, setWeekOffset] = useState(0)
@@ -314,6 +314,7 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                 const dayData = attendanceHook?.attendance?.[dateStr] || {}
                 const isManualHoliday = dayData.isHoliday
                 const isHoliday = (settings.holidays2nd4thSat && isSecondOrFourthSaturday(d.getFullYear(), d.getMonth(), d.getDate())) || isManualHoliday
+                const dayExams = exams.filter(e => e.date === dateStr)
 
                 return (
                   <div
@@ -513,6 +514,54 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                               fontFamily: 'var(--cad-font-mono)', fontSize: '7px',
                               color: 'var(--cad-accent)', opacity: 0.7,
                             }}>📝</div>
+                          )}
+                        </div>
+                      )
+                    })}
+
+                    {/* Exam blocks (date-specific — distinct dashed accent style) */}
+                    {dayExams.map(exam => {
+                      const subj = subjectMap[exam.subjectId]
+                      if (!subj) return null
+                      const color = SUBJECT_COLORS[subj.colorIdx % SUBJECT_COLORS.length]
+                      const short = parseTimeToMins(exam.endTime) - parseTimeToMins(exam.startTime) <= 45
+                      return (
+                        <div
+                          key={exam.id}
+                          onClick={e => e.stopPropagation()}
+                          title={`EXAM · ${subj.name}${exam.room ? ` · ${exam.room}` : ''} · ${exam.startTime}–${exam.endTime}${exam.notes ? ` · ${exam.notes}` : ''}`}
+                          style={{
+                            position: 'absolute',
+                            left: '3px',
+                            right: '3px',
+                            top: pct(exam.startTime),
+                            height: pctH(exam.startTime, exam.endTime),
+                            background: `linear-gradient(${color.bg}, ${color.bg}), var(--cad-bg-primary)`,
+                            border: '1px dashed var(--cad-accent)',
+                            borderLeft: '3px solid var(--cad-accent)',
+                            boxShadow: '0 0 6px var(--cad-accent-glow)',
+                            padding: '4px 6px',
+                            overflow: 'hidden',
+                            cursor: 'default',
+                            zIndex: 3,
+                            borderRadius: '0 2px 2px 0',
+                          }}
+                        >
+                          <div style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '8px', fontWeight: '700', color: 'var(--cad-accent)', letterSpacing: '0.1em' }}>
+                            ✎ EXAM
+                          </div>
+                          <div style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '10px', fontWeight: '700', color: color.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {subj.code || generateSubjectCode(subj.name)}
+                          </div>
+                          {!short && (
+                            <>
+                              <div style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'clamp(8px, 1vw, 10px)', color: color.text, opacity: 0.85, marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {exam.room}
+                              </div>
+                              <div style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'clamp(7px, 1vw, 10px)', color: color.text, opacity: 0.85, marginTop: 'auto', paddingTop: '4px' }}>
+                                {exam.startTime}–{exam.endTime}
+                              </div>
+                            </>
                           )}
                         </div>
                       )

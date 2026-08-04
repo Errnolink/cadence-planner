@@ -198,6 +198,7 @@ export default function App() {
               <TimetableGrid
                 subjects={activeSem?.subjects ?? []}
                 timetable={activeSem?.timetable ?? []}
+                exams={activeSem?.exams ?? []}
                 editMode={editMode}
                 attendanceHook={attendanceHook}
                 examDates={examDates}
