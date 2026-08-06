@@ -468,8 +468,8 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                                     }}
                                     style={{
                                       fontFamily: 'var(--cad-font-mono)', fontSize: '7px', letterSpacing: '0.1em',
-                                      border: isActive ? `1px solid var(${colorVar})` : '1px solid rgba(255,255,255,0.1)',
-                                      color: isActive ? `var(${colorVar})` : 'rgba(255,255,255,0.3)',
+                                      border: isActive ? `1px solid var(${colorVar})` : '1px solid var(--cad-border-dim)',
+                                      color: isActive ? `var(${colorVar})` : 'var(--cad-text-lo)',
                                       background: bg,
                                       padding: '2px 4px',
                                       borderRadius: '2px',
@@ -479,14 +479,14 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                                     }}
                                     onMouseEnter={e => {
                                       if (!isActive) {
-                                        e.currentTarget.style.border = '1px solid rgba(255,255,255,0.3)'
-                                        e.currentTarget.style.color = 'rgba(255,255,255,0.6)'
+                                        e.currentTarget.style.border = '1px solid var(--cad-border)'
+                                        e.currentTarget.style.color = 'var(--cad-text-hi)'
                                       }
                                     }}
                                     onMouseLeave={e => {
                                       if (!isActive) {
-                                        e.currentTarget.style.border = '1px solid rgba(255,255,255,0.1)'
-                                        e.currentTarget.style.color = 'rgba(255,255,255,0.3)'
+                                        e.currentTarget.style.border = '1px solid var(--cad-border-dim)'
+                                        e.currentTarget.style.color = 'var(--cad-text-lo)'
                                       }
                                     }}
                                   >

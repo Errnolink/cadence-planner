@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useRef } from 'react'
 import { THEMES } from './index.js'
 import { API, KEYS } from '../data/api.js'
 import { ALLOWED_EFFECTS } from './effects.js'
+import { useSettings } from '../hooks/useSettings.jsx'
 
 const ThemeContext = createContext(null)
 
@@ -63,6 +64,8 @@ function validateThemeImport(themeObj) {
 }
 
 export function ThemeProvider({ children }) {
+  const { settings } = useSettings()
+
   const [themeId, setThemeId] = useState(() => {
     return API.get(KEYS.THEME, DEFAULT_ID)
   })
@@ -94,6 +97,13 @@ export function ThemeProvider({ children }) {
     if (isSyncUpdate.current) return
     API.saveCustomThemes(customThemes)
   }, [customThemes])
+
+  // Keep mobile browser chrome color in sync with the active theme
+  useEffect(() => {
+    const meta = document.querySelector('meta[name="theme-color"]')
+    const light = themeId === 'minimal' && settings.themeMode === 'light'
+    meta?.setAttribute('content', light ? '#f8fafc' : '#0a0a0a')
+  }, [themeId, settings.themeMode])
 
   const allThemes = [...THEMES, ...customThemes.map(ct => ({ id: ct.id, label: ct.label }))]
   const currentTheme = allThemes.find(t => t.id === themeId) ?? THEMES[0]

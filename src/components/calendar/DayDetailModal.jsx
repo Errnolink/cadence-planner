@@ -238,7 +238,7 @@ export function DayDetailModal({ date, weekday, timetable, subjects, attendanceH
                         <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '13px', color: color.text, fontWeight: '700' }}>
                           {entry.startTime}
                         </span>
-                        <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '9px', color: 'rgba(255,255,255,0.4)' }}>
+                        <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '9px', color: 'var(--cad-text-lo)' }}>
                           – {entry.endTime}
                         </span>
                       </div>
@@ -251,19 +251,19 @@ export function DayDetailModal({ date, weekday, timetable, subjects, attendanceH
                         {isSubstitute && (
                           <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '7px', color: 'var(--cad-accent)', border: '1px solid var(--cad-accent)', padding: '1px 3px', borderRadius: '2px', alignSelf: 'flex-start' }}>SUB</span>
                         )}
-                        <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '9px', color: 'rgba(255,255,255,0.5)' }}>
+                        <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '9px', color: 'var(--cad-text-mid)' }}>
                           {entry.room}
                         </span>
                       </div>
 
                       {/* Duration badge and Attendance */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '8px', color: 'rgba(255,255,255,0.4)', alignSelf: 'flex-start', marginTop: '2px' }}>
+                        <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '8px', color: 'var(--cad-text-lo)', alignSelf: 'flex-start', marginTop: '2px' }}>
                           {Math.round((parseTimeToMins(entry.endTime) - parseTimeToMins(entry.startTime)))}m
                         </span>
                         
                         {attendanceHook && date && !date.isHoliday && !examSuspended && (
-                          <div className="flex flex-col gap-1 ml-2 border-l pl-2" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
+                          <div className="flex flex-col gap-1 ml-2 border-l pl-2" style={{ borderColor: 'var(--cad-border-dim)' }}>
                             {['PRESENT', 'ABSENT', 'CANCELLED'].map(type => {
                               const isActive = dayData[entry.id] === type
                               let colorVar = '--cad-text-mid'
@@ -283,8 +283,8 @@ export function DayDetailModal({ date, weekday, timetable, subjects, attendanceH
                                   }}
                                   style={{
                                     fontFamily: 'var(--cad-font-mono)', fontSize: '7px', letterSpacing: '0.1em',
-                                    border: isActive ? `1px solid var(${colorVar})` : '1px solid rgba(255,255,255,0.1)',
-                                    color: isActive ? `var(${colorVar})` : 'rgba(255,255,255,0.3)',
+                                    border: isActive ? `1px solid var(${colorVar})` : '1px solid var(--cad-border-dim)',
+                                    color: isActive ? `var(${colorVar})` : 'var(--cad-text-lo)',
                                     background: bg,
                                     padding: '2px 4px',
                                     borderRadius: '2px',
