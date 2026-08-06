@@ -87,7 +87,6 @@ export function TimetableModal({ mode, initialData, subjects, timetable, onSave,
               border:      '1px solid var(--cad-border)',
               color:       'var(--cad-accent-text)',
               padding:     '6px 8px',
-              outline:     'none',
               borderRadius:'var(--cad-radius)',
             }}
           >
@@ -139,7 +138,6 @@ export function TimetableModal({ mode, initialData, subjects, timetable, onSave,
                 background:   'var(--cad-bg-input)',
                 border:       '1px solid var(--cad-border)',
                 padding:      '6px 8px',
-                outline:      'none',
                 borderRadius: 'var(--cad-radius)',
               }}
             />
@@ -160,7 +158,6 @@ export function TimetableModal({ mode, initialData, subjects, timetable, onSave,
                 background:   'var(--cad-bg-input)',
                 border:       '1px solid var(--cad-border)',
                 padding:      '6px 8px',
-                outline:      'none',
                 borderRadius: 'var(--cad-radius)',
               }}
             />
@@ -183,7 +180,6 @@ export function TimetableModal({ mode, initialData, subjects, timetable, onSave,
                 background:   'var(--cad-bg-input)',
                 border:       '1px solid var(--cad-border)',
                 padding:      '6px 8px',
-                outline:      'none',
                 letterSpacing:'0.1em',
                 borderRadius: 'var(--cad-radius)',
               }}

@@ -9,6 +9,11 @@ import { ThemeProvider } from './themes/ThemeContext.jsx'
 import { SettingsProvider } from './hooks/useSettings.jsx'
 import './index.css'
 
+// PWA offline shell — production only (dev serves un-hashed modules)
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js'))
+}
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <ErrorBoundary>

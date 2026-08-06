@@ -71,6 +71,7 @@ export function useSemesters() {
         endDate: '',
         subjects: [],
         timetable: [],
+        exams: [],
       }
       return [...prev, newSem]
     })

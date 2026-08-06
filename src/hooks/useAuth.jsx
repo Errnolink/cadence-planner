@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react'
-import { supabase } from '../data/supabaseClient.js'
+import { getSupabase } from '../data/supabaseClient.js'
 import { API } from '../data/api.js'
 
 const AuthContext = createContext(null)
@@ -8,34 +8,43 @@ const AuthContext = createContext(null)
  * AuthProvider — single source of truth for authentication state.
  * Eliminates duplicate onAuthStateChange listeners that were previously
  * in both Auth.jsx and App.jsx.
+ *
+ * The supabase client is created lazily, so session bootstrap happens after
+ * first paint without blocking the initial bundle.
  */
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null)
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-      if (session) {
-        API.setUserId(session.user.id)
-        // Background sync on boot
-        API.syncFromServer(session.user.id).catch(console.error)
-      }
+    let active = true
+    let subscription = null
+
+    getSupabase().then((supabase) => {
+      if (!active) return
+
+      // Get initial session
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (!active) return
+        setSession(session)
+        if (session) {
+          API.setUserId(session.user.id)
+          // Background sync on boot
+          API.syncFromServer(session.user.id).catch(console.error)
+        }
+      })
+
+      // Listen for auth state changes (single listener for the entire app)
+      subscription = supabase.auth.onAuthStateChange((_event, session) => {
+        if (!active) return
+        setSession(session)
+        API.setUserId(session ? session.user.id : null)
+      }).data.subscription
     })
 
-    // Listen for auth state changes (single listener for the entire app)
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session)
-      if (session) {
-        API.setUserId(session.user.id)
-      } else {
-        API.setUserId(null)
-      }
-    })
-
-    return () => subscription.unsubscribe()
+    return () => {
+      active = false
+      subscription?.unsubscribe()
+    }
   }, [])
 
   return (

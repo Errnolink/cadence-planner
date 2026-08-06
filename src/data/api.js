@@ -2,7 +2,7 @@
  * api.js — v1.1
  * Centralized data wrapper. Uses localStorage for fast reads, syncs with Supabase in background.
  */
-import { supabase } from './supabaseClient';
+import { getSupabase } from './supabaseClient';
 
 /** Debounce delay for cloud sync — prevents request storms during rapid edits */
 const SYNC_DEBOUNCE_MS = 2000
@@ -33,6 +33,7 @@ export const API = {
     API.setUserId(userId);
     // Cancel any pending debounced push so it can't fire right after a server pull
     clearTimeout(_syncTimer);
+    const supabase = await getSupabase();
     const { data, error } = await supabase
       .from('user_data')
       .select('*')
@@ -60,13 +61,17 @@ export const API = {
       }
 
       if (shouldUpdateLocal) {
-        if (data.semesters) localStorage.setItem(KEYS.DATA, JSON.stringify(data.semesters));
-        if (data.active_sem_id != null) localStorage.setItem(KEYS.ACTIVE_SEM, JSON.stringify(Number(data.active_sem_id)));
-        if (data.settings) localStorage.setItem(KEYS.SETTINGS, JSON.stringify(data.settings));
-        if (data.attendance) localStorage.setItem(KEYS.ATTENDANCE, JSON.stringify(data.attendance));
-        if (data.custom_themes) localStorage.setItem(KEYS.CUSTOM_THEMES, JSON.stringify(data.custom_themes));
-        if (data.theme_id) localStorage.setItem(KEYS.THEME, data.theme_id);
-        if (data.updated_at) localStorage.setItem(KEYS.UPDATED_AT, data.updated_at);
+        // Write with the same encoding as API.set (raw for THEME, JSON otherwise)
+        const write = (key, value) =>
+          localStorage.setItem(key, key === KEYS.THEME ? value : JSON.stringify(value));
+        if (data.semesters) write(KEYS.DATA, data.semesters);
+        if (data.active_sem_id != null) write(KEYS.ACTIVE_SEM, Number(data.active_sem_id));
+        if (data.settings) write(KEYS.SETTINGS, data.settings);
+        if (data.attendance) write(KEYS.ATTENDANCE, data.attendance);
+        if (data.custom_themes) write(KEYS.CUSTOM_THEMES, data.custom_themes);
+        // Strip JSON quotes from legacy rows pushed by the pre-fix client
+        if (data.theme_id) write(KEYS.THEME, String(data.theme_id).replace(/^"|"$/g, ''));
+        if (data.updated_at) write(KEYS.UPDATED_AT, data.updated_at);
         localStorage.setItem(KEYS.USER_ID, userId);
         
         // Dispatch event instead of reloading to allow React to update state seamlessly
@@ -100,10 +105,11 @@ export const API = {
         settings: API.getSettings({}),
         attendance: API.getAttendance({}),
         custom_themes: API.getCustomThemes([]),
-        theme_id: localStorage.getItem(KEYS.THEME) || 'nerv',
-        updated_at: localStorage.getItem(KEYS.UPDATED_AT) || new Date().toISOString()
+        theme_id: API.get(KEYS.THEME, 'nerv'),
+        updated_at: API.get(KEYS.UPDATED_AT, null) || new Date().toISOString()
       };
 
+      const supabase = await getSupabase();
       const { error } = await supabase.from('user_data').upsert(payload);
       window.dispatchEvent(new CustomEvent('cadence-sync', { detail: error ? 'error' : 'success' }));
     } catch (e) {

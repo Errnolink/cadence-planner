@@ -251,3 +251,42 @@ Verify: switch to minimal theme → modal text, borders, quick-mark buttons legi
 - `Auth.jsx` logout clears ALL local data + reloads even if cloud sync previously failed — data-loss risk; needs a confirmation or a sync check.
 - `syncFromServer` writes 7 keys with raw `setItem` bypassing `API.set`; UPDATED_AT/encode conventions differ per key — normalize in a later pass.
 - `useSemesters.addSemester` (60-71) omits `exams: []` although `INITIAL_SEMESTERS` includes it — add for shape consistency.
+
+## Follow-up batch — resolved after branch merge (commit on `perf-upgrade`)
+
+All items above plus the wider "anything else" list were shipped as one commit
+after Phase 6:
+
+1. **Logout wipe confirm** — `Auth.jsx` DISCONNECT is now a two-step `ConfirmDeleteButton`
+   (DISCONNECT → CONFIRM WIPE?, 2.5s auto-disarm). `ConfirmDeleteButton` gained
+   optional `className`/`style` passthrough.
+2. **syncFromServer normalization** — the 7 pulls route through one `write` helper
+   mirroring `API.set`'s encoding (raw for THEME, JSON otherwise) + legacy
+   `theme_id` JSON-quote strip for rows pushed by the pre-fix client; `syncToServer`
+   reads theme/updated_at via `API.get`.
+3. **Focus-ring sweep** — all remaining inline `outline: 'none'` on form controls
+   removed (Auth, CalendarView, SettingsModal, ClassInstanceModal, TimetableModal,
+   SubjectRow); global `:focus-visible` ring now applies everywhere. Modal panel's
+   own `outline: 'none'` kept (programmatic focus target).
+4. **`addSemester`** now includes `exams: []`.
+5. **Konami easter egg implemented** — `App.jsx` keydown listener
+   (↑↑↓↓←→←→BA, lowercased compare, input-field guard) opens `ClassifiedPanel.jsx`
+   (new): two-step PURGE ALL ROOM LOCATIONS clears `room` from every timetable
+   entry + exam across all semesters via `setSemesters`, reports the count.
+6. **PWA offline** — `public/manifest.webmanifest` + `public/sw.js` (cache-first
+   for hashed `/assets/`, network-first navigations with cached index fallback),
+   registered in `main.jsx` (PROD only).
+7. **Playwright e2e** — `@playwright/test` dev dep + `playwright.config.js`
+   (webServer via direct node vite on 127.0.0.1:5199) + `e2e/smoke.spec.js`
+   (8 happy-path tests: boot/tabs, calendar keyboard + day modal, quick-mark
+   persistence, theme cycle, settings focus restore, auth form, Konami purge,
+   mobile tab bar). `npm run test:e2e`.
+8. **Lazy supabase** — `supabaseClient.js` → `getSupabase()` dynamic-import
+   factory; api.js/useAuth/Auth consume it. supabase-js split into its own
+   201 kB chunk (gzip 51.5): main bundle 519.3 → 319.4 kB (gzip 90.9), the
+   >500 kB Vite warning is gone. Session bootstrap still pulls the chunk
+   post-paint (off critical path).
+9. **CSP fix** — Vercel analytics scripts were blocked by `script-src 'self'`;
+   added `https://va.vercel-scripts.com` (script) + `https://vitals.vercel-insights.com`
+   (connect).
+

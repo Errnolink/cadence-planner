@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
  * DELETE button with a two-step confirm: first click arms it (blinks,
  * auto-disarms after 2.5s), second click fires onConfirm.
  */
-export function ConfirmDeleteButton({ onConfirm, label = 'DELETE', confirmLabel = 'CONFIRM?' }) {
+export function ConfirmDeleteButton({ onConfirm, label = 'DELETE', confirmLabel = 'CONFIRM?', className = '', style = {} }) {
   const [confirming, setConfirming] = useState(false)
   const timerRef = useRef(null)
 
@@ -23,7 +23,7 @@ export function ConfirmDeleteButton({ onConfirm, label = 'DELETE', confirmLabel 
   return (
     <button
       onClick={handleClick}
-      className={`px-3 py-1.5 btn-mech panel-chamfer-sm ${confirming ? 'blink' : ''}`}
+      className={`px-3 py-1.5 btn-mech panel-chamfer-sm ${confirming ? 'blink' : ''} ${className}`}
       style={{
         fontFamily:   'var(--cad-font-mono)',
         fontSize:     '10px',
@@ -32,6 +32,7 @@ export function ConfirmDeleteButton({ onConfirm, label = 'DELETE', confirmLabel 
         color:        confirming ? 'var(--cad-danger)'           : 'var(--cad-text-mid)',
         background:   confirming ? 'var(--cad-danger-dim)'       : 'transparent',
         borderRadius: 'var(--cad-radius)',
+        ...style,
       }}
     >{confirming ? confirmLabel : label}</button>
   )

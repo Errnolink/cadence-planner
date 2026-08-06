@@ -80,7 +80,6 @@ export function ClassInstanceModal({ entry, dateStr, subjects, attendanceHook, o
                 background: 'var(--cad-bg-input)',
                 border: currentSubId ? '1px solid var(--cad-accent)' : '1px solid var(--cad-border)',
                 padding: '6px 8px',
-                outline: 'none',
                 borderRadius: 'var(--cad-radius)',
                 cursor: 'pointer',
               }}
@@ -114,7 +113,6 @@ export function ClassInstanceModal({ entry, dateStr, subjects, attendanceHook, o
               background: 'var(--cad-bg-input)',
               border: '1px solid var(--cad-border)',
               padding: '8px',
-              outline: 'none',
               borderRadius: 'var(--cad-radius)',
               resize: 'vertical',
             }}

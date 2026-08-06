@@ -230,7 +230,6 @@ Please output ONLY the raw JSON format without markdown wrapping or codeblocks.`
                 background:  'var(--cad-bg-input)',
                 border:      '1px solid var(--cad-border)',
                 color:       customThemes.length >= 5 ? 'var(--cad-text-lo)' : 'var(--cad-text-hi)',
-                outline:     'none',
                 cursor:      customThemes.length >= 5 ? 'not-allowed' : 'text',
               }}
             />

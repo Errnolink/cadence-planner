@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { useSemesters } from './hooks/useSemesters.js'
 import { useAttendance } from './hooks/useAttendance.js'
 import { PANEL_TABS } from './data/index.js'
@@ -14,10 +14,14 @@ import { SettingsModal } from './components/layout/SettingsModal.jsx'
 import { CalendarView }  from './components/calendar/CalendarView.jsx'
 import { AttendanceView } from './components/attendance/AttendanceView.jsx'
 import { ExamsView } from './components/exams/ExamsView.jsx'
+import { ClassifiedPanel } from './components/layout/ClassifiedPanel.jsx'
+
+// Konami code (↑↑↓↓←→←→BA) — opens the CLASSIFIED OPERATIONS panel
+const KONAMI_SEQ = ['arrowup','arrowup','arrowdown','arrowdown','arrowleft','arrowright','arrowleft','arrowright','b','a']
 
 export default function App() {
   const {
-    semesters, activeSemId, activeSem,
+    semesters, setSemesters, activeSemId, activeSem,
     setActiveSemId, addSemester, updateSem, removeSemester,
     addSubject, updateSubject, removeSubject,
     saveTimetableEntry, deleteTimetableEntry,
@@ -32,6 +36,28 @@ export default function App() {
   const [instanceModal, setInstanceModal] = useState(null)
   const [showSettings, setShowSettings] = useState(false)
   const [activeTab, setActiveTab] = useState('timetable')
+  const [showClassified, setShowClassified] = useState(false)
+
+  const konamiIdx = useRef(0)
+
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      const tag = e.target?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+      const key = e.key.toLowerCase()
+      if (key === KONAMI_SEQ[konamiIdx.current]) {
+        konamiIdx.current += 1
+        if (konamiIdx.current === KONAMI_SEQ.length) {
+          konamiIdx.current = 0
+          setShowClassified(true)
+        }
+      } else {
+        konamiIdx.current = key === KONAMI_SEQ[0] ? 1 : 0
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
 
   const handleSemChange = id => { setActiveSemId(id); setTtModal(null) }
   const toggleEdit      = ()  => { 
@@ -208,6 +234,14 @@ export default function App() {
       {showSettings && (
         <SettingsModal 
           onClose={() => setShowSettings(false)} 
+        />
+      )}
+
+      {showClassified && (
+        <ClassifiedPanel
+          semesters={semesters}
+          onPurge={setSemesters}
+          onClose={() => setShowClassified(false)}
         />
       )}
     </div>

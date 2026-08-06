@@ -64,7 +64,6 @@ export function SubjectRow({ subject, editMode, onUpdate, onRemove, staggerIndex
               letterSpacing:'0.05em',
               color:       color.text,
               borderBottom: editMode ? '1px solid var(--cad-border)' : '1px solid transparent',
-              outline:     'none',
               transition:  'border-color 0.15s',
             }}
             onFocus={e => { setFocused('name'); e.currentTarget.style.borderBottomColor = 'var(--cad-accent)' }}
@@ -88,7 +87,6 @@ export function SubjectRow({ subject, editMode, onUpdate, onRemove, staggerIndex
               fontSize:    '10px',
               color:       'var(--cad-accent)',
               borderBottom: editMode ? '1px solid var(--cad-border)' : '1px solid transparent',
-              outline:     'none',
               transition:  'border-color 0.15s',
             }}
             onFocus={e => { setFocused('code'); e.currentTarget.style.borderBottomColor = 'var(--cad-accent)' }}
@@ -109,7 +107,6 @@ export function SubjectRow({ subject, editMode, onUpdate, onRemove, staggerIndex
               fontSize:    '11px',
               color:       'var(--cad-accent-text)',
               borderBottom: editMode ? '1px solid var(--cad-border)' : '1px solid transparent',
-              outline:     'none',
             }}
           />
 
@@ -125,7 +122,6 @@ export function SubjectRow({ subject, editMode, onUpdate, onRemove, staggerIndex
                   fontSize:    '9px',
                   color:       'var(--cad-text-hi)',
                   borderBottom:'1px solid var(--cad-border)',
-                  outline:     'none',
                 }}
               >
                 <option value="" style={{ background: 'var(--cad-bg-panel)', color: 'var(--cad-text-hi)' }}>—</option>

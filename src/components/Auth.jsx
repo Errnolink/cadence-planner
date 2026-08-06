@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { supabase } from '../data/supabaseClient';
+import { getSupabase } from '../data/supabaseClient';
 import { API } from '../data/api';
 import { useAuth } from '../hooks/useAuth.jsx';
+import { ConfirmDeleteButton } from './ui/ConfirmDeleteButton.jsx';
 
 export function Auth() {
   const { session } = useAuth();
@@ -23,6 +24,7 @@ export function Auth() {
       return;
     }
     try {
+      const supabase = await getSupabase();
       const { data, error } = await supabase.auth.signUp({ email, password });
       if (error) {
         setError(error.message);
@@ -46,6 +48,7 @@ export function Auth() {
     setError(null);
     setMessage(null);
     try {
+      const supabase = await getSupabase();
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
         if (error.message === 'Invalid login credentials') {
@@ -64,6 +67,7 @@ export function Auth() {
   };
 
   const handleLogout = async () => {
+    const supabase = await getSupabase();
     await supabase.auth.signOut();
     API.clearLocalData();
     window.location.reload(); // Reload to reset state to local
@@ -75,22 +79,20 @@ export function Auth() {
         <div style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '11px', color: 'var(--cad-text-mid)', borderBottom: '1px solid var(--cad-border-dim)', paddingBottom: '8px' }}>
           CONNECTED AS: <span style={{ color: 'var(--cad-text-hi)' }}>{session.user.email}</span>
         </div>
-        <button 
-          onClick={handleLogout}
-          className="py-2 btn-mech panel-chamfer-sm mt-2"
+        <ConfirmDeleteButton
+          onConfirm={handleLogout}
+          label="DISCONNECT (SIGN OUT)"
+          confirmLabel="CONFIRM WIPE?"
+          className="py-2 panel-chamfer-sm mt-2"
           style={{
-            fontFamily:   'var(--cad-font-mono)',
-            fontSize:     '10px',
-            letterSpacing:'0.15em',
-            border:       '1px solid var(--cad-danger)',
-            color:        'var(--cad-danger)',
-            background:   'transparent',
+            border:     '1px solid var(--cad-danger)',
+            color:      'var(--cad-danger)',
+            background: 'transparent',
           }}
-        >
-          DISCONNECT (SIGN OUT)
-        </button>
+        />
         <button 
           onClick={async () => {
+            const supabase = await getSupabase();
             await supabase.auth.signOut({ scope: 'others' });
             // No reload needed — we stay logged in on this device
           }}
@@ -137,7 +139,6 @@ export function Auth() {
             background:  'var(--cad-bg-input)',
             border:      '1px solid var(--cad-border)',
             color:       'var(--cad-text-hi)',
-            outline:     'none',
           }}
         />
         <input
@@ -154,7 +155,6 @@ export function Auth() {
             background:  'var(--cad-bg-input)',
             border:      '1px solid var(--cad-border)',
             color:       'var(--cad-text-hi)',
-            outline:     'none',
           }}
         />
         <div className="flex gap-2 mt-2">
