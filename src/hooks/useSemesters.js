@@ -15,10 +15,13 @@ export function useSemesters() {
     return API.getActiveSemId(semesters[0]?.id || 1)
   })
 
+  const lastSavedSemestersRef = useRef('')
+
   useEffect(() => {
     const handleSync = () => {
-      setSemesters(API.getSemesters(INITIAL_SEMESTERS))
       const newSems = API.getSemesters(INITIAL_SEMESTERS)
+      setSemesters(newSems)
+      lastSavedSemestersRef.current = JSON.stringify(newSems)
       setActiveSemId(API.getActiveSemId(newSems[0]?.id || 1))
     }
     window.addEventListener('cadence-data-updated', handleSync)
@@ -43,8 +46,9 @@ export function useSemesters() {
       isFirstRenderSem.current = false
       return
     }
-    const currentLocal = API.getSemesters(null)
-    if (JSON.stringify(currentLocal) === JSON.stringify(semesters)) return
+    const serialized = JSON.stringify(semesters)
+    if (serialized === lastSavedSemestersRef.current) return
+    lastSavedSemestersRef.current = serialized
     API.saveSemesters(semesters)
   }, [semesters])
 

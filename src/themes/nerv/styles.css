@@ -7,16 +7,24 @@
 :root[data-fx-crt-scanlines] body::after {
   content: '';
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 200vh;
   pointer-events: none;
   z-index: 9999;
   background: repeating-linear-gradient(to bottom, transparent 0, transparent 2px, rgba(0, 0, 0, .08) 2px, rgba(0, 0, 0, .08) 4px);
-  animation: crt-scroll 10s linear infinite;
 }
 
-@keyframes crt-scroll {
-  from { background-position: 0 0; }
-  to { background-position: 0 400px; }
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-fx-crt-scanlines] body::after {
+    animation: crt-scroll 10s linear infinite;
+  }
+
+  @keyframes crt-scroll {
+    from { transform: translateY(0); }
+    to { transform: translateY(-400px); }
+  }
 }
 
 :root[data-fx-grid-background] .theme-bg {

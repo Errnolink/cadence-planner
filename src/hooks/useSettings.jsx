@@ -17,9 +17,13 @@ export function SettingsProvider({ children }) {
 
   const isFirstRender = useRef(true)
   
+  const lastSavedSettingsRef = useRef('')
+  
   useEffect(() => {
     const handleSync = () => {
-      setSettings(API.getSettings(defaultSettings))
+      const fresh = API.getSettings(defaultSettings)
+      setSettings(fresh)
+      lastSavedSettingsRef.current = JSON.stringify(fresh)
     }
     window.addEventListener('cadence-data-updated', handleSync)
     return () => window.removeEventListener('cadence-data-updated', handleSync)
@@ -29,8 +33,9 @@ export function SettingsProvider({ children }) {
     if (isFirstRender.current) {
       isFirstRender.current = false
     } else {
-      const currentLocal = API.getSettings(null)
-      if (JSON.stringify(currentLocal) !== JSON.stringify(settings)) {
+      const serialized = JSON.stringify(settings)
+      if (serialized !== lastSavedSettingsRef.current) {
+        lastSavedSettingsRef.current = serialized
         API.saveSettings(settings)
       }
     }

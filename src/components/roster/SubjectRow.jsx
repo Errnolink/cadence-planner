@@ -1,10 +1,32 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { SUBJECT_COLORS, GRADE_MAP, gpToLabel, generateSubjectCode } from '../../data/index.js'
 import { ColorPicker } from '../ui/ColorPicker.jsx'
 
 export function SubjectRow({ subject, editMode, onUpdate, onRemove, staggerIndex = 0 }) {
   const color = SUBJECT_COLORS[subject.colorIdx % SUBJECT_COLORS.length]
   const [showColors, setShowColors] = useState(false)
+  // Local draft so keystrokes don't re-render the whole app + write storage per keypress
+  const [draft, setDraft] = useState(() => ({ name: subject.name, code: subject.code ?? '', credits: subject.credits }))
+  const [focused, setFocused] = useState(null)
+
+  // Resync draft after external updates (cloud pull) while the row isn't being edited
+  useEffect(() => {
+    if (!focused) setDraft({ name: subject.name, code: subject.code ?? '', credits: subject.credits })
+  }, [subject.name, subject.code, subject.credits, focused])
+
+  const commitField = (key, value) => {
+    const parsed = key === 'credits' ? (parseFloat(value) || 0) : value
+    const current = key === 'credits' ? (parseFloat(subject.credits) || 0) : (subject[key] ?? '')
+    if (parsed !== current) onUpdate(subject.id, key, parsed)
+  }
+  const commitOnBlur = (key) => (e) => {
+    setFocused(null)
+    commitField(key, e.target.value)
+    e.currentTarget.style.borderBottomColor = 'var(--cad-border)'
+  }
+  const commitOnEnter = (key) => (e) => {
+    if (e.key === 'Enter') { commitField(key, e.target.value); e.currentTarget.blur() }
+  }
 
   return (
     <div
@@ -29,8 +51,11 @@ export function SubjectRow({ subject, editMode, onUpdate, onRemove, staggerIndex
 
           {/* Name */}
           <input
-            value={subject.name}
-            onChange={e => onUpdate(subject.id, 'name', e.target.value)}
+            value={draft.name}
+            onChange={e => setDraft(d => ({ ...d, name: e.target.value }))}
+            onFocus={() => setFocused('name')}
+            onBlur={commitOnBlur('name')}
+            onKeyDown={commitOnEnter('name')}
             disabled={!editMode}
             spellCheck={false}
             className="flex-1 min-w-0 bg-transparent"
@@ -44,7 +69,6 @@ export function SubjectRow({ subject, editMode, onUpdate, onRemove, staggerIndex
               transition:  'border-color 0.15s',
             }}
             onFocus={e => { e.currentTarget.style.borderBottomColor = 'var(--cad-accent)' }}
-            onBlur={e  => { e.currentTarget.style.borderBottomColor = 'var(--cad-border)'  }}
           />
         </div>
 
@@ -52,9 +76,12 @@ export function SubjectRow({ subject, editMode, onUpdate, onRemove, staggerIndex
         <div className="flex items-center gap-1.5 sm:gap-1.5 pl-5 sm:pl-0 shrink-0">
           {/* Code */}
           <input
-            value={subject.code ?? ''}
+            value={draft.code}
             placeholder={generateSubjectCode(subject.name)}
-            onChange={e => onUpdate(subject.id, 'code', e.target.value)}
+            onChange={e => setDraft(d => ({ ...d, code: e.target.value }))}
+            onFocus={() => setFocused('code')}
+            onBlur={commitOnBlur('code')}
+            onKeyDown={commitOnEnter('code')}
             disabled={!editMode}
             spellCheck={false}
             className="w-12 shrink-0 bg-transparent text-center"
@@ -67,14 +94,16 @@ export function SubjectRow({ subject, editMode, onUpdate, onRemove, staggerIndex
               transition:  'border-color 0.15s',
             }}
             onFocus={e => { e.currentTarget.style.borderBottomColor = 'var(--cad-accent)' }}
-            onBlur={e  => { e.currentTarget.style.borderBottomColor = 'var(--cad-border)'  }}
           />
 
           {/* Credits — drop the redundant "CR" label per-row */}
           <input
             type="number" min="0.5" max="8" step="0.5"
-            value={subject.credits}
-            onChange={e => onUpdate(subject.id, 'credits', parseFloat(e.target.value) || 0)}
+            value={draft.credits}
+            onChange={e => setDraft(d => ({ ...d, credits: e.target.value }))}
+            onFocus={() => setFocused('credits')}
+            onBlur={commitOnBlur('credits')}
+            onKeyDown={commitOnEnter('credits')}
             disabled={!editMode}
             className="w-8 text-right bg-transparent"
             style={{

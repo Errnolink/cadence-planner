@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { SUBJECT_COLORS } from '../../data/index.js'
 import { ATTENDANCE_THRESHOLD } from '../../data/constants.js'
 import { SubjectAttendanceModal } from './SubjectAttendanceModal.jsx'
@@ -20,7 +20,7 @@ export function AttendanceView({ timetable, subjects, attendanceHook, examDates 
   const labelStyle = { fontSize: '10px', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--cad-text-lo)', fontFamily: 'var(--cad-font-mono)', marginBottom: '8px' }
 
   // Map and sort subjects worst-first
-  const sortedSubjects = subjects
+  const sortedSubjects = useMemo(() => subjects
     .map(subj => {
       const stats = getSubjectStats(subj.id, timetable, examDates)
       const tier = getStatusTier(stats.percentage)
@@ -29,7 +29,7 @@ export function AttendanceView({ timetable, subjects, attendanceHook, examDates 
       const color = SUBJECT_COLORS[subj.colorIdx % SUBJECT_COLORS.length]
       return { subj, stats, tier, margin, recovery, color }
     })
-    .sort((a, b) => a.stats.percentage - b.stats.percentage)
+    .sort((a, b) => a.stats.percentage - b.stats.percentage), [subjects, timetable, examDates, attendanceHook])
 
   return (
     <div className="flex flex-col h-full overflow-y-auto p-2 min-h-0">

@@ -136,9 +136,6 @@ export const API = {
       
       if (!skipTimestampUpdate && key !== KEYS.UPDATED_AT) {
         localStorage.setItem(KEYS.UPDATED_AT, new Date().toISOString())
-        if (API.userId) {
-          localStorage.setItem(KEYS.USER_ID, API.userId)
-        }
       }
 
       // Trigger debounced cloud sync in the background if logged in

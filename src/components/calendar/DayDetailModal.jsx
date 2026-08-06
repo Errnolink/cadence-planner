@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import { SUBJECT_COLORS, parseTimeToMins } from '../../data/index.js'
 
 /**
@@ -15,12 +15,18 @@ export function DayDetailModal({ date, weekday, timetable, subjects, attendanceH
   // On an exam day, classes are suspended (skipped in stats) UNLESS the user opted to count them as present
   const examSuspended = isExamDay && !countAsPresent
   // weekday: 'MON','TUE', etc. — null means no classes (weekend or no match)
-  const entries = timetable
-    .filter(t => t.day === weekday)
-    .sort((a, b) => parseTimeToMins(a.startTime) - parseTimeToMins(b.startTime))
+  const entries = useMemo(
+    () => timetable
+      .filter(t => t.day === weekday)
+      .sort((a, b) => parseTimeToMins(a.startTime) - parseTimeToMins(b.startTime)),
+    [timetable, weekday]
+  )
 
-  const subjectMap = {}
-  subjects.forEach(s => { subjectMap[s.id] = s })
+  const subjectMap = useMemo(() => {
+    const m = {}
+    subjects.forEach(s => { m[s.id] = s })
+    return m
+  }, [subjects])
 
   const dayName  = date ? new Date(date.year, date.month, date.day).toLocaleDateString('en-US', { weekday: 'long' }) : ''
   const dateFull = date ? new Date(date.year, date.month, date.day).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : ''

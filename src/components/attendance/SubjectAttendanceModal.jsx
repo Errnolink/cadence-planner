@@ -7,6 +7,7 @@ export function SubjectAttendanceModal({ subject, timetable, attendanceHook, exa
   const stats = getSubjectStats(subject.id, timetable, examDates)
 
   const history = useMemo(() => {
+    const entryMap = new Map(timetable.map(t => [t.id, t]))
     const subjectEntryIds = timetable.filter(t => t.subjectId === subject.id).map(t => t.id)
     const records = []
     
@@ -17,7 +18,7 @@ export function SubjectAttendanceModal({ subject, timetable, attendanceHook, exa
             date: dateStr,
             entryId: id,
             status: dayData[id],
-            entry: timetable.find(t => t.id === id)
+            entry: entryMap.get(id)
           })
         }
       })
