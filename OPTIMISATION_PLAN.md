@@ -20,6 +20,8 @@ Findings were verified against source; every item cites `file:line`.
 
 ## Phase 1 — Deletions (zero-risk, ~-120 lines)
 
+> **STATUS: DONE** — commit `3dd99cf`. JS 519.34 → 518.02 kB after this phase.
+
 Do these first; each is independent and safe. Re-run `npm run build` after the phase and note the delta.
 
 ### 1.1 Dead `sourceRect` plumbing (end-to-end)
@@ -92,6 +94,8 @@ Bonus: this also removes a whole-App re-render on every cloud push (see 2.3).
 
 ## Phase 2 — Performance core
 
+> **STATUS: DONE** — commit `60af971` (+ lint fix `ec6ada8`).
+
 ### 2.1 Per-keystroke full-app persistence (highest ROI)
 `SubjectRow.jsx:38-44,58-63` → `onChange` calls `onUpdate` → `setSemesters` at App root re-renders every child, and `useSemesters.js:41-49` then `JSON.stringify`s + writes the whole tree — twice per keystroke (guard + `api.js:131-148`'s 2-3 `setItem`s incl. a redundant USER_ID rewrite at 134-138).
 
@@ -137,6 +141,8 @@ Covered by 1.6 — every debounced cloud push currently re-renders the whole App
 
 ## Phase 3 — Theme correctness
 
+> **STATUS: DONE** — commit `f7e4b82`.
+
 ### 3.1 Theme FOUC on every load (high)
 `index.html:3` hardcodes `data-theme="nerv"`; `ThemeContext.jsx:102-122` applies the saved theme via `useEffect` **after** first paint — minimal/light users flash dark NERV on every reload. Same for `data-mode` (`useSettings.jsx:35-39`).
 - [ ] Add a tiny inline `<script>` in `index.html` `<head>`: read `localStorage['cadence-theme']` → set `data-theme` (default `nerv`); read `localStorage['cadence-mode']` → set `data-mode` — **before** CSS paints
@@ -154,6 +160,8 @@ Verify: switch to minimal theme → modal text, borders, quick-mark buttons legi
 ---
 
 ## Phase 4 — A11y baseline (all small)
+
+> **STATUS: DONE** — commit `18fb18e`. (EventDetailModal item dropped: file does not exist in repo.)
 
 ### 4.1 Shared Modal a11y — one fix, 4 modals inherit
 `src/components/ui/Modal.jsx:26-77`: no focus trap, no `role="dialog"`/`aria-modal`/`aria-labelledby`, no initial focus/restore, bare `✕` without accessible name, no body scroll lock. (Escape + backdrop close already work.)
@@ -200,6 +208,8 @@ Verify: switch to minimal theme → modal text, borders, quick-mark buttons legi
 
 ## Phase 5 — Consolidations (biggest diff, do last, on a separate commit)
 
+> **STATUS: DONE** — commit `2df8036`.
+
 - [ ] **`AttendanceToggle`** — PRESENT/ABSENT/CANCELLED segmented control with identical active-color mapping copy-pasted 3×: `ClassInstanceModal.jsx:60-89`, `DayDetailModal.jsx:263-300`, `TimetableGrid.jsx:453-512`. Extract one `<AttendanceToggle status onChange compact? />` (accept the active color vars as props or map inside)
 - [ ] **`useModalDismiss`** — DayDetailModal's backdrop + Escape + 200ms closing animation + `anim-*` classes (`DayDetailModal.jsx:28-70`) duplicate `Modal.jsx:8-47` verbatim. Extract a shared hook (or a bottom-sheet variant of Modal)
 - [ ] **FormModal shell** — `ExamModal.jsx` ≈ `TimetableModal.jsx` (form state / validate / error banner / confirmDelete 2.5s timeout / SAVE-DELETE-ABORT footer / subject-select + preview). Share a `useConfirmDelete()` hook at minimum; a FormModal shell if it stays clean
@@ -210,6 +220,8 @@ Verify: switch to minimal theme → modal text, borders, quick-mark buttons legi
 ---
 
 ## Phase 6 — Verify (end of day)
+
+> **STATUS: DONE** — final build: JS **519.33 kB** (gzip 141.47), CSS **20.04 kB** (gzip 5.51). JS ≈ baseline (consolidation offset a11y additions); CSS +0.27 kB from focus-visible + reduced-motion selectors. Lint clean (3 pre-existing fast-refresh warnings). Smoke (headless Edge via CDP): tabs switch, calendar keyboard a11y, quick-mark toggle persists, note saves on Escape-close, modal focus trap + focus restore, theme cycle + theme-color meta (#f8fafc light / #0a0a0a dark), two-step DELETE works.
 
 - [ ] `npm run lint` — clean
 - [ ] `npm run build` — record new sizes; compare vs baseline (goal: JS well under 500 kB if 2.8 landed, CSS ≤ 19.77 kB)
