@@ -52,7 +52,7 @@ function HudButton({ onClick, title, variant = 'plain', active = false, children
   )
 }
 
-export function ControlBar({ semesters, activeSemId, onSemChange, onRemoveSem, editMode, onToggleEdit, onAddSem, onOpenSettings }) {
+export function ControlBar({ semesters, activeSemId, onSemChange, onRemoveSem, editMode, onToggleEdit, onAddSem, onOpenSettings, onSecretTap }) {
   const { currentTheme, cycleTheme } = useTheme()
 
   return (
@@ -65,13 +65,15 @@ export function ControlBar({ semesters, activeSemId, onSemChange, onRemoveSem, e
         zIndex:       50,
       }}
     >
-      {/* Logo — hidden on very small screens */}
+      {/* Logo — also the mobile easter-egg target (tap 5×) */}
       <div
-        className="hidden sm:flex items-center gap-1.5 px-2 py-1 panel-chamfer-sm shrink-0"
+        onClick={onSecretTap}
+        className="flex items-center gap-1.5 px-2 py-1 panel-chamfer-sm shrink-0"
         style={{
           border:    '1px solid var(--cad-accent)',
           background:'var(--cad-accent-dim)',
           boxShadow: 'var(--cad-shadow-glow)',
+          cursor:    'pointer',
         }}
       >
         <span

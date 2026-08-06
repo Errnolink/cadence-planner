@@ -111,8 +111,28 @@ test('mobile tab bar switches panels on narrow viewports', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/')
 
+  // Header still fits with the always-visible logo
+  await expect(page.getByText('CADENCE')).toBeVisible()
+  await expect(page.getByRole('button', { name: /SETTINGS/ })).toBeVisible()
+  await expect(page.getByTitle(/Switch theme/)).toBeVisible()
+
   // Desktop switcher is hidden below md — only the mobile bar's button matches.
   // Its accessible name includes the icon glyph, so match by substring.
   await page.getByRole('button', { name: 'CALENDAR' }).click()
   await expect(page.getByRole('button', { name: /Previous month/ })).toBeVisible()
+})
+
+test('mobile easter egg: 5 taps on the CADENCE logo opens classified ops', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/')
+
+  const logo = page.getByText('CADENCE')
+  for (let i = 0; i < 5; i++) {
+    await logo.click()
+  }
+
+  const dialog = page.getByRole('dialog', { name: 'CLASSIFIED OPERATIONS' })
+  await expect(dialog).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(dialog).toBeHidden()
 })

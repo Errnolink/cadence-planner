@@ -39,6 +39,21 @@ export default function App() {
   const [showClassified, setShowClassified] = useState(false)
 
   const konamiIdx = useRef(0)
+  const secretTaps = useRef(0)
+  const secretTimer = useRef(null)
+
+  // Mobile trigger: 5 quick taps on the CADENCE logo
+  const handleSecretTap = useCallback(() => {
+    secretTaps.current += 1
+    clearTimeout(secretTimer.current)
+    secretTimer.current = setTimeout(() => { secretTaps.current = 0 }, 1500)
+    if (secretTaps.current >= 5) {
+      secretTaps.current = 0
+      setShowClassified(true)
+    }
+  }, [])
+
+  useEffect(() => () => clearTimeout(secretTimer.current), [])
 
   useEffect(() => {
     const onKeyDown = (e) => {
@@ -94,6 +109,7 @@ export default function App() {
         onToggleEdit={toggleEdit}
         onAddSem={addSemester}
         onOpenSettings={() => setShowSettings(true)}
+        onSecretTap={handleSecretTap}
       />
 
       {/* Status strip — hidden on very small screens */}
