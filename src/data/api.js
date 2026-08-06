@@ -1,5 +1,5 @@
 /**
- * api.js — v1.1
+ * api.js — v1.2
  * Centralized data wrapper. Uses localStorage for fast reads, syncs with Supabase in background.
  */
 import { getSupabase } from './supabaseClient';
@@ -7,8 +7,28 @@ import { getSupabase } from './supabaseClient';
 /** Debounce delay for cloud sync — prevents request storms during rapid edits */
 const SYNC_DEBOUNCE_MS = 2000
 let _syncTimer = null
-// Set when the last push failed (e.g. offline edits) — drives the reconnect resync
+// Set when the last sync failed (e.g. offline edits) — drives the reconnect resync
 let _syncFailed = false
+let _retryTimer = null
+
+// Serialize pulls and pushes so they can never overlap: an in-flight push
+// landing after a pull would regress the server to stale data. The queue
+// swallows rejections so a failure can never wedge subsequent syncs.
+let _syncQueue = Promise.resolve()
+function serialize(fn) {
+  const run = _syncQueue.then(fn, fn)
+  _syncQueue = run.catch(() => {})
+  return run
+}
+
+// Bounded retry for transient failures while still online — one shot, 10s later.
+function scheduleRetry() {
+  if (_retryTimer) return
+  _retryTimer = setTimeout(() => {
+    _retryTimer = null
+    if (navigator.onLine && API.userId && _syncFailed) API.syncToServer().catch(console.error)
+  }, 10000)
+}
 
 // When connectivity returns, push any changes that failed while offline.
 // Guarded by the failed flag so we don't fire spurious pushes.
@@ -39,69 +59,92 @@ export const API = {
     API.userId = id;
   },
 
-  syncFromServer: async (userId) => {
+  syncFromServer: (userId) => serialize(async () => {
     const localUserId = localStorage.getItem(KEYS.USER_ID);
     API.setUserId(userId);
     // Cancel any pending debounced push so it can't fire right after a server pull
     clearTimeout(_syncTimer);
-    const supabase = await getSupabase();
-    const { data, error } = await supabase
-      .from('user_data')
-      .select('*')
-      .eq('user_id', userId)
-      .single();
+    window.dispatchEvent(new CustomEvent('cadence-sync', { detail: 'syncing' }));
 
-    if (data) {
-      const localUpdated = localStorage.getItem(KEYS.UPDATED_AT);
-      const serverUpdated = data.updated_at;
-      
-      let shouldUpdateLocal = true;
-      let shouldPushToServer = false;
+    try {
+      const supabase = await getSupabase();
+      const { data, error } = await supabase
+        .from('user_data')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
 
-      // Only compare timestamps if the local data belongs to the same user
-      if (localUserId === userId && localUpdated && serverUpdated) {
-        const localTime = new Date(localUpdated).getTime();
-        const serverTime = new Date(serverUpdated).getTime();
+      if (data) {
+        const localUpdated = localStorage.getItem(KEYS.UPDATED_AT);
+        const serverUpdated = data.updated_at;
         
-        if (localTime > serverTime) {
-          shouldUpdateLocal = false;
-          shouldPushToServer = true;
-        } else if (localTime === serverTime) {
-          shouldUpdateLocal = false;
+        let shouldUpdateLocal = true;
+        let shouldPushToServer = false;
+
+        // Only compare timestamps if the local data belongs to the same user
+        if (localUserId === userId && localUpdated && serverUpdated) {
+          const localTime = new Date(localUpdated).getTime();
+          const serverTime = new Date(serverUpdated).getTime();
+          
+          if (localTime > serverTime) {
+            shouldUpdateLocal = false;
+            shouldPushToServer = true;
+          } else if (localTime === serverTime) {
+            shouldUpdateLocal = false;
+          }
         }
-      }
 
-      if (shouldUpdateLocal) {
-        // Write with the same encoding as API.set (raw for THEME, JSON otherwise)
-        const write = (key, value) =>
-          localStorage.setItem(key, key === KEYS.THEME ? value : JSON.stringify(value));
-        if (data.semesters) write(KEYS.DATA, data.semesters);
-        if (data.active_sem_id != null) write(KEYS.ACTIVE_SEM, Number(data.active_sem_id));
-        if (data.settings) write(KEYS.SETTINGS, data.settings);
-        if (data.attendance) write(KEYS.ATTENDANCE, data.attendance);
-        if (data.custom_themes) write(KEYS.CUSTOM_THEMES, data.custom_themes);
-        // Strip JSON quotes from legacy rows pushed by the pre-fix client
-        if (data.theme_id) write(KEYS.THEME, String(data.theme_id).replace(/^"|"$/g, ''));
-        if (data.updated_at) write(KEYS.UPDATED_AT, data.updated_at);
-        localStorage.setItem(KEYS.USER_ID, userId);
+        if (shouldUpdateLocal) {
+          // Write with the same encoding as API.set (raw for THEME and
+          // UPDATED_AT, JSON otherwise) — a JSON-quoted timestamp would
+          // break new Date() comparisons (NaN) until the next edit.
+          const write = (key, value) =>
+            localStorage.setItem(key, key === KEYS.THEME || key === KEYS.UPDATED_AT ? value : JSON.stringify(value));
+          if (data.semesters) write(KEYS.DATA, data.semesters);
+          if (data.active_sem_id != null) write(KEYS.ACTIVE_SEM, Number(data.active_sem_id));
+          if (data.settings) write(KEYS.SETTINGS, data.settings);
+          if (data.attendance) write(KEYS.ATTENDANCE, data.attendance);
+          if (data.custom_themes) write(KEYS.CUSTOM_THEMES, data.custom_themes);
+          // Strip JSON quotes from legacy rows pushed by the pre-fix client
+          if (data.theme_id) write(KEYS.THEME, String(data.theme_id).replace(/^"|"$/g, ''));
+          if (data.updated_at) write(KEYS.UPDATED_AT, data.updated_at);
+          localStorage.setItem(KEYS.USER_ID, userId);
+          
+          // Dispatch event instead of reloading to allow React to update state seamlessly
+          window.dispatchEvent(new CustomEvent('cadence-data-updated'));
+        }
         
-        // Dispatch event instead of reloading to allow React to update state seamlessly
-        window.dispatchEvent(new CustomEvent('cadence-data-updated'));
+        if (shouldPushToServer) {
+          // Inline push — we already hold the serialization slot
+          await API._push();
+          return; // _push dispatched success/error
+        }
+      } else if (error && error.code === 'PGRST116') {
+        // No rows returned — new user or new device with local data only.
+        // Push their local data up to the server.
+        localStorage.setItem(KEYS.USER_ID, userId);
+        await API._push();
+        return; // _push dispatched success/error
+      } else if (error) {
+        throw error;
       }
-      
-      if (shouldPushToServer) {
-        await API.syncToServer();
-      }
-    } else if (error && error.code === 'PGRST116') {
-      // No rows returned, meaning this is a new user or new device with local data only.
-      // Let's push their local data up to the server.
-      localStorage.setItem(KEYS.USER_ID, userId);
-      await API.syncToServer();
-    }
-  },
 
-  syncToServer: async () => {
-    if (!API.userId) return;
+      _syncFailed = false;
+      window.dispatchEvent(new CustomEvent('cadence-sync', { detail: 'success' }));
+    } catch (e) {
+      console.error('Cloud pull failed', e);
+      _syncFailed = true;
+      scheduleRetry();
+      window.dispatchEvent(new CustomEvent('cadence-sync', { detail: 'error' }));
+    }
+  }),
+
+  syncToServer: () => serialize(() => API._push()),
+
+  // Raw push body — callers must already hold the serialization slot.
+  // Returns true on success, false on failure (never throws).
+  _push: async () => {
+    if (!API.userId) return true;
 
     // Cancel any pending debounced sync so we don't double-push
     clearTimeout(_syncTimer);
@@ -122,12 +165,22 @@ export const API = {
 
       const supabase = await getSupabase();
       const { error } = await supabase.from('user_data').upsert(payload);
-      _syncFailed = Boolean(error);
-      window.dispatchEvent(new CustomEvent('cadence-sync', { detail: error ? 'error' : 'success' }));
+      if (error) {
+        _syncFailed = true;
+        scheduleRetry();
+        window.dispatchEvent(new CustomEvent('cadence-sync', { detail: 'error' }));
+        return false;
+      }
+      _syncFailed = false;
+      clearTimeout(_retryTimer);
+      window.dispatchEvent(new CustomEvent('cadence-sync', { detail: 'success' }));
+      return true;
     } catch (e) {
       console.error('Cloud sync failed', e);
       _syncFailed = true;
+      scheduleRetry();
       window.dispatchEvent(new CustomEvent('cadence-sync', { detail: 'error' }));
+      return false;
     }
   },
 

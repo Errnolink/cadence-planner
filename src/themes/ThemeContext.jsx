@@ -74,27 +74,22 @@ export function ThemeProvider({ children }) {
     return API.getCustomThemes([])
   })
 
-  const isSyncUpdate = useRef(false)
   const isFirstRenderTheme = useRef(true)
-  const isFirstRenderCustomThemes = useRef(true)
 
   useEffect(() => {
     const handleSync = () => {
-      isSyncUpdate.current = true
       setThemeId(API.get(KEYS.THEME, DEFAULT_ID))
       setCustomThemes(API.getCustomThemes([]))
-      setTimeout(() => { isSyncUpdate.current = false }, 0)
     }
     window.addEventListener('cadence-data-updated', handleSync)
     return () => window.removeEventListener('cadence-data-updated', handleSync)
   }, [])
 
   useEffect(() => {
-    if (isFirstRenderCustomThemes.current) {
-      isFirstRenderCustomThemes.current = false
-      return
-    }
-    if (isSyncUpdate.current) return
+    // Only persist when the value actually changed from what's stored —
+    // sync-driven updates (cadence-data-updated) already wrote storage,
+    // so they must not re-arm the debounced push / bump updated_at.
+    if (JSON.stringify(customThemes) === JSON.stringify(API.getCustomThemes([]))) return
     API.saveCustomThemes(customThemes)
   }, [customThemes])
 
@@ -117,10 +112,8 @@ export function ThemeProvider({ children }) {
     
     if (isFirstRenderTheme.current) {
       isFirstRenderTheme.current = false
-    } else {
-      if (!isSyncUpdate.current) {
-        API.set(KEYS.THEME, themeId)
-      }
+    } else if (themeId !== API.get(KEYS.THEME, DEFAULT_ID)) {
+      API.set(KEYS.THEME, themeId)
     }
     
     // Re-enable transitions after the browser has painted the new theme

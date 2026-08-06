@@ -289,4 +289,20 @@ after Phase 6:
 9. **CSP fix** — Vercel analytics scripts were blocked by `script-src 'self'`;
    added `https://va.vercel-scripts.com` (script) + `https://vitals.vercel-insights.com`
    (connect).
+10. **Mobile easter egg** (`bd61294`) — ControlBar logo is always visible
+   (was `hidden sm:flex`); 5 taps within 1.5s opens the ClassifiedPanel. Safe
+   because the purge is now two-step confirmed.
+11. **Auto-resync on reconnect** (`3694d0e`) — `_syncFailed` flag set on push
+   failure; a `window 'online'` listener pushes once connectivity returns.
+   No spurious pushes: only after an actual failure, only while logged in.
+12. **Sync hardening** — serialize all pulls/pushes through a promise queue
+   (an in-flight debounced push can no longer land after a boot pull and
+   regress the server to stale data); `syncFromServer` now surfaces failures
+   via `cadence-sync` events + `_syncFailed` (previously silent) and retries
+   once after 10s while online; ThemeContext's racy `isSyncUpdate` setTimeout
+   guard replaced with stored-value comparison so a pull-write no longer
+   re-stamps `cadence_updated_at`/re-arms a redundant push; pull's
+   `updated_at` write is raw (JSON-quoted timestamps broke `new Date()`
+   comparisons → NaN → pull always won). Verified by 5 route-stubbed e2e
+   tests (`e2e/sync.spec.js`, 14 total).
 
