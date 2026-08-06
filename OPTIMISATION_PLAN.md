@@ -305,4 +305,16 @@ after Phase 6:
    `updated_at` write is raw (JSON-quoted timestamps broke `new Date()`
    comparisons → NaN → pull always won). Verified by 5 route-stubbed e2e
    tests (`e2e/sync.spec.js`, 14 total).
+13. **Per-key merge** — concurrent multi-device edits no longer clobber each
+    other. `API.set` stamps a per-key timestamp map (`cadence_key_stamps`);
+    `syncFromServer` merges per payload key (semesters / active_sem_id /
+    settings / attendance / custom_themes / theme_id) — the newer timestamp
+    wins each key, server-won keys are adopted locally, and if any key is
+    local-newer the merged state is pushed back. Requires ONE SQL statement
+    (`supabase/migrations/20260806_add_key_updated_at.sql`) to add the
+    `key_updated_at jsonb` column; until it's run the client detects the
+    column's absence and stays in the previous whole-row LWW mode, upgrading
+    rows automatically on the first pull after migration (whole-row
+    `updated_at` proxies missing per-key stamps). e2e coverage grew to
+    8 sync tests (14 app + 8 sync = 22 total).
 

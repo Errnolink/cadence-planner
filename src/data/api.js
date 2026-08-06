@@ -1,5 +1,5 @@
 /**
- * api.js — v1.2
+ * api.js — v1.3
  * Centralized data wrapper. Uses localStorage for fast reads, syncs with Supabase in background.
  */
 import { getSupabase } from './supabaseClient';
@@ -48,9 +48,43 @@ const KEYS = {
   THEME: 'cadence-theme',
   UPDATED_AT: 'cadence_updated_at',
   USER_ID: 'cadence_user_id',
+  KEY_STAMPS: 'cadence_key_stamps',
 }
 
 export { KEYS }
+
+// ── Per-key timestamp merge ────────────────────────────────────────────
+// Payload keys (server columns) → local storage keys.
+const STORAGE_KEY_FOR = {
+  semesters: KEYS.DATA,
+  active_sem_id: KEYS.ACTIVE_SEM,
+  settings: KEYS.SETTINGS,
+  attendance: KEYS.ATTENDANCE,
+  custom_themes: KEYS.CUSTOM_THEMES,
+  theme_id: KEYS.THEME,
+}
+const PAYLOAD_KEYS = Object.keys(STORAGE_KEY_FOR)
+const PAYLOAD_KEY_FOR = Object.fromEntries(
+  Object.entries(STORAGE_KEY_FOR).map(([k, v]) => [v, k])
+)
+
+// Set once a pulled row proves the server has the key_updated_at column;
+// pushes include key_updated_at only then (avoids 42703 on pre-migration projects).
+let _serverHasKeyStamps = false
+
+function getKeyStamps() {
+  try {
+    return JSON.parse(localStorage.getItem(KEYS.KEY_STAMPS)) || {}
+  } catch {
+    return {}
+  }
+}
+
+function setKeyStamp(payloadKey, iso) {
+  const m = getKeyStamps()
+  m[payloadKey] = iso
+  localStorage.setItem(KEYS.KEY_STAMPS, JSON.stringify(m))
+}
 
 export const API = {
   userId: null,
@@ -75,49 +109,101 @@ export const API = {
         .single();
 
       if (data) {
-        const localUpdated = localStorage.getItem(KEYS.UPDATED_AT);
-        const serverUpdated = data.updated_at;
-        
-        let shouldUpdateLocal = true;
-        let shouldPushToServer = false;
+        if (data.key_updated_at !== undefined) _serverHasKeyStamps = true;
+        const serverStamps = data.key_updated_at && typeof data.key_updated_at === 'object' ? data.key_updated_at : {};
+        // Rows without per-key stamps (pre-migration) use the whole-row
+        // updated_at as a proxy stamp for every key.
+        const proxyStamp = data.updated_at || null;
 
-        // Only compare timestamps if the local data belongs to the same user
-        if (localUserId === userId && localUpdated && serverUpdated) {
-          const localTime = new Date(localUpdated).getTime();
-          const serverTime = new Date(serverUpdated).getTime();
-          
-          if (localTime > serverTime) {
-            shouldUpdateLocal = false;
-            shouldPushToServer = true;
-          } else if (localTime === serverTime) {
-            shouldUpdateLocal = false;
+        // Write a payload key locally with API.set's encoding (raw for
+        // THEME, JSON otherwise), adopting the given stamp into the per-key
+        // map. Never touches whole-row updated_at — a pull is not an edit.
+        const write = (pk, value, stamp) => {
+          if (value === undefined || value === null) return;
+          const storageKey = STORAGE_KEY_FOR[pk];
+          if (pk === 'theme_id') {
+            // Strip JSON quotes from legacy rows pushed by the pre-fix client
+            localStorage.setItem(storageKey, String(value).replace(/^"|"$/g, ''));
+          } else if (pk === 'active_sem_id') {
+            localStorage.setItem(storageKey, JSON.stringify(Number(value)));
+          } else {
+            localStorage.setItem(storageKey, JSON.stringify(value));
           }
-        }
+          if (stamp) setKeyStamp(pk, stamp);
+        };
 
-        if (shouldUpdateLocal) {
-          // Write with the same encoding as API.set (raw for THEME and
-          // UPDATED_AT, JSON otherwise) — a JSON-quoted timestamp would
-          // break new Date() comparisons (NaN) until the next edit.
-          const write = (key, value) =>
-            localStorage.setItem(key, key === KEYS.THEME || key === KEYS.UPDATED_AT ? value : JSON.stringify(value));
-          if (data.semesters) write(KEYS.DATA, data.semesters);
-          if (data.active_sem_id != null) write(KEYS.ACTIVE_SEM, Number(data.active_sem_id));
-          if (data.settings) write(KEYS.SETTINGS, data.settings);
-          if (data.attendance) write(KEYS.ATTENDANCE, data.attendance);
-          if (data.custom_themes) write(KEYS.CUSTOM_THEMES, data.custom_themes);
-          // Strip JSON quotes from legacy rows pushed by the pre-fix client
-          if (data.theme_id) write(KEYS.THEME, String(data.theme_id).replace(/^"|"$/g, ''));
-          if (data.updated_at) write(KEYS.UPDATED_AT, data.updated_at);
+        if (_serverHasKeyStamps) {
+          // ── Per-key merge: for each key, the newer timestamp wins. ──
+          let serverWon = false; // → local state changed (dispatch data-updated)
+          let localWon = false;  // → server is stale (push merged state)
+          const localStamps = getKeyStamps();
+          for (const pk of PAYLOAD_KEYS) {
+            const ls = localStamps[pk] ? Date.parse(localStamps[pk]) : 0;
+            const ssRaw = serverStamps[pk] || proxyStamp;
+            const ss = ssRaw ? Date.parse(ssRaw) : 0;
+            if (ss > ls) {
+              if (data[pk] !== undefined && data[pk] !== null) {
+                write(pk, data[pk], ssRaw);
+                serverWon = true;
+              }
+            } else if (ls > ss) {
+              localWon = true;
+            }
+            // Equal stamps → values match; keep local, neither side wins.
+          }
           localStorage.setItem(KEYS.USER_ID, userId);
-          
-          // Dispatch event instead of reloading to allow React to update state seamlessly
-          window.dispatchEvent(new CustomEvent('cadence-data-updated'));
-        }
-        
-        if (shouldPushToServer) {
-          // Inline push — we already hold the serialization slot
-          await API._push();
-          return; // _push dispatched success/error
+          if (serverWon) {
+            window.dispatchEvent(new CustomEvent('cadence-data-updated'));
+          }
+          if (localWon) {
+            // Server is stale for at least one key — push the merged state.
+            // Server-adopted stamps were written into the local map above,
+            // so the local map IS the merged stamp map.
+            await API._push();
+            return; // _push dispatched success/error
+          }
+        } else {
+          // ── Legacy whole-row compare (server has no key_updated_at column) ──
+          const localUpdated = localStorage.getItem(KEYS.UPDATED_AT);
+          const serverUpdated = data.updated_at;
+
+          let shouldUpdateLocal = true;
+          let shouldPushToServer = false;
+
+          // Only compare timestamps if the local data belongs to the same user
+          if (localUserId === userId && localUpdated && serverUpdated) {
+            const localTime = new Date(localUpdated).getTime();
+            const serverTime = new Date(serverUpdated).getTime();
+
+            if (localTime > serverTime) {
+              shouldUpdateLocal = false;
+              shouldPushToServer = true;
+            } else if (localTime === serverTime) {
+              shouldUpdateLocal = false;
+            }
+          }
+
+          if (shouldUpdateLocal) {
+            // Adopt the server's whole-row timestamp as the per-key stamp so
+            // the map is consistent if the migration lands later.
+            write('semesters', data.semesters, serverUpdated);
+            write('active_sem_id', data.active_sem_id, serverUpdated);
+            write('settings', data.settings, serverUpdated);
+            write('attendance', data.attendance, serverUpdated);
+            write('custom_themes', data.custom_themes, serverUpdated);
+            write('theme_id', data.theme_id, serverUpdated);
+            if (serverUpdated) localStorage.setItem(KEYS.UPDATED_AT, serverUpdated);
+            localStorage.setItem(KEYS.USER_ID, userId);
+
+            // Dispatch event instead of reloading to allow React to update state seamlessly
+            window.dispatchEvent(new CustomEvent('cadence-data-updated'));
+          }
+
+          if (shouldPushToServer) {
+            // Inline push — we already hold the serialization slot
+            await API._push();
+            return; // _push dispatched success/error
+          }
         }
       } else if (error && error.code === 'PGRST116') {
         // No rows returned — new user or new device with local data only.
@@ -162,6 +248,11 @@ export const API = {
         theme_id: API.get(KEYS.THEME, 'nerv'),
         updated_at: API.get(KEYS.UPDATED_AT, null) || new Date().toISOString()
       };
+      // Only after a pull proved the column exists — sending an unknown
+      // column to a pre-migration project would 42703 on every push.
+      if (_serverHasKeyStamps) {
+        payload.key_updated_at = getKeyStamps();
+      }
 
       const supabase = await getSupabase();
       const { error } = await supabase.from('user_data').upsert(payload);
@@ -207,7 +298,10 @@ export const API = {
       localStorage.setItem(key, key === KEYS.THEME ? value : JSON.stringify(value))
       
       if (!skipTimestampUpdate && key !== KEYS.UPDATED_AT) {
-        localStorage.setItem(KEYS.UPDATED_AT, new Date().toISOString())
+        const ts = new Date().toISOString()
+        localStorage.setItem(KEYS.UPDATED_AT, ts)
+        const pk = PAYLOAD_KEY_FOR[key]
+        if (pk) setKeyStamp(pk, ts)
       }
 
       // Trigger debounced cloud sync in the background if logged in
