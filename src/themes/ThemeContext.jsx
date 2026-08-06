@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useRef } from 'react'
 import { THEMES } from './index.js'
-import { API } from '../data/api.js'
+import { API, KEYS } from '../data/api.js'
 import { ALLOWED_EFFECTS } from './effects.js'
 
 const ThemeContext = createContext(null)
@@ -64,7 +64,7 @@ function validateThemeImport(themeObj) {
 
 export function ThemeProvider({ children }) {
   const [themeId, setThemeId] = useState(() => {
-    return API.get('cadence-theme', DEFAULT_ID)
+    return API.get(KEYS.THEME, DEFAULT_ID)
   })
 
   const [customThemes, setCustomThemes] = useState(() => {
@@ -78,7 +78,7 @@ export function ThemeProvider({ children }) {
   useEffect(() => {
     const handleSync = () => {
       isSyncUpdate.current = true
-      setThemeId(API.get('cadence-theme', DEFAULT_ID))
+      setThemeId(API.get(KEYS.THEME, DEFAULT_ID))
       setCustomThemes(API.getCustomThemes([]))
       setTimeout(() => { isSyncUpdate.current = false }, 0)
     }
@@ -109,7 +109,7 @@ export function ThemeProvider({ children }) {
       isFirstRenderTheme.current = false
     } else {
       if (!isSyncUpdate.current) {
-        API.set('cadence-theme', themeId)
+        API.set(KEYS.THEME, themeId)
       }
     }
     

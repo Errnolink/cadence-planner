@@ -4,7 +4,7 @@ import { Modal } from '../ui/Modal.jsx'
 
 import { useSettings } from '../../hooks/useSettings.jsx'
 
-export function TimetableModal({ mode, initialData, sourceRect, subjects, timetable, onSave, onDelete, onClose }) {
+export function TimetableModal({ mode, initialData, subjects, timetable, onSave, onDelete, onClose }) {
   const { settings } = useSettings()
   const defaultStart = initialData?.startTime ?? `${pad2(GRID_START_HOUR + 1)}:00`
   const defaultEnd   = initialData?.endTime   ?? `${pad2(GRID_START_HOUR + 2)}:00`
@@ -74,7 +74,7 @@ export function TimetableModal({ mode, initialData, sourceRect, subjects, timeta
   const sectionStyle = { marginBottom: '12px' }
 
   return (
-    <Modal title={mode === 'add' ? 'ADD ENTRY' : 'EDIT ENTRY'} hex={mode === 'add' ? '0xC001' : '0xC002'} onClose={onClose} sourceRect={sourceRect}>
+    <Modal title={mode === 'add' ? 'ADD ENTRY' : 'EDIT ENTRY'} hex={mode === 'add' ? '0xC001' : '0xC002'} onClose={onClose}>
       <div>
         {/* Subject */}
         <div style={sectionStyle}>

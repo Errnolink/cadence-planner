@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { SUBJECT_COLORS, parseTimeToMins } from '../../data/index.js'
 
 /**
@@ -25,7 +25,6 @@ export function DayDetailModal({ date, weekday, timetable, subjects, attendanceH
   const dayName  = date ? new Date(date.year, date.month, date.day).toLocaleDateString('en-US', { weekday: 'long' }) : ''
   const dateFull = date ? new Date(date.year, date.month, date.day).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : ''
 
-  const backdropRef = useRef(null)
   const [closing, setClosing] = useState(false)
 
   const handleClose = useCallback(() => {
@@ -47,7 +46,6 @@ export function DayDetailModal({ date, weekday, timetable, subjects, attendanceH
     <>
       {/* Backdrop */}
       <div
-        ref={backdropRef}
         className={`fixed inset-0 z-40 ${backdropAnimClass}`}
         style={{ background: 'rgba(0,0,0,0.85)' }}
         onClick={handleClose}

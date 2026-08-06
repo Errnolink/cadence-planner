@@ -383,11 +383,10 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                         e.stopPropagation()
                         if (isHoliday) return
                         
-                        const rect = e.currentTarget.getBoundingClientRect()
                         if (editMode) {
-                          onBlockClick(entry, rect)
+                          onBlockClick(entry)
                         } else if (attendanceHook && onInstanceClick) {
-                          onInstanceClick(entry, dateStr, rect)
+                          onInstanceClick(entry, dateStr)
                         }
                       }
 

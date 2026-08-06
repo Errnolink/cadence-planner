@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef } from 'react'
-import { SUBJECT_COLORS, WEEK_LABELS, MONTH_NAMES, DAYS, generateSubjectCode, isSecondOrFourthSaturday } from '../../data/index.js'
+import { SUBJECT_COLORS, MONTH_NAMES, DAYS, generateSubjectCode, isSecondOrFourthSaturday } from '../../data/index.js'
 import { DayDetailModal } from './DayDetailModal.jsx'
 import { useSettings } from '../../hooks/useSettings.jsx'
 
@@ -46,13 +46,12 @@ export function CalendarView({ timetable, subjects, attendanceHook, examDates = 
   for (let i = 0; i < firstOffset; i++) cells.push(null)
   for (let d = 1; d <= daysInMonth; d++) cells.push(d)
 
-  const handleDayClick = (e, day) => {
+  const handleDayClick = (day) => {
     const wday = dayLabel(year, month, day)
     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
     const isManualHoliday = attendanceHook?.attendance?.[dateStr]?.isHoliday
     const isHoliday = (settings.holidays2nd4thSat && isSecondOrFourthSaturday(year, month, day)) || isManualHoliday
-    const rect = e.currentTarget.getBoundingClientRect()
-    setDetail({ year, month, day, weekday: (!isHoliday && DAYS_SET.has(wday)) ? wday : null, isHoliday, isManualHoliday, sourceRect: rect })
+    setDetail({ year, month, day, weekday: (!isHoliday && DAYS_SET.has(wday)) ? wday : null, isHoliday, isManualHoliday })
   }
 
   const wheelTimeout = useRef(null)
@@ -135,7 +134,7 @@ export function CalendarView({ timetable, subjects, attendanceHook, examDates = 
 
       {/* Weekday header row */}
       <div className="grid shrink-0" style={{ gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: '1px solid var(--cad-border-dim)' }}>
-        {WEEK_LABELS.map(d => (
+        {DAYS.map(d => (
           <div key={d} style={{
             textAlign:   'center',
             padding:     '4px 0',
@@ -173,7 +172,7 @@ export function CalendarView({ timetable, subjects, attendanceHook, examDates = 
             return (
               <div
                 key={day}
-                onClick={(e) => handleDayClick(e, day)}
+                onClick={() => handleDayClick(day)}
                 style={{
                   borderRight:  '1px solid var(--cad-border-dim)',
                   borderBottom: '1px solid var(--cad-border-dim)',
@@ -291,7 +290,6 @@ export function CalendarView({ timetable, subjects, attendanceHook, examDates = 
           subjects={subjects}
           attendanceHook={attendanceHook}
           examDates={examDates}
-          sourceRect={detail.sourceRect}
           onClose={() => setDetail(null)}
         />
       )}

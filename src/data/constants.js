@@ -4,7 +4,6 @@ export const GRID_END_HOUR   = 24
 
 // ─── SCHEDULE ────────────────────────────────────────────────────
 export const DAYS        = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
-export const WEEK_LABELS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
 export const MONTH_NAMES = [
   'JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE',
   'JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER',

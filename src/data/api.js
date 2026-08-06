@@ -14,9 +14,12 @@ const KEYS = {
   SETTINGS: 'cadence_settings',
   ATTENDANCE: 'cadence_attendance',
   CUSTOM_THEMES: 'cadence_custom_themes',
+  THEME: 'cadence-theme',
   UPDATED_AT: 'cadence_updated_at',
   USER_ID: 'cadence_user_id',
 }
+
+export { KEYS }
 
 export const API = {
   userId: null,
@@ -62,7 +65,7 @@ export const API = {
         if (data.settings) localStorage.setItem(KEYS.SETTINGS, JSON.stringify(data.settings));
         if (data.attendance) localStorage.setItem(KEYS.ATTENDANCE, JSON.stringify(data.attendance));
         if (data.custom_themes) localStorage.setItem(KEYS.CUSTOM_THEMES, JSON.stringify(data.custom_themes));
-        if (data.theme_id) localStorage.setItem('cadence-theme', data.theme_id);
+        if (data.theme_id) localStorage.setItem(KEYS.THEME, data.theme_id);
         if (data.updated_at) localStorage.setItem(KEYS.UPDATED_AT, data.updated_at);
         localStorage.setItem(KEYS.USER_ID, userId);
         
@@ -97,7 +100,7 @@ export const API = {
         settings: API.getSettings({}),
         attendance: API.getAttendance({}),
         custom_themes: API.getCustomThemes([]),
-        theme_id: localStorage.getItem('cadence-theme') || 'nerv',
+        theme_id: localStorage.getItem(KEYS.THEME) || 'nerv',
         updated_at: localStorage.getItem(KEYS.UPDATED_AT) || new Date().toISOString()
       };
 
@@ -129,7 +132,7 @@ export const API = {
   
   set: (key, value, skipTimestampUpdate = false) => {
     try {
-      localStorage.setItem(key, JSON.stringify(value))
+      localStorage.setItem(key, key === KEYS.THEME ? value : JSON.stringify(value))
       
       if (!skipTimestampUpdate && key !== KEYS.UPDATED_AT) {
         localStorage.setItem(KEYS.UPDATED_AT, new Date().toISOString())
@@ -174,7 +177,7 @@ export const API = {
       settings: API.getSettings({}),
       attendance: API.getAttendance({}),
       customThemes: API.getCustomThemes([]),
-      themeId: API.get('cadence-theme', 'nerv')
+      themeId: API.get(KEYS.THEME, 'nerv')
     }
   },
   importAllData: (data) => {
@@ -216,10 +219,9 @@ export const API = {
     if (data.settings !== undefined) API.saveSettings(data.settings)
     if (data.attendance !== undefined) API.saveAttendance(data.attendance)
     if (data.customThemes !== undefined) API.saveCustomThemes(data.customThemes)
-    if (data.themeId !== undefined) API.set('cadence-theme', data.themeId)
+    if (data.themeId !== undefined) API.set(KEYS.THEME, data.themeId)
   },
   clearLocalData: () => {
     Object.values(KEYS).forEach(k => localStorage.removeItem(k))
-    localStorage.removeItem('cadence-theme')
   }
 }

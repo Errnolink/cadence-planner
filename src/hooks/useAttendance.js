@@ -184,8 +184,8 @@ export function useAttendance() {
   }
 
   const getStatusTier = (percentage) => {
-    if (percentage < 75) return 'critical'
-    if (percentage < 85) return 'watch'
+    if (percentage < ATTENDANCE_THRESHOLD * 100) return 'critical'
+    if (percentage < (ATTENDANCE_THRESHOLD + 0.1) * 100) return 'watch'
     return 'safe'
   }
 

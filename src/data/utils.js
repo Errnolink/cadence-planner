@@ -1,5 +1,5 @@
 // ─── UTILS ───────────────────────────────────────────────────────
-import { GRADE_MAP, GRID_START_HOUR, GRID_END_HOUR } from './constants.js'
+import { GRADE_MAP } from './constants.js'
 
 /** Collision-safe ID generator — uses timestamp so IDs survive page reloads */
 export const pad2 = n => String(n).padStart(2, '0')
@@ -9,20 +9,6 @@ export const parseTimeToMins = str => {
   if (!str) return 0
   const [h, m] = str.split(':').map(Number)
   return h * 60 + (m || 0)
-}
-
-/** 510 → "08:30" */
-export const minsToTimeStr = mins => {
-  const h = Math.floor(mins / 60)
-  const m = mins % 60
-  return `${pad2(h)}:${pad2(m)}`
-}
-
-/** Fraction of grid height for a given time string */
-export const timeFraction = (timeStr, startHour = GRID_START_HOUR, endHour = GRID_END_HOUR) => {
-  const total  = (endHour - startHour) * 60
-  const offset = parseTimeToMins(timeStr) - startHour * 60
-  return Math.max(0, Math.min(1, offset / total))
 }
 
 export const getTodayDayIdx = () => {
@@ -46,12 +32,6 @@ export const calcGPA = subjects => {
 
 /** Cumulative GPA across all semesters */
 export const calcCGPA = semesters => calcGPA(semesters.flatMap(s => s.subjects))
-
-/** Given a calendar date (year, month 0-based, day), return the DAYS label or null */
-export const dateToDayLabel = (year, month, day) => {
-  const LABELS = ['SUN','MON','TUE','WED','THU','FRI','SAT']
-  return LABELS[new Date(year, month, day).getDay()]
-}
 
 /** Automatically generate a short subject code from its name */
 export const generateSubjectCode = (name) => {

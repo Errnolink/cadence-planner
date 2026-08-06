@@ -7,7 +7,7 @@
      • Utility class stubs (themed classes come from themes/*.css)
    ═══════════════════════════════════════════════════════════════ */
 
-@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;700&family=Bebas+Neue&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;700&family=Bebas+Neue&display=swap');
 
 /* Import all theme token + style files */
 @import './themes/nerv/tokens.css';

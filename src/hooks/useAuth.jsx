@@ -11,7 +11,6 @@ const AuthContext = createContext(null)
  */
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null)
-  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     // Get initial session
@@ -22,7 +21,6 @@ export function AuthProvider({ children }) {
         // Background sync on boot
         API.syncFromServer(session.user.id).catch(console.error)
       }
-      setLoading(false)
     })
 
     // Listen for auth state changes (single listener for the entire app)
@@ -41,7 +39,7 @@ export function AuthProvider({ children }) {
   }, [])
 
   return (
-    <AuthContext.Provider value={{ session, loading }}>
+    <AuthContext.Provider value={{ session }}>
       {children}
     </AuthContext.Provider>
   )

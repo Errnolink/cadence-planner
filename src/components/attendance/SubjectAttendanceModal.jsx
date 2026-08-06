@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { Modal } from '../ui/Modal.jsx'
 
-export function SubjectAttendanceModal({ subject, sourceRect, timetable, attendanceHook, examDates, onClose }) {
+export function SubjectAttendanceModal({ subject, timetable, attendanceHook, examDates, onClose }) {
   const { attendance, getSubjectStats } = attendanceHook
   
   const stats = getSubjectStats(subject.id, timetable, examDates)
@@ -29,7 +29,7 @@ export function SubjectAttendanceModal({ subject, sourceRect, timetable, attenda
   }, [attendance, subject.id, timetable])
 
   return (
-    <Modal title={`${subject.name} :: ATTENDANCE`} hex={`${stats.percentage}%`} sourceRect={sourceRect} onClose={onClose}>
+    <Modal title={`${subject.name} :: ATTENDANCE`} hex={`${stats.percentage}%`} onClose={onClose}>
       <div className="flex flex-col gap-2">
         {history.length === 0 ? (
           <div className="text-center py-6" style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '10px', color: 'var(--cad-text-lo)' }}>

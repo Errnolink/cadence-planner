@@ -20,7 +20,7 @@ export function SemDropdown({ semesters, activeSemId, onChange, onRemove, onAdd,
   }, [closeDropdown])
 
   const btnStyle = {
-    background:   open ? 'var(--cad-accent-dim)' : 'var(--cad-accent-dim)',
+    background:   'var(--cad-accent-dim)',
     border:       '1px solid var(--cad-accent)',
     borderRadius: 'var(--cad-radius)',
     minWidth:     '110px',

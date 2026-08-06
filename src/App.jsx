@@ -1,7 +1,8 @@
-import { useState, useCallback, useEffect, useMemo } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { useSemesters } from './hooks/useSemesters.js'
 import { useAttendance } from './hooks/useAttendance.js'
 import { Dot } from './components/ui/Dot.jsx'
+import { SyncChip } from './components/ui/SyncChip.jsx'
 import { ControlBar }   from './components/layout/ControlBar.jsx'
 import { MobileTabBar } from './components/layout/MobileTabBar.jsx'
 import { SubjectRoster } from './components/roster/SubjectRoster.jsx'
@@ -12,15 +13,6 @@ import { SettingsModal } from './components/layout/SettingsModal.jsx'
 import { CalendarView }  from './components/calendar/CalendarView.jsx'
 import { AttendanceView } from './components/attendance/AttendanceView.jsx'
 import { ExamsView } from './components/exams/ExamsView.jsx'
-
-/** Lightweight wrapper that re-triggers the tab-enter animation on key change */
-function AnimatedTab({ tabKey, children }) {
-  return (
-    <div key={tabKey} className="anim-tab-enter flex flex-col flex-1 overflow-hidden min-h-0">
-      {children}
-    </div>
-  )
-}
 
 export default function App() {
   const {
@@ -39,24 +31,6 @@ export default function App() {
   const [instanceModal, setInstanceModal] = useState(null)
   const [showSettings, setShowSettings] = useState(false)
   const [activeTab, setActiveTab] = useState('timetable')
-  const [syncStatus, setSyncStatus] = useState(null)
-
-  // Sync Listener
-  useEffect(() => {
-    let timeout;
-    const handleSync = (e) => {
-      setSyncStatus(e.detail);
-      if (e.detail === 'success' || e.detail === 'error') {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => setSyncStatus(null), 2500);
-      }
-    };
-    window.addEventListener('cadence-sync', handleSync);
-    return () => {
-      window.removeEventListener('cadence-sync', handleSync);
-      clearTimeout(timeout);
-    };
-  }, []);
 
   const handleSemChange = id => { setActiveSemId(id); setTtModal(null) }
   const toggleEdit      = ()  => { 
@@ -150,15 +124,7 @@ export default function App() {
             <div className="flex items-center gap-1.5">
               <Dot on />
               <span style={{ fontSize: '9px', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--cad-accent)', fontFamily: 'var(--cad-font-mono)' }}>PANEL-B</span>
-              {syncStatus && (
-                <span className={`ml-2 px-1.5 py-0.5 rounded ${syncStatus === 'syncing' ? 'animate-pulse' : ''}`} style={{
-                  fontFamily: 'var(--cad-font-mono)', fontSize: '7px', letterSpacing: '0.1em',
-                  background: syncStatus === 'error' ? 'var(--cad-danger-dim)' : 'var(--cad-accent-dim)',
-                  color: syncStatus === 'error' ? 'var(--cad-danger)' : 'var(--cad-accent)'
-                }}>
-                  {syncStatus === 'syncing' ? 'SYNCING...' : syncStatus === 'success' ? 'SYNCED' : 'SYNC FAILED'}
-                </span>
-              )}
+              <SyncChip />
             </div>
             <div className="hidden md:flex gap-1">
               {['timetable', 'exams', 'calendar', 'attendance'].map(tab => (
@@ -180,7 +146,7 @@ export default function App() {
             </div>
           </div>
 
-          <AnimatedTab tabKey={activeTab}>
+          <div key={activeTab} className="anim-tab-enter flex flex-col flex-1 overflow-hidden min-h-0">
             {activeTab === 'calendar' ? (
               <CalendarView timetable={activeSem?.timetable ?? []} subjects={activeSem?.subjects ?? []} attendanceHook={attendanceHook} examDates={examDates} />
             ) : activeTab === 'attendance' ? (
@@ -207,7 +173,7 @@ export default function App() {
                 onInstanceClick={(entry, dateStr) => setInstanceModal({ entry, dateStr })}
               />
             )}
-          </AnimatedTab>
+          </div>
         </div>
       </div>
 

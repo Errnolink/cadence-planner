@@ -99,7 +99,7 @@ export function AttendanceView({ timetable, subjects, attendanceHook, examDates 
                 key={subj.id} 
                 className="p-2 cursor-pointer btn-mech" 
                 style={{ border: '1px solid var(--cad-border-dim)', borderLeft: `3px solid ${color.border}`, borderRadius: '0 var(--cad-radius) var(--cad-radius) 0', background: 'var(--cad-bg-elevated)', textAlign: 'left' }}
-                onClick={(e) => setSelectedSubjectData({ subject: subj, sourceRect: e.currentTarget.getBoundingClientRect() })}
+                onClick={() => setSelectedSubjectData({ subject: subj })}
               >
                 <div className="flex justify-between items-start mb-2">
                   <div style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '11px', color: color.text, fontWeight: 'bold' }}>{subj.name}</div>
@@ -119,11 +119,11 @@ export function AttendanceView({ timetable, subjects, attendanceHook, examDates 
                   <div style={{ width: '100%', height: '100%', background: color.border, transform: `scaleX(${animated ? stats.percentage / 100 : 0})`, transformOrigin: 'left', transition: 'transform 600ms cubic-bezier(0.25, 1, 0.5, 1)', borderRadius: '2px' }} />
                   {/* 75% threshold marker */}
                   <div style={{
-                    position: 'absolute', left: '75%', top: '-3px', width: '1px', height: '10px',
+                    position: 'absolute', left: `${ATTENDANCE_THRESHOLD * 100}%`, top: '-3px', width: '1px', height: '10px',
                     background: 'var(--cad-danger)', opacity: 0.6,
                   }} />
                   <div style={{
-                    position: 'absolute', left: '75%', top: '-12px', transform: 'translateX(-50%)',
+                    position: 'absolute', left: `${ATTENDANCE_THRESHOLD * 100}%`, top: '-12px', transform: 'translateX(-50%)',
                     fontFamily: 'var(--cad-font-mono)', fontSize: '7px', color: 'var(--cad-danger)', opacity: 0.6,
                   }}>{ATTENDANCE_THRESHOLD * 100}%</div>
                 </div>
@@ -142,7 +142,6 @@ export function AttendanceView({ timetable, subjects, attendanceHook, examDates 
       {selectedSubjectData && (
         <SubjectAttendanceModal
           subject={selectedSubjectData.subject}
-          sourceRect={selectedSubjectData.sourceRect}
           timetable={timetable}
           examDates={examDates}
           attendanceHook={attendanceHook}
