@@ -110,6 +110,29 @@ Please output ONLY the raw JSON format without markdown wrapping or codeblocks.`
   const labelStyle = { fontSize: '9px', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--cad-text-lo)', fontFamily: 'var(--cad-font-mono)', marginBottom: '8px', borderBottom: '1px solid var(--cad-border-dim)', paddingBottom: '4px' }
   const sectionStyle = { marginBottom: '24px' }
 
+  /**
+   * Shared theme-selection button (built-in themes, custom themes, mode toggle).
+   */
+  function ThemeButton({ active, onClick, children, className = '', style = {} }) {
+    return (
+      <button
+        onClick={onClick}
+        className={`btn-mech panel-chamfer-sm ${className}`}
+        style={{
+          fontFamily:   'var(--cad-font-mono)',
+          fontSize:     '10px',
+          letterSpacing:'0.15em',
+          border:       active ? '1px solid var(--cad-accent)' : '1px solid var(--cad-border)',
+          color:        active ? 'var(--cad-accent-text)'      : 'var(--cad-text-mid)',
+          background:   active ? 'var(--cad-accent-dim)'       : 'var(--cad-bg-elevated)',
+          ...style,
+        }}
+      >
+        {children}
+      </button>
+    )
+  }
+
   return (
     <Modal title="SYSTEM SETTINGS" hex="0xS001" onClose={onClose}>
       <div className="p-1">
@@ -140,21 +163,9 @@ Please output ONLY the raw JSON format without markdown wrapping or codeblocks.`
           {/* Built-in themes */}
           <div className="grid grid-cols-2 gap-2 mt-3">
             {themes.filter(t => !customThemes.some(ct => ct.id === t.id)).map(t => (
-              <button
-                key={t.id}
-                onClick={() => setTheme(t.id)}
-                className="py-2 btn-mech panel-chamfer-sm"
-                style={{
-                  fontFamily:   'var(--cad-font-mono)',
-                  fontSize:     '10px',
-                  letterSpacing:'0.15em',
-                  border:       currentTheme.id === t.id ? '1px solid var(--cad-accent)' : '1px solid var(--cad-border)',
-                  color:        currentTheme.id === t.id ? 'var(--cad-accent-text)'      : 'var(--cad-text-mid)',
-                  background:   currentTheme.id === t.id ? 'var(--cad-accent-dim)'       : 'var(--cad-bg-elevated)',
-                }}
-              >
+              <ThemeButton key={t.id} active={currentTheme.id === t.id} onClick={() => setTheme(t.id)} className="py-2">
                 {t.label}
-              </button>
+              </ThemeButton>
             ))}
           </div>
 
@@ -166,22 +177,14 @@ Please output ONLY the raw JSON format without markdown wrapping or codeblocks.`
               </div>
               {customThemes.map(t => (
                 <div key={t.id} className="flex items-center gap-1.5">
-                  <button
+                  <ThemeButton
+                    active={currentTheme.id === t.id}
                     onClick={() => setTheme(t.id)}
-                    className="flex-1 py-1.5 btn-mech panel-chamfer-sm"
-                    style={{
-                      fontFamily:   'var(--cad-font-mono)',
-                      fontSize:     '10px',
-                      letterSpacing:'0.12em',
-                      border:       currentTheme.id === t.id ? '1px solid var(--cad-accent)' : '1px solid var(--cad-border)',
-                      color:        currentTheme.id === t.id ? 'var(--cad-accent-text)'      : 'var(--cad-text-mid)',
-                      background:   currentTheme.id === t.id ? 'var(--cad-accent-dim)'       : 'var(--cad-bg-elevated)',
-                      textAlign:    'left',
-                      paddingLeft:  '10px',
-                    }}
+                    className="flex-1 py-1.5"
+                    style={{ textAlign: 'left', paddingLeft: '10px', letterSpacing: '0.12em' }}
                   >
                     {t.label}
-                  </button>
+                  </ThemeButton>
                   <button
                     onClick={() => removeCustomTheme(t.id)}
                     className="btn-mech panel-chamfer-sm"
@@ -207,21 +210,9 @@ Please output ONLY the raw JSON format without markdown wrapping or codeblocks.`
           {currentTheme.id === 'minimal' && (
             <div className="flex gap-2 mt-2">
               {['light', 'dark'].map(mode => (
-                <button
-                  key={mode}
-                  onClick={() => updateSettings({ themeMode: mode })}
-                  className="flex-1 py-1.5 btn-mech panel-chamfer-sm"
-                  style={{
-                    fontFamily:   'var(--cad-font-mono)',
-                    fontSize:     '10px',
-                    letterSpacing:'0.15em',
-                    border:       settings.themeMode === mode ? '1px solid var(--cad-accent)' : '1px solid var(--cad-border)',
-                    color:        settings.themeMode === mode ? 'var(--cad-accent-text)'      : 'var(--cad-text-mid)',
-                    background:   settings.themeMode === mode ? 'var(--cad-accent-dim)'       : 'var(--cad-bg-elevated)',
-                  }}
-                >
+                <ThemeButton key={mode} active={settings.themeMode === mode} onClick={() => updateSettings({ themeMode: mode })} className="flex-1 py-1.5">
                   MODE: {mode.toUpperCase()}
-                </button>
+                </ThemeButton>
               ))}
             </div>
           )}

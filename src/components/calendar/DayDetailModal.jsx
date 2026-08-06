@@ -1,5 +1,7 @@
-import { useState, useCallback, useEffect, useMemo } from 'react'
+import { useMemo } from 'react'
 import { SUBJECT_COLORS, parseTimeToMins } from '../../data/index.js'
+import { AttendanceToggle } from '../ui/AttendanceToggle.jsx'
+import { useModalDismiss } from '../../hooks/useModalDismiss.js'
 
 /**
  * DayDetailModal — opens when a calendar date is clicked.
@@ -31,19 +33,7 @@ export function DayDetailModal({ date, weekday, timetable, subjects, attendanceH
   const dayName  = date ? new Date(date.year, date.month, date.day).toLocaleDateString('en-US', { weekday: 'long' }) : ''
   const dateFull = date ? new Date(date.year, date.month, date.day).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : ''
 
-  const [closing, setClosing] = useState(false)
-
-  const handleClose = useCallback(() => {
-    if (closing) return
-    setClosing(true)
-    setTimeout(() => onClose(), 200)
-  }, [closing, onClose])
-
-  useEffect(() => {
-    const h = e => { if (e.key === 'Escape') handleClose() }
-    window.addEventListener('keydown', h)
-    return () => window.removeEventListener('keydown', h)
-  }, [handleClose])
+  const { closing, handleClose } = useModalDismiss(onClose)
 
   const backdropAnimClass = closing ? 'anim-modal-backdrop-exit' : 'anim-modal-backdrop-enter'
   const panelAnimClass = closing ? 'anim-modal-panel-exit' : 'anim-modal-panel-enter'
@@ -267,38 +257,7 @@ export function DayDetailModal({ date, weekday, timetable, subjects, attendanceH
                         
                         {attendanceHook && date && !date.isHoliday && !examSuspended && (
                           <div className="flex flex-col gap-1 ml-2 border-l pl-2" style={{ borderColor: 'var(--cad-border-dim)' }}>
-                            {['PRESENT', 'ABSENT', 'CANCELLED'].map(type => {
-                              const isActive = dayData[entry.id] === type
-                              let colorVar = '--cad-text-mid'
-                              let bg = 'transparent'
-                              if (isActive) {
-                                if (type === 'PRESENT') { colorVar = '--cad-success'; bg = 'rgba(80,255,80,0.1)' }
-                                else if (type === 'ABSENT') { colorVar = '--cad-danger'; bg = 'var(--cad-danger-dim)' }
-                                else { colorVar = '--cad-text-lo'; bg = 'var(--cad-bg-primary)' }
-                              }
-                              
-                              return (
-                                <button
-                                  key={type}
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    markAttendance(dateStr, entry.id, isActive ? null : type)
-                                  }}
-                                  style={{
-                                    fontFamily: 'var(--cad-font-mono)', fontSize: '8px', letterSpacing: '0.1em',
-                                    border: isActive ? `1px solid var(${colorVar})` : '1px solid var(--cad-border-dim)',
-                                    color: isActive ? `var(${colorVar})` : 'var(--cad-text-lo)',
-                                    background: bg,
-                                    padding: '4px 6px',
-                                    borderRadius: '2px',
-                                    textAlign: 'center',
-                                    cursor: 'pointer'
-                                  }}
-                                >
-                                  {type}
-                                </button>
-                              )
-                            })}
+                            <AttendanceToggle dateStr={dateStr} entryId={entry.id} activeStatus={dayData[entry.id]} onMark={markAttendance} />
                           </div>
                         )}
                       </div>

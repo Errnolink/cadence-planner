@@ -2,6 +2,7 @@ import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { SUBJECT_COLORS, DAYS, MONTH_NAMES, GRID_START_HOUR, GRID_END_HOUR, pad2, getTodayDayIdx, parseTimeToMins, generateSubjectCode, isSecondOrFourthSaturday } from '../../data/index.js'
 import { DayDetailModal } from '../calendar/DayDetailModal.jsx'
 import { useSettings } from '../../hooks/useSettings.jsx'
+import { AttendanceToggle } from '../ui/AttendanceToggle.jsx'
 
 
 const TOTAL_MINS = (GRID_END_HOUR - GRID_START_HOUR) * 60
@@ -448,52 +449,8 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                           )}
                           {editMode && <div style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '7px', color: 'var(--cad-accent)', opacity: 0.5 }}>✎</div>}
                           {!editMode && attendanceHook && showTodayOnly && !isHoliday && (
-                            <div style={{ position: 'absolute', top: '4px', right: '4px', display: 'flex', flexDirection: 'column', gap: '2px', zIndex: 10 }}>
-                              {['PRESENT', 'ABSENT', 'CANCELLED'].map(type => {
-                                const isActive = status === type
-                                let colorVar = '--cad-text-mid'
-                                let bg = 'transparent'
-                                if (isActive) {
-                                  if (type === 'PRESENT') { colorVar = '--cad-success'; bg = 'rgba(80,255,80,0.1)' }
-                                  else if (type === 'ABSENT') { colorVar = '--cad-danger'; bg = 'var(--cad-danger-dim)' }
-                                  else { colorVar = '--cad-text-lo'; bg = 'var(--cad-bg-primary)' }
-                                }
-                                
-                                return (
-                                  <button
-                                    key={type}
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      attendanceHook.markAttendance(dateStr, entry.id, isActive ? null : type)
-                                    }}
-                                    style={{
-                                      fontFamily: 'var(--cad-font-mono)', fontSize: '8px', letterSpacing: '0.1em',
-                                      border: isActive ? `1px solid var(${colorVar})` : '1px solid var(--cad-border-dim)',
-                                      color: isActive ? `var(${colorVar})` : 'var(--cad-text-lo)',
-                                      background: bg,
-                                      padding: '4px 6px',
-                                      borderRadius: '2px',
-                                      textAlign: 'center',
-                                      cursor: 'pointer',
-                                      transition: 'background 0.15s, border-color 0.15s, color 0.15s',
-                                    }}
-                                    onMouseEnter={e => {
-                                      if (!isActive) {
-                                        e.currentTarget.style.border = '1px solid var(--cad-border)'
-                                        e.currentTarget.style.color = 'var(--cad-text-hi)'
-                                      }
-                                    }}
-                                    onMouseLeave={e => {
-                                      if (!isActive) {
-                                        e.currentTarget.style.border = '1px solid var(--cad-border-dim)'
-                                        e.currentTarget.style.color = 'var(--cad-text-lo)'
-                                      }
-                                    }}
-                                  >
-                                    {type}
-                                  </button>
-                                )
-                              })}
+                            <div style={{ position: 'absolute', top: '4px', right: '4px', zIndex: 10 }}>
+                              <AttendanceToggle dateStr={dateStr} entryId={entry.id} activeStatus={status} onMark={attendanceHook.markAttendance} />
                             </div>
                           )}
                           {(editMode || (!showTodayOnly && status)) && (

@@ -23,3 +23,11 @@ export const GRADE_MAP = [
 
 // ─── ATTENDANCE ──────────────────────────────────────────────────
 export const ATTENDANCE_THRESHOLD = 0.75
+
+// ─── PANEL TABS ──────────────────────────────────────────────────
+export const PANEL_TABS = [
+  { id: 'timetable',  label: 'TIMETABLE' },
+  { id: 'exams',      label: 'EXAMS'     },
+  { id: 'calendar',   label: 'CALENDAR'  },
+  { id: 'attendance', label: 'ATTENDANCE' },
+]

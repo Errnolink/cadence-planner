@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo } from 'react'
 import { useSemesters } from './hooks/useSemesters.js'
 import { useAttendance } from './hooks/useAttendance.js'
+import { PANEL_TABS } from './data/index.js'
 import { Dot } from './components/ui/Dot.jsx'
 import { SyncChip } from './components/ui/SyncChip.jsx'
 import { ControlBar }   from './components/layout/ControlBar.jsx'
@@ -127,21 +128,21 @@ export default function App() {
               <SyncChip />
             </div>
             <div className="hidden md:flex gap-1">
-              {['timetable', 'exams', 'calendar', 'attendance'].map(tab => (
-                <button key={tab}
-                  onClick={() => setActiveTab(tab)}
+              {PANEL_TABS.map(tab => (
+                <button key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
                   className="px-2 py-0.5 btn-mech"
                   style={{
                     fontFamily:   'var(--cad-font-mono)',
                     fontSize:     '8px',
                     letterSpacing:'0.15em',
                     textTransform:'uppercase',
-                    border:       activeTab === tab ? '1px solid var(--cad-accent)'  : '1px solid var(--cad-border)',
-                    color:        activeTab === tab ? 'var(--cad-accent-text)'        : 'var(--cad-text-lo)',
-                    background:   activeTab === tab ? 'var(--cad-accent-dim)'         : 'transparent',
+                    border:       activeTab === tab.id ? '1px solid var(--cad-accent)'  : '1px solid var(--cad-border)',
+                    color:        activeTab === tab.id ? 'var(--cad-accent-text)'        : 'var(--cad-text-lo)',
+                    background:   activeTab === tab.id ? 'var(--cad-accent-dim)'         : 'transparent',
                     borderRadius: 'var(--cad-radius)',
                   }}
-                >{tab.toUpperCase()}</button>
+                >{tab.label}</button>
               ))}
             </div>
           </div>

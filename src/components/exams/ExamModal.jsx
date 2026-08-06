@@ -1,5 +1,6 @@
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import { Modal } from '../ui/Modal.jsx'
+import { ConfirmDeleteButton } from '../ui/ConfirmDeleteButton.jsx'
 import { toDateStr } from '../../data/index.js'
 
 const labelStyle = { fontSize: '9px', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--cad-text-lo)', fontFamily: 'var(--cad-font-mono)', marginBottom: '4px' }
@@ -21,8 +22,6 @@ export function ExamModal({ mode, initial, subjects = [], onSave, onDelete, onCl
     notes: initial?.notes ?? '',
   })
   const [error, setError] = useState('')
-  const [confirmDel, setConfirmDel] = useState(false)
-  const delRef = useRef(null)
 
   const upd = (k, v) => setForm(p => ({ ...p, [k]: v }))
 
@@ -40,11 +39,6 @@ export function ExamModal({ mode, initial, subjects = [], onSave, onDelete, onCl
     if (err) { setError(err); return }
     setError('')
     onSave({ id: initial?.id ?? crypto.randomUUID(), ...form })
-  }
-
-  const handleDelete = () => {
-    if (confirmDel) { clearTimeout(delRef.current); onDelete(initial.id) }
-    else { setConfirmDel(true); delRef.current = setTimeout(() => setConfirmDel(false), 2500) }
   }
 
   const previewSubj = subjects.find(s => String(s.id) === String(form.subjectId))
@@ -115,11 +109,7 @@ export function ExamModal({ mode, initial, subjects = [], onSave, onDelete, onCl
             style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '10px', letterSpacing: '0.15em', border: '1px solid var(--cad-accent)', color: 'var(--cad-accent-text)', background: 'var(--cad-accent-dim)', borderRadius: 'var(--cad-radius)' }}
           >SAVE</button>
           {mode === 'edit' && onDelete && (
-            <button
-              onClick={handleDelete}
-              className={`px-3 py-1.5 btn-mech panel-chamfer-sm ${confirmDel ? 'blink' : ''}`}
-              style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '10px', letterSpacing: '0.15em', border: confirmDel ? '1px solid var(--cad-danger)' : '1px solid var(--cad-border)', color: confirmDel ? 'var(--cad-danger)' : 'var(--cad-text-mid)', background: confirmDel ? 'var(--cad-danger-dim)' : 'transparent', borderRadius: 'var(--cad-radius)' }}
-            >{confirmDel ? 'CONFIRM?' : 'DELETE'}</button>
+            <ConfirmDeleteButton onConfirm={() => onDelete(initial.id)} />
           )}
           <button
             onClick={onClose}

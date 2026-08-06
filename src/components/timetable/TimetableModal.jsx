@@ -1,6 +1,7 @@
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import { SUBJECT_COLORS, DAYS, GRID_START_HOUR, GRID_END_HOUR, pad2, parseTimeToMins } from '../../data/index.js'
 import { Modal } from '../ui/Modal.jsx'
+import { ConfirmDeleteButton } from '../ui/ConfirmDeleteButton.jsx'
 
 import { useSettings } from '../../hooks/useSettings.jsx'
 
@@ -17,8 +18,6 @@ export function TimetableModal({ mode, initialData, subjects, timetable, onSave,
     room:      initialData?.room      ?? '',
   })
   const [error,      setError]      = useState('')
-  const [confirmDel, setConfirmDel] = useState(false)
-  const delRef = useRef(null)
 
   const upd = (k, v) => setForm(p => ({ ...p, [k]: v }))
 
@@ -61,11 +60,6 @@ export function TimetableModal({ mode, initialData, subjects, timetable, onSave,
     if (err) { setError(err); return }
     setError('')
     onSave({ id: initialData?.id ?? crypto.randomUUID(), ...form })
-  }
-
-  const handleDelete = () => {
-    if (confirmDel) { clearTimeout(delRef.current); onDelete(initialData.id) }
-    else { setConfirmDel(true); delRef.current = setTimeout(() => setConfirmDel(false), 2500) }
   }
 
   const previewSubj = subjects.find(s => String(s.id) === String(form.subjectId))
@@ -252,19 +246,7 @@ export function TimetableModal({ mode, initialData, subjects, timetable, onSave,
           >SAVE</button>
 
           {mode === 'edit' && (
-            <button
-              onClick={handleDelete}
-              className={`px-3 py-1.5 btn-mech panel-chamfer-sm ${confirmDel ? 'blink' : ''}`}
-              style={{
-                fontFamily:   'var(--cad-font-mono)',
-                fontSize:     '10px',
-                letterSpacing:'0.15em',
-                border:       confirmDel ? '1px solid var(--cad-danger)' : '1px solid var(--cad-border)',
-                color:        confirmDel ? 'var(--cad-danger)'           : 'var(--cad-text-mid)',
-                background:   confirmDel ? 'var(--cad-danger-dim)'       : 'transparent',
-                borderRadius: 'var(--cad-radius)',
-              }}
-            >{confirmDel ? 'CONFIRM?' : 'DELETE'}</button>
+            <ConfirmDeleteButton onConfirm={() => onDelete(initialData.id)} />
           )}
 
           <button

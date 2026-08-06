@@ -26,6 +26,32 @@ function Clock() {
   )
 }
 
+/**
+ * Shared control-bar button — accent variant for the theme switch,
+ * danger (active) variant for the edit toggle.
+ */
+function HudButton({ onClick, title, variant = 'plain', active = false, children }) {
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      className="flex items-center gap-1.5 px-2.5 py-1.5 panel-chamfer-sm btn-mech"
+      style={{
+        border:       active ? '1px solid var(--cad-danger)' : '1px solid var(--cad-border)',
+        color:        active ? 'var(--cad-danger)' : variant === 'accent' ? 'var(--cad-accent-text)' : 'var(--cad-text-mid)',
+        background:   active ? 'var(--cad-danger-dim)' : variant === 'accent' ? 'var(--cad-accent-dim)' : 'transparent',
+        fontFamily:   'var(--cad-font-mono)',
+        fontSize:     '9px',
+        letterSpacing:'0.15em',
+        borderRadius: 'var(--cad-radius)',
+        transition:   'background 0.15s, border-color 0.15s, color 0.15s',
+      }}
+    >
+      {children}
+    </button>
+  )
+}
+
 export function ControlBar({ semesters, activeSemId, onSemChange, onRemoveSem, editMode, onToggleEdit, onAddSem, onOpenSettings }) {
   const { currentTheme, cycleTheme } = useTheme()
 
@@ -65,62 +91,26 @@ export function ControlBar({ semesters, activeSemId, onSemChange, onRemoveSem, e
       <div className="flex-1" />
 
       {/* Theme cycle — instant switch, keeps NERV as the default active theme */}
-      <button
+      <HudButton
         onClick={cycleTheme}
         title={`Switch theme (currently: ${currentTheme.label})`}
-        className="flex items-center gap-1.5 px-2.5 py-1.5 panel-chamfer-sm btn-mech"
-        style={{
-          border:       '1px solid var(--cad-border)',
-          color:        'var(--cad-accent-text)',
-          background:   'var(--cad-accent-dim)',
-          fontFamily:   'var(--cad-font-mono)',
-          fontSize:     '9px',
-          letterSpacing:'0.15em',
-          borderRadius: 'var(--cad-radius)',
-          transition:   'background 0.15s, border-color 0.15s, color 0.15s',
-        }}
+        variant="accent"
       >
         <span style={{ fontSize: '11px' }}>◈</span>
         <span className="hidden sm:inline" style={{ textTransform: 'uppercase' }}>{currentTheme.label}</span>
-      </button>
+      </HudButton>
 
       {/* Settings toggle */}
-      <button
-        onClick={onOpenSettings}
-        className="flex items-center gap-1.5 px-2.5 py-1.5 panel-chamfer-sm btn-mech"
-        style={{
-          border:       '1px solid var(--cad-border)',
-          color:        'var(--cad-text-mid)',
-          background:   'transparent',
-          fontFamily:   'var(--cad-font-mono)',
-          fontSize:     '9px',
-          letterSpacing:'0.15em',
-          borderRadius: 'var(--cad-radius)',
-          transition:   'background 0.15s, border-color 0.15s, color 0.15s',
-        }}
-      >
+      <HudButton onClick={onOpenSettings}>
         <span style={{ fontSize: '11px' }}>⚙</span>
         <span>SETTINGS</span>
-      </button>
+      </HudButton>
 
       {/* Edit toggle */}
-      <button
-        onClick={onToggleEdit}
-        className="flex items-center gap-1.5 px-2.5 py-1.5 panel-chamfer-sm btn-mech"
-        style={{
-          border:       editMode ? '1px solid var(--cad-danger)' : '1px solid var(--cad-border)',
-          color:        editMode ? 'var(--cad-danger)'           : 'var(--cad-text-mid)',
-          background:   editMode ? 'var(--cad-danger-dim)'       : 'transparent',
-          fontFamily:   'var(--cad-font-mono)',
-          fontSize:     '9px',
-          letterSpacing:'0.15em',
-          borderRadius: 'var(--cad-radius)',
-          transition:   'background 0.15s, border-color 0.15s, color 0.15s',
-        }}
-      >
+      <HudButton onClick={onToggleEdit} active={editMode}>
         <span style={{ fontSize: '11px' }}>{editMode ? '⊠' : '✎'}</span>
         <span>{editMode ? 'LOCK' : 'EDIT'}</span>
-      </button>
+      </HudButton>
 
       {/* Clock — HH:MM:SS on desktop, HH:MM on mobile */}
       <Clock />

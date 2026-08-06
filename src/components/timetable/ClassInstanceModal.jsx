@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { SUBJECT_COLORS, generateSubjectCode } from '../../data/index.js'
 import { Modal } from '../ui/Modal.jsx'
+import { AttendanceToggle } from '../ui/AttendanceToggle.jsx'
 
 export function ClassInstanceModal({ entry, dateStr, subjects, attendanceHook, onClose }) {
   const subj = subjects.find(s => String(s.id) === String(entry.subjectId))
@@ -60,33 +61,7 @@ export function ClassInstanceModal({ entry, dateStr, subjects, attendanceHook, o
         <div style={sectionStyle}>
           <div style={labelStyle}>ATTENDANCE</div>
           <div className="flex gap-1">
-            {['PRESENT', 'ABSENT', 'CANCELLED'].map(type => {
-              const isActive = status === type
-              let colorVar = '--cad-text-mid'
-              let bg = 'transparent'
-              if (isActive) {
-                if (type === 'PRESENT') { colorVar = '--cad-success'; bg = 'rgba(80,255,80,0.1)' }
-                else if (type === 'ABSENT') { colorVar = '--cad-danger'; bg = 'var(--cad-danger-dim)' }
-                else { colorVar = '--cad-text-lo'; bg = 'var(--cad-bg-primary)' }
-              }
-              
-              return (
-                <button
-                  key={type}
-                  onClick={() => handleStatusChange(isActive ? null : type)}
-                  className="flex-1 py-1.5 btn-mech panel-chamfer-sm"
-                  style={{
-                    fontFamily: 'var(--cad-font-mono)', fontSize: '10px', letterSpacing: '0.1em',
-                    border: isActive ? `1px solid var(${colorVar})` : '1px solid var(--cad-border)',
-                    color: isActive ? `var(${colorVar})` : 'var(--cad-text-mid)',
-                    background: bg,
-                    borderRadius: 'var(--cad-radius)',
-                  }}
-                >
-                  {type}
-                </button>
-              )
-            })}
+            <AttendanceToggle size="lg" className="flex gap-1" dateStr={dateStr} entryId={entry.id} activeStatus={status} onMark={(_, __, st) => handleStatusChange(st)} />
           </div>
         </div>
 

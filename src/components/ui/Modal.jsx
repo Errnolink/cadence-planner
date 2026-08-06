@@ -1,25 +1,14 @@
-import { useEffect, useRef, useState, useCallback, useId } from 'react'
+import { useEffect, useRef, useId } from 'react'
 import { Dot } from './Dot.jsx'
+import { useModalDismiss } from '../../hooks/useModalDismiss.js'
 
 /**
  * Theme-aware modal with NERV mechanical transition.
  */
 export function Modal({ title, hex, onClose, children }) {
-  const [closing, setClosing] = useState(false)
+  const { closing, handleClose } = useModalDismiss(onClose)
   const panelRef = useRef(null)
   const titleId = useId()
-
-  const handleClose = useCallback(() => {
-    if (closing) return
-    setClosing(true)
-    setTimeout(() => onClose(), 200) // matches exit animation duration
-  }, [closing, onClose])
-
-  useEffect(() => {
-    const h = e => { if (e.key === 'Escape') handleClose() }
-    window.addEventListener('keydown', h)
-    return () => window.removeEventListener('keydown', h)
-  }, [handleClose])
 
   // Move focus into the modal, trap Tab, restore focus + unlock scroll on unmount
   const restoreFocusRef = useRef(null)

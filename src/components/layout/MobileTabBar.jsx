@@ -1,9 +1,9 @@
+import { PANEL_TABS } from '../../data/index.js'
+
+const TAB_ICONS = { timetable: '⊞', exams: '✎', calendar: '◫', attendance: '✓' }
 const TABS = [
-  { id: 'roster',     icon: '☰', label: 'ROSTER'     },
-  { id: 'timetable',  icon: '⊞', label: 'TIMETABLE' },
-  { id: 'exams',      icon: '✎', label: 'EXAMS'     },
-  { id: 'calendar',   icon: '◫', label: 'CALENDAR'  },
-  { id: 'attendance', icon: '✓', label: 'ATTENDANCE' },
+  { id: 'roster', icon: '☰', label: 'ROSTER' },
+  ...PANEL_TABS.map(t => ({ ...t, icon: TAB_ICONS[t.id] })),
 ]
 
 export function MobileTabBar({ activeTab, onTabChange }) {
