@@ -29,7 +29,7 @@ export function AttendanceView({ timetable, subjects, attendanceHook, examDates 
       const color = SUBJECT_COLORS[subj.colorIdx % SUBJECT_COLORS.length]
       return { subj, stats, tier, margin, recovery, color }
     })
-    .sort((a, b) => a.stats.percentage - b.stats.percentage), [subjects, timetable, examDates, attendanceHook])
+    .sort((a, b) => a.stats.percentage - b.stats.percentage), [subjects, timetable, examDates, getSubjectStats, getStatusTier, getMarginToThreshold, getRecoveryPath])
 
   return (
     <div className="flex flex-col h-full overflow-y-auto p-2 min-h-0">

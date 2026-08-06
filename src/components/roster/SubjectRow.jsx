@@ -53,7 +53,6 @@ export function SubjectRow({ subject, editMode, onUpdate, onRemove, staggerIndex
           <input
             value={draft.name}
             onChange={e => setDraft(d => ({ ...d, name: e.target.value }))}
-            onFocus={() => setFocused('name')}
             onBlur={commitOnBlur('name')}
             onKeyDown={commitOnEnter('name')}
             disabled={!editMode}
@@ -68,7 +67,7 @@ export function SubjectRow({ subject, editMode, onUpdate, onRemove, staggerIndex
               outline:     'none',
               transition:  'border-color 0.15s',
             }}
-            onFocus={e => { e.currentTarget.style.borderBottomColor = 'var(--cad-accent)' }}
+            onFocus={e => { setFocused('name'); e.currentTarget.style.borderBottomColor = 'var(--cad-accent)' }}
           />
         </div>
 
@@ -79,7 +78,6 @@ export function SubjectRow({ subject, editMode, onUpdate, onRemove, staggerIndex
             value={draft.code}
             placeholder={generateSubjectCode(subject.name)}
             onChange={e => setDraft(d => ({ ...d, code: e.target.value }))}
-            onFocus={() => setFocused('code')}
             onBlur={commitOnBlur('code')}
             onKeyDown={commitOnEnter('code')}
             disabled={!editMode}
@@ -93,7 +91,7 @@ export function SubjectRow({ subject, editMode, onUpdate, onRemove, staggerIndex
               outline:     'none',
               transition:  'border-color 0.15s',
             }}
-            onFocus={e => { e.currentTarget.style.borderBottomColor = 'var(--cad-accent)' }}
+            onFocus={e => { setFocused('code'); e.currentTarget.style.borderBottomColor = 'var(--cad-accent)' }}
           />
 
           {/* Credits — drop the redundant "CR" label per-row */}
