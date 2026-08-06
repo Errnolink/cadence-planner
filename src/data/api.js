@@ -7,6 +7,17 @@ import { getSupabase } from './supabaseClient';
 /** Debounce delay for cloud sync — prevents request storms during rapid edits */
 const SYNC_DEBOUNCE_MS = 2000
 let _syncTimer = null
+// Set when the last push failed (e.g. offline edits) — drives the reconnect resync
+let _syncFailed = false
+
+// When connectivity returns, push any changes that failed while offline.
+// Guarded by the failed flag so we don't fire spurious pushes.
+window.addEventListener('online', () => {
+  if (API.userId && _syncFailed) {
+    _syncFailed = false
+    API.syncToServer().catch(console.error)
+  }
+})
 
 const KEYS = {
   DATA: 'cadence_data',
@@ -111,9 +122,11 @@ export const API = {
 
       const supabase = await getSupabase();
       const { error } = await supabase.from('user_data').upsert(payload);
+      _syncFailed = Boolean(error);
       window.dispatchEvent(new CustomEvent('cadence-sync', { detail: error ? 'error' : 'success' }));
     } catch (e) {
       console.error('Cloud sync failed', e);
+      _syncFailed = true;
       window.dispatchEvent(new CustomEvent('cadence-sync', { detail: 'error' }));
     }
   },
