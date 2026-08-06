@@ -87,6 +87,11 @@ export function AttendanceView({ timetable, subjects, attendanceHook, examDates 
           </div>
         </div>
 
+        {subjects.length === 0 && (
+          <div className="p-3 mb-2 panel-chamfer-sm text-center" style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '10px', color: 'var(--cad-text-lo)', border: '1px dashed var(--cad-border)' }}>
+            // NO SUBJECTS YET — ADD ONE IN THE ROSTER
+          </div>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
           {sortedSubjects
             .filter(({ tier }) => {

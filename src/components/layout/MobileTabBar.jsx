@@ -16,7 +16,8 @@ export function MobileTabBar({ activeTab, onTabChange }) {
         <button
           key={t.id}
           onClick={() => onTabChange(t.id)}
-          className="flex-1 flex flex-col items-center py-2.5 gap-0.5 transition-all"
+          aria-current={activeTab === t.id ? 'page' : undefined}
+          className="flex-1 flex flex-col items-center py-3 gap-0.5 transition-colors"
           style={{
             color:      activeTab === t.id ? 'var(--cad-accent)'   : 'var(--cad-text-lo)',
             background: activeTab === t.id ? 'var(--cad-accent-dim)' : 'transparent',

@@ -467,11 +467,11 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                                       attendanceHook.markAttendance(dateStr, entry.id, isActive ? null : type)
                                     }}
                                     style={{
-                                      fontFamily: 'var(--cad-font-mono)', fontSize: '7px', letterSpacing: '0.1em',
+                                      fontFamily: 'var(--cad-font-mono)', fontSize: '8px', letterSpacing: '0.1em',
                                       border: isActive ? `1px solid var(${colorVar})` : '1px solid var(--cad-border-dim)',
                                       color: isActive ? `var(${colorVar})` : 'var(--cad-text-lo)',
                                       background: bg,
-                                      padding: '2px 4px',
+                                      padding: '4px 6px',
                                       borderRadius: '2px',
                                       textAlign: 'center',
                                       cursor: 'pointer',

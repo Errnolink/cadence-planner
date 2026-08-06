@@ -87,6 +87,9 @@ input[type='number'] { -moz-appearance: textfield; }
 .btn-mech    { cursor: pointer; transition: background 0.12s, border-color 0.12s, color 0.12s, opacity 0.12s, transform 0.12s; user-select: none; }
 .btn-mech:active { transform: scale(0.97); }
 
+/* Keyboard focus indicator — visible for all focusable elements */
+:focus-visible { outline: 2px solid var(--cad-accent); outline-offset: 2px; }
+
 /* hex-val — small hex label in top-right of panels */
 .hex-val {
   font-family: var(--cad-font-mono);
@@ -260,6 +263,9 @@ input[type='number'] { -moz-appearance: textfield; }
 
 /* Reduced-motion fallback — instant, no animation */
 @media (prefers-reduced-motion: reduce) {
+  .blink,
+  .status-pulse,
+  .hud-flicker,
   .anim-fade-in,
   .anim-slide-up,
   .anim-slide-in-left,

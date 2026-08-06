@@ -2,12 +2,13 @@ import React from 'react'
 
 /**
  * ErrorBoundary — catches unhandled render errors and displays a
- * themed fallback UI instead of a blank white screen.
+ * themed fallback UI instead of a blank white screen. Auto-reloads
+ * after a countdown; manual recovery remounts children with a fresh key.
  */
 export class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props)
-    this.state = { hasError: false, error: null }
+    this.state = { hasError: false, error: null, countdown: 10, resetKey: 0 }
   }
 
   static getDerivedStateFromError(error) {
@@ -16,6 +17,30 @@ export class ErrorBoundary extends React.Component {
 
   componentDidCatch(error, errorInfo) {
     console.error('[ErrorBoundary] Caught render error:', error, errorInfo)
+  }
+
+  componentDidUpdate(prevProps, prevState) {
+    if (!prevState.hasError && this.state.hasError) {
+      this.timer = setInterval(() => {
+        this.setState(s => {
+          if (s.countdown <= 1) {
+            clearInterval(this.timer)
+            window.location.reload()
+            return null
+          }
+          return { countdown: s.countdown - 1 }
+        })
+      }, 1000)
+    }
+  }
+
+  componentWillUnmount() {
+    clearInterval(this.timer)
+  }
+
+  attemptRecovery() {
+    clearInterval(this.timer)
+    this.setState(s => ({ hasError: false, error: null, countdown: 10, resetKey: s.resetKey + 1 }))
   }
 
   render() {
@@ -48,9 +73,12 @@ export class ErrorBoundary extends React.Component {
           }}>
             {this.state.error?.message || 'An unexpected rendering error occurred.'}
           </div>
+          <div style={{ fontSize: '10px', color: '#737373', letterSpacing: '0.1em' }}>
+            AUTO-REBOOT IN {this.state.countdown}s
+          </div>
           <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
             <button
-              onClick={() => this.setState({ hasError: false, error: null })}
+              onClick={() => this.attemptRecovery()}
               style={{
                 fontFamily: "'Share Tech Mono', monospace",
                 fontSize: '11px',
@@ -84,6 +112,6 @@ export class ErrorBoundary extends React.Component {
       )
     }
 
-    return this.props.children
+    return <React.Fragment key={this.state.resetKey}>{this.props.children}</React.Fragment>
   }
 }

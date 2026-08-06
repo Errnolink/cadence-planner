@@ -7,7 +7,7 @@ const sectionStyle = { marginBottom: '12px' }
 const inputStyle = {
   width: '100%', fontFamily: 'var(--cad-font-mono)', fontSize: '11px', color: 'var(--cad-text-hi)',
   background: 'var(--cad-bg-input)', border: '1px solid var(--cad-border)', padding: '6px 8px',
-  outline: 'none', borderRadius: 'var(--cad-radius)',
+  borderRadius: 'var(--cad-radius)',
 }
 
 /** ExamModal — add / edit / delete a single exam (rides the existing Modal). */

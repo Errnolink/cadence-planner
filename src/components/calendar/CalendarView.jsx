@@ -56,6 +56,7 @@ export function CalendarView({ timetable, subjects, attendanceHook, examDates = 
 
   const wheelTimeout = useRef(null)
   const handleWheel = (e) => {
+    if (e.target.closest('.calendar-scroll')) return
     if (wheelTimeout.current) return
     if (e.deltaY > 20) {
       nextMonth()
@@ -77,6 +78,7 @@ export function CalendarView({ timetable, subjects, attendanceHook, examDates = 
           style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '14px', color: 'var(--cad-text-mid)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', borderRadius: 'var(--cad-radius)' }}
           onMouseEnter={e => { e.currentTarget.style.color = 'var(--cad-accent)' }}
           onMouseLeave={e => { e.currentTarget.style.color = 'var(--cad-text-mid)' }}
+          aria-label="Previous month"
         >◀</button>
 
         <div className="flex gap-2 text-center items-center">
@@ -129,6 +131,7 @@ export function CalendarView({ timetable, subjects, attendanceHook, examDates = 
           style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '14px', color: 'var(--cad-text-mid)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', borderRadius: 'var(--cad-radius)' }}
           onMouseEnter={e => { e.currentTarget.style.color = 'var(--cad-accent)' }}
           onMouseLeave={e => { e.currentTarget.style.color = 'var(--cad-text-mid)' }}
+          aria-label="Next month"
         >▶</button>
       </div>
 
@@ -147,7 +150,7 @@ export function CalendarView({ timetable, subjects, attendanceHook, examDates = 
       </div>
 
       {/* Calendar grid */}
-      <div className="flex-1 overflow-y-auto min-h-0">
+      <div className="calendar-scroll flex-1 overflow-y-auto min-h-0">
         <div
           className="grid auto-rows-[minmax(48px,1fr)] md:auto-rows-[minmax(64px,1fr)]"
           style={{
@@ -172,7 +175,11 @@ export function CalendarView({ timetable, subjects, attendanceHook, examDates = 
             return (
               <div
                 key={day}
+                role="button"
+                tabIndex={0}
+                aria-label={`${MONTH_NAMES[month]} ${day}, ${year}`}
                 onClick={() => handleDayClick(day)}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleDayClick(day) } }}
                 style={{
                   borderRight:  '1px solid var(--cad-border-dim)',
                   borderBottom: '1px solid var(--cad-border-dim)',

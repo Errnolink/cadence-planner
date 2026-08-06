@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useTheme } from '../../themes/ThemeContext.jsx'
 import { useSettings } from '../../hooks/useSettings.jsx'
 import { Modal } from '../ui/Modal.jsx'
@@ -13,6 +13,8 @@ export function SettingsModal({ onClose }) {
   const [themeSyncMsg, setThemeSyncMsg] = useState('')
   const [dataSyncMsg, setDataSyncMsg] = useState('')
   const fileInputRef = useRef(null)
+  const msgTimer = useRef(null)
+  useEffect(() => () => clearTimeout(msgTimer.current), [])
 
   const handleThemeImport = () => {
     try {
@@ -21,10 +23,10 @@ export function SettingsModal({ onClose }) {
       addCustomTheme(data)
       setThemeImportText('')
       setThemeSyncMsg('THEME IMPORTED!')
-      setTimeout(() => setThemeSyncMsg(''), 3000)
+      msgTimer.current = setTimeout(() => setThemeSyncMsg(''), 3000)
     } catch (e) {
       setThemeSyncMsg(e.message || 'INVALID THEME JSON.')
-      setTimeout(() => setThemeSyncMsg(''), 4000)
+      msgTimer.current = setTimeout(() => setThemeSyncMsg(''), 4000)
     }
   }
 
@@ -64,7 +66,7 @@ Please output ONLY the raw JSON format without markdown wrapping or codeblocks.`
     
     navigator.clipboard.writeText(prompt).then(() => {
       setThemeSyncMsg('PROMPT COPIED!')
-      setTimeout(() => setThemeSyncMsg(''), 3000)
+      msgTimer.current = setTimeout(() => setThemeSyncMsg(''), 3000)
     })
   }
 
@@ -81,10 +83,10 @@ Please output ONLY the raw JSON format without markdown wrapping or codeblocks.`
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
       setDataSyncMsg('BACKUP DOWNLOADED.')
-      setTimeout(() => setDataSyncMsg(''), 3000)
+      msgTimer.current = setTimeout(() => setDataSyncMsg(''), 3000)
     } catch {
       setDataSyncMsg('DOWNLOAD FAILED.')
-      setTimeout(() => setDataSyncMsg(''), 3000)
+      msgTimer.current = setTimeout(() => setDataSyncMsg(''), 3000)
     }
   }
 
@@ -99,7 +101,7 @@ Please output ONLY the raw JSON format without markdown wrapping or codeblocks.`
         window.location.reload()
       } catch {
         setDataSyncMsg('INVALID BACKUP FILE.')
-        setTimeout(() => setDataSyncMsg(''), 3000)
+        msgTimer.current = setTimeout(() => setDataSyncMsg(''), 3000)
       }
     }
     reader.readAsText(file)

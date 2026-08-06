@@ -19,8 +19,8 @@
   /* Text */
   --cad-text-hi:      #E8E8DF;
   --cad-text-mid:     #9A8A70;
-  --cad-text-lo:      #665a48;
-  --cad-text-xlo:     #4D4436;
+  --cad-text-lo:      #8a7a5c;
+  --cad-text-xlo:     #6b5f4b;
 
   /* Borders */
   --cad-border:       #332b21;
@@ -34,7 +34,7 @@
   --cad-warn:         #FF9830;
 
   /* Hex label */
-  --cad-hex-color:    #665a48;
+  --cad-hex-color:    #8a7a5c;
 
   /* Typography */
   --cad-font-ui:      'Bebas Neue', sans-serif;

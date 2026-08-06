@@ -18,7 +18,7 @@ export function ClassInstanceModal({ entry, dateStr, subjects, attendanceHook, o
     attendanceHook.markAttendance(dateStr, entry.id, newStatus)
   }
 
-  const handleSaveNote = () => {
+  const handleModalClose = () => {
     attendanceHook.setNote(dateStr, entry.id, currentNote)
     onClose()
   }
@@ -29,7 +29,7 @@ export function ClassInstanceModal({ entry, dateStr, subjects, attendanceHook, o
   const sectionStyle = { marginBottom: '16px' }
 
   return (
-    <Modal title={`CLASS INSTANCE :: ${dateStr}`} hex="0xC003" onClose={onClose}>
+    <Modal title={`CLASS INSTANCE :: ${dateStr}`} hex="0xC003" onClose={handleModalClose}>
       <div>
         {/* Header Details */}
         <div style={{ ...sectionStyle, display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -118,7 +118,7 @@ export function ClassInstanceModal({ entry, dateStr, subjects, attendanceHook, o
           </div>
           {currentSubId && (
             <div style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '8px', color: 'var(--cad-accent)', opacity: 0.7, marginTop: '4px' }}>
-              ⇄ Original: {subj?.name} → Substitute: {subjects.find(s => s.id === currentSubId)?.name}
+              ⇄ Original: {subj?.name} → Substitute: {subjects.find(s => String(s.id) === String(currentSubId))?.name}
             </div>
           )}
         </div>
@@ -151,7 +151,7 @@ export function ClassInstanceModal({ entry, dateStr, subjects, attendanceHook, o
         {/* Actions */}
         <div className="flex gap-2">
           <button
-            onClick={handleSaveNote}
+            onClick={handleModalClose}
             className="flex-1 py-1.5 btn-mech panel-chamfer-sm"
             style={{
               fontFamily: 'var(--cad-font-mono)',

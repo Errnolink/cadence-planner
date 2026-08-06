@@ -22,17 +22,22 @@ export function Auth() {
       setLoading(false);
       return;
     }
-    const { data, error } = await supabase.auth.signUp({ email, password });
-    if (error) {
-      setError(error.message);
-    } else if (data?.user?.identities?.length === 0) {
-      setError('USER ALREADY REGISTERED. PLEASE AUTHENTICATE INSTEAD.');
-    } else if (data?.user && !data?.session) {
-      setMessage('CONFIRMATION EMAIL SENT. PLEASE CHECK YOUR INBOX.');
-    } else if (data?.session) {
-      await API.syncFromServer(data.session.user.id);
+    try {
+      const { data, error } = await supabase.auth.signUp({ email, password });
+      if (error) {
+        setError(error.message);
+      } else if (data?.user?.identities?.length === 0) {
+        setError('USER ALREADY REGISTERED. PLEASE AUTHENTICATE INSTEAD.');
+      } else if (data?.user && !data?.session) {
+        setMessage('CONFIRMATION EMAIL SENT. PLEASE CHECK YOUR INBOX.');
+      } else if (data?.session) {
+        await API.syncFromServer(data.session.user.id);
+      }
+    } catch (err) {
+      setError(err?.message || 'SYNC FAILED. PLEASE RETRY.');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleLogin = async (e) => {
@@ -40,17 +45,22 @@ export function Auth() {
     setLoading(true);
     setError(null);
     setMessage(null);
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      if (error.message === 'Invalid login credentials') {
-        setError('THERE EXISTS NO ACCOUNT WITH THAT EMAIL (OR INVALID PASSWORD). PLEASE INITIALIZE FIRST.');
-      } else {
-        setError(error.message);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        if (error.message === 'Invalid login credentials') {
+          setError('THERE EXISTS NO ACCOUNT WITH THAT EMAIL (OR INVALID PASSWORD). PLEASE INITIALIZE FIRST.');
+        } else {
+          setError(error.message);
+        }
+      } else if (data?.session) {
+        await API.syncFromServer(data.session.user.id);
       }
-    } else if (data?.session) {
-      await API.syncFromServer(data.session.user.id);
+    } catch (err) {
+      setError(err?.message || 'SYNC FAILED. PLEASE RETRY.');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleLogout = async () => {
@@ -112,10 +122,11 @@ export function Auth() {
           {message.toUpperCase()}
         </div>
       )}
-      <div className="flex flex-col gap-3">
+      <form className="flex flex-col gap-3" onSubmit={handleLogin}>
         <input
           type="email"
           autoComplete="email"
+          aria-label="Email"
           placeholder="EMAIL IDENTIFIER"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
@@ -132,6 +143,7 @@ export function Auth() {
         <input
           type="password"
           autoComplete="current-password"
+          aria-label="Password"
           placeholder="ACCESS CODE (PASSWORD)"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
@@ -147,7 +159,7 @@ export function Auth() {
         />
         <div className="flex gap-2 mt-2">
           <button 
-            onClick={handleLogin} 
+            type="submit"
             disabled={loading}
             className="flex-1 py-2 btn-mech panel-chamfer-sm"
             style={{
@@ -163,6 +175,7 @@ export function Auth() {
             {loading ? '...' : 'AUTHENTICATE'}
           </button>
           <button 
+            type="button"
             onClick={handleSignUp} 
             disabled={loading}
             className="flex-1 py-2 btn-mech panel-chamfer-sm"
@@ -178,7 +191,7 @@ export function Auth() {
             {loading ? '...' : 'INITIALIZE'}
           </button>
         </div>
-      </div>
+      </form>
     </div>
   );
 }

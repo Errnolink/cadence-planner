@@ -150,6 +150,7 @@ export function SubjectRow({ subject, editMode, onUpdate, onRemove, staggerIndex
           {editMode && (
             <button
               onClick={() => onRemove(subject.id)}
+              aria-label={`Remove ${subject.name}`}
               className="w-4 text-center transition-colors shrink-0"
               style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '10px', color: 'var(--cad-text-lo)' }}
               onMouseEnter={e => { e.currentTarget.style.color = 'var(--cad-danger)' }}

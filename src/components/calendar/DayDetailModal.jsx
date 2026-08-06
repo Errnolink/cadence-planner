@@ -63,6 +63,9 @@ export function DayDetailModal({ date, weekday, timetable, subjects, attendanceH
         onClick={handleClose}
       >
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Day schedule"
           className={`w-full md:max-w-sm panel-chamfer ${panelAnimClass}`}
           style={{
             background:  'var(--cad-bg-panel)',
@@ -282,11 +285,11 @@ export function DayDetailModal({ date, weekday, timetable, subjects, attendanceH
                                     markAttendance(dateStr, entry.id, isActive ? null : type)
                                   }}
                                   style={{
-                                    fontFamily: 'var(--cad-font-mono)', fontSize: '7px', letterSpacing: '0.1em',
+                                    fontFamily: 'var(--cad-font-mono)', fontSize: '8px', letterSpacing: '0.1em',
                                     border: isActive ? `1px solid var(${colorVar})` : '1px solid var(--cad-border-dim)',
                                     color: isActive ? `var(${colorVar})` : 'var(--cad-text-lo)',
                                     background: bg,
-                                    padding: '2px 4px',
+                                    padding: '4px 6px',
                                     borderRadius: '2px',
                                     textAlign: 'center',
                                     cursor: 'pointer'
