@@ -317,4 +317,8 @@ after Phase 6:
     rows automatically on the first pull after migration (whole-row
     `updated_at` proxies missing per-key stamps). e2e coverage grew to
     8 sync tests (14 app + 8 sync = 22 total).
+14. **Favicon** — `public/favicon.svg` was still the Vite logo; replaced with
+    a calendar + pen mark (dark body, magenta header band, white diagonal
+    pen) matching the NERV aesthetic. PWA manifest already referenced it.
+    Pixel-sampled at 32 px to confirm rendering.
 
