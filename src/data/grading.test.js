@@ -8,8 +8,12 @@ import {
   pctToGradePoint,
   pctToGradeLabel,
   validateScheme,
+  validateBands,
   resolveScheme,
   sittingMax,
+  scaleOf,
+  GRADE_BAND_PRESETS,
+  JNTU_BANDS,
   migrateExamsToAssessments,
   classBlockingDates,
   isGraded,
@@ -287,11 +291,91 @@ describe('schemes', () => {
   })
 })
 
-describe('grade bands', () => {
+describe('grade bands — JNTU default', () => {
   it.each([[95, 10], [85, 9], [75, 8], [65, 7], [57, 6], [52, 5], [45, 4], [12, 0]])(
     '%i%% → gp %i', (pct, gp) => expect(pctToGradePoint(pct)).toBe(gp))
+  it.each([[95, 'O'], [85, 'A+'], [75, 'A'], [65, 'B+'], [57, 'B'], [52, 'C'], [45, 'P'], [12, 'F']])(
+    '%i%% → %s', (pct, label) => expect(pctToGradeLabel(pct)).toBe(label))
   it('band floors are inclusive', () => expect(pctToGradePoint(90)).toBe(10))
   it('returns null for no score', () => expect(pctToGradePoint(null)).toBeNull())
+  it('100 lands in the top band', () => expect(pctToGradeLabel(100)).toBe('O'))
+})
+
+describe('grade bands — other institutions', () => {
+  const bandSet = (id) => GRADE_BAND_PRESETS.find(b => b.id === id)
+
+  it('a 4.0 scale reports its own labels and points, not JNTU\'s', () => {
+    const four = bandSet('four-point')
+    expect(pctToGradePoint(85, four)).toBe(3)
+    expect(pctToGradeLabel(85, four)).toBe('B')
+    expect(scaleOf(four)).toBe(4)
+  })
+
+  it('the same mark grades differently under different bands', () => {
+    expect(pctToGradeLabel(78, bandSet('jntu-10'))).toBe('A')
+    expect(pctToGradeLabel(78, bandSet('ten-point-pass-50'))).toBe('B')
+    expect(pctToGradeLabel(78, bandSet('four-point'))).toBe('C')
+  })
+
+  it('a pass-at-50 scheme fails a 45 that JNTU would pass', () => {
+    expect(pctToGradePoint(45, bandSet('jntu-10'))).toBe(4)
+    expect(pctToGradePoint(45, bandSet('ten-point-pass-50'))).toBe(0)
+  })
+
+  it('every preset is internally valid', () => {
+    for (const set of GRADE_BAND_PRESETS) {
+      const v = validateBands(set)
+      expect(v.errors, `${set.id}: ${v.errors.join(', ')}`).toEqual([])
+    }
+  })
+
+  it('accepts a bare array as well as a band set', () => {
+    expect(pctToGradePoint(85, JNTU_BANDS.bands)).toBe(9)
+    expect(pctToGradePoint(85, JNTU_BANDS)).toBe(9)
+  })
+
+  it('tolerates bands supplied out of order', () => {
+    const shuffled = [...JNTU_BANDS.bands].reverse()
+    expect(pctToGradeLabel(85, shuffled)).toBe('A+')
+  })
+
+  it('the whole subject grade follows the chosen bands', () => {
+    const mids = [...sitting(1, 8, 7, 4), ...sitting(2, 6, 9, 5)]
+    const marks = [...mids, theory(60)]                       // 79.5 overall
+    const jntu = computeSubjectGrade(marks, { ...preset('avg-internals-25-75'), bands: bandSet('jntu-10') })
+    const four = computeSubjectGrade(marks, { ...preset('avg-internals-25-75'), bands: bandSet('four-point') })
+    expect(jntu.gradePoint).toBe(8)   // A on a 10-point scale
+    expect(four.gradePoint).toBe(2)   // C on a 4.0 scale
+  })
+})
+
+describe('validateBands', () => {
+  it('rejects bands that never reach 0', () => {
+    const v = validateBands([{ min: 50, gp: 5, label: 'C' }, { min: 40, gp: 4, label: 'P' }])
+    expect(v.valid).toBe(false)
+    expect(v.errors).toContain('LOWEST BAND MUST START AT 0')
+  })
+  it('rejects duplicate floors, which would depend on array order', () => {
+    const v = validateBands([{ min: 50, gp: 5, label: 'C' }, { min: 50, gp: 6, label: 'B' }, { min: 0, gp: 0, label: 'F' }])
+    expect(v.errors).toContain('DUPLICATE FLOORS')
+  })
+  it('rejects a floor outside 0-100', () => {
+    expect(validateBands([{ min: 120, gp: 5, label: 'C' }, { min: 0, gp: 0, label: 'F' }]).valid).toBe(false)
+  })
+  it('rejects a missing label', () => {
+    const v = validateBands([{ min: 50, gp: 5 }, { min: 0, gp: 0, label: 'F' }])
+    expect(v.errors.some(e => e.includes('MISSING LABEL'))).toBe(true)
+  })
+  it('rejects a grade point above the declared scale', () => {
+    const v = validateBands({ scale: 4, bands: [{ min: 50, gp: 10, label: 'A' }, { min: 0, gp: 0, label: 'F' }] })
+    expect(v.errors.some(e => e.includes('EXCEEDS SCALE'))).toBe(true)
+  })
+  it('accepts a valid custom set', () => {
+    expect(validateBands({
+      scale: 10,
+      bands: [{ min: 75, gp: 10, label: 'EXCELLENT' }, { min: 35, gp: 5, label: 'PASS' }, { min: 0, gp: 0, label: 'FAIL' }],
+    }).valid).toBe(true)
+  })
 })
 
 // ── migration: the bit that protects attendance ──────────────────

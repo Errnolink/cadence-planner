@@ -8,54 +8,145 @@
 import { GRADE_MAP } from './constants.js'
 
 // ── Grade bands ──────────────────────────────────────────────────
-// Percentage floor → grade point, aligned to the existing GRADE_MAP labels.
-// Institution-specific, so it lives in the semester's scheme and this is
-// only the default.
-export const DEFAULT_GRADE_BANDS = [
-  { min: 90, gp: 10 }, // O
-  { min: 80, gp: 9 },  // A+
-  { min: 70, gp: 8 },  // A
-  { min: 60, gp: 7 },  // B+
-  { min: 55, gp: 6 },  // B
-  { min: 50, gp: 5 },  // C
-  { min: 40, gp: 4 },  // P
-  { min: 0,  gp: 0 },  // F
+//
+// Percentage floor → grade point → letter. Entirely institution-specific,
+// so bands live in the scheme and are editable. Each band carries its own
+// label rather than deriving one from GRADE_MAP, because a 4.0-scale
+// university has no grade point 9 to look up.
+//
+// A band set also declares its `scale` (the maximum grade point), which is
+// what the GPA badge should print instead of a hardcoded "/ 10.0".
+
+/** JNTU 10-point absolute scale. Confirmed against the user's institution. */
+export const JNTU_BANDS = {
+  id: 'jntu-10',
+  label: 'JNTU · 10-POINT',
+  scale: 10,
+  bands: [
+    { min: 90, gp: 10, label: 'O'  },
+    { min: 80, gp: 9,  label: 'A+' },
+    { min: 70, gp: 8,  label: 'A'  },
+    { min: 60, gp: 7,  label: 'B+' },
+    { min: 55, gp: 6,  label: 'B'  },
+    { min: 50, gp: 5,  label: 'C'  },
+    { min: 40, gp: 4,  label: 'P'  },
+    { min: 0,  gp: 0,  label: 'F'  },
+  ],
+}
+
+/**
+ * Starting points, not authoritative claims about any institution.
+ * Only the JNTU set has been confirmed; everything else is a common shape
+ * to edit from. Check yours against your own handbook.
+ */
+export const GRADE_BAND_PRESETS = [
+  JNTU_BANDS,
+  {
+    id: 'ten-point-pass-50',
+    label: '10-POINT · PASS AT 50',
+    scale: 10,
+    bands: [
+      { min: 90, gp: 10, label: 'S' },
+      { min: 80, gp: 9,  label: 'A' },
+      { min: 70, gp: 8,  label: 'B' },
+      { min: 60, gp: 7,  label: 'C' },
+      { min: 55, gp: 6,  label: 'D' },
+      { min: 50, gp: 5,  label: 'E' },
+      { min: 0,  gp: 0,  label: 'F' },
+    ],
+  },
+  {
+    id: 'four-point',
+    label: '4.0 SCALE',
+    scale: 4,
+    bands: [
+      { min: 90, gp: 4, label: 'A' },
+      { min: 80, gp: 3, label: 'B' },
+      { min: 70, gp: 2, label: 'C' },
+      { min: 60, gp: 1, label: 'D' },
+      { min: 0,  gp: 0, label: 'F' },
+    ],
+  },
 ]
 
-/** Percentage → grade point using the given bands (highest matching floor). */
+export const DEFAULT_BAND_SET = JNTU_BANDS
+export const DEFAULT_GRADE_BANDS = JNTU_BANDS.bands
+
+/** Accepts either a band set ({scale, bands}) or a bare bands array. */
+const bandsOf = (b) => (Array.isArray(b) ? b : b?.bands) ?? DEFAULT_GRADE_BANDS
+export const scaleOf = (b) => (Array.isArray(b) ? null : b?.scale) ?? DEFAULT_BAND_SET.scale
+
+/** Percentage → grade point (highest matching floor). */
 export function pctToGradePoint(pct, bands = DEFAULT_GRADE_BANDS) {
   if (pct === null || pct === undefined || !Number.isFinite(pct)) return null
-  for (const band of bands) if (pct >= band.min) return band.gp
+  const list = [...bandsOf(bands)].sort((a, b) => b.min - a.min)
+  for (const band of list) if (pct >= band.min) return band.gp
   return 0
 }
 
-/** Grade point → display label ('A+', 'O', …) via the shared GRADE_MAP. */
-export function gradePointToLabel(gp) {
+/** Percentage → the matching band, so callers can read its label directly. */
+export function pctToBand(pct, bands = DEFAULT_GRADE_BANDS) {
+  if (pct === null || pct === undefined || !Number.isFinite(pct)) return null
+  const list = [...bandsOf(bands)].sort((a, b) => b.min - a.min)
+  return list.find(band => pct >= band.min) ?? list[list.length - 1] ?? null
+}
+
+/**
+ * Grade point → label. Prefers the band set's own labels; falls back to the
+ * legacy GRADE_MAP so the existing roster dropdown keeps working.
+ */
+export function gradePointToLabel(gp, bands = DEFAULT_GRADE_BANDS) {
   if (gp === null || gp === undefined) return '—'
+  const hit = bandsOf(bands).find(b => b.gp === gp)
+  if (hit?.label) return hit.label
   return GRADE_MAP.find(g => g.gp === gp)?.label ?? String(gp)
 }
 
 /** Percentage → letter label, in one step. */
-export const pctToGradeLabel = (pct, bands) => gradePointToLabel(pctToGradePoint(pct, bands))
+export const pctToGradeLabel = (pct, bands) => pctToBand(pct, bands)?.label ?? '—'
+
+/**
+ * Is an edited band set usable? Bands must reach down to 0 so every
+ * percentage lands somewhere, and duplicate floors would make the result
+ * depend on array order.
+ */
+export function validateBands(input) {
+  const list = bandsOf(input)
+  const errors = []
+  if (!Array.isArray(list) || list.length === 0) return { valid: false, errors: ['NO BANDS DEFINED'] }
+
+  for (const b of list) {
+    const min = Number(b.min)
+    if (!Number.isFinite(min) || min < 0 || min > 100) errors.push(`INVALID FLOOR: ${b.min}`)
+    if (!Number.isFinite(Number(b.gp))) errors.push(`INVALID GRADE POINT FOR ${b.label ?? b.min}`)
+    if (!b.label) errors.push(`MISSING LABEL FOR FLOOR ${b.min}`)
+  }
+  const floors = list.map(b => Number(b.min))
+  if (new Set(floors).size !== floors.length) errors.push('DUPLICATE FLOORS')
+  if (Math.min(...floors) !== 0) errors.push('LOWEST BAND MUST START AT 0')
+
+  const scale = scaleOf(input)
+  const maxGp = Math.max(...list.map(b => Number(b.gp) || 0))
+  if (maxGp > scale) errors.push(`GRADE POINT ${maxGp} EXCEEDS SCALE ${scale}`)
+
+  return { valid: errors.length === 0, errors }
+}
 
 // ── Schemes ──────────────────────────────────────────────────────
 //
-// A component's `weight` is literally its marks out of 100, so the common
-// Indian "25 internals + 75 external" split is expressed directly rather
-// than as an abstract percentage. Raw marks can be out of anything — two
-// mids out of 50 each aggregate to a fraction, which is then scaled to the
-// component's 25 marks.
+// A component's `weight` is literally its marks out of 100, so "25 internals
+// + 75 external" is expressed directly rather than as an abstract percentage.
+// Raw marks stay in their own units and are scaled onto that weight.
 //
-// The only thing separating the two schemes below is the mids `rule`:
-//   average — both mids count, halved      (mid1 + mid2) / 100 × 25
-//   best    — only the higher mid counts    max(mid1, mid2) / 50 × 25
-// That switch is the whole reason this is configurable.
-
-// A component may declare `parts` — the split within one sitting. Parts carry
-// their own maximums and are summed per sitting before the rule is applied.
-// The split and the rule are independent knobs: two colleges can share
-// "average of two mids" while splitting each mid differently, which is why
-// both are editable rather than baked in.
+// A component declares `parts` — the split within one sitting — each with its
+// own maximum. Parts are summed per sitting, then the `rule` decides how
+// sittings combine.
+//
+// The split and the rule are independent knobs, because they vary
+// independently: two colleges can share "objective 10 + subjective 10 +
+// assignment 5" while one averages the two mids and the other takes the
+// better one. Baking either in would force a rewrite for the next
+// institution.
 
 /** Objective 10 + subjective 10 + assignment 5, taken twice, averaged → 25. */
 const INTERNALS_25 = {
@@ -80,7 +171,7 @@ const THEORY_75 = {
 
 export const DEFAULT_SCHEME = {
   components: [INTERNALS_25, THEORY_75],
-  bands: DEFAULT_GRADE_BANDS,
+  bands: DEFAULT_BAND_SET,
 }
 
 /** Ready-made schemes offered in the scheme editor. */
@@ -89,7 +180,7 @@ export const SCHEME_PRESETS = [
     id: 'avg-internals-25-75',
     label: 'AVG OF MIDS · 25 + 75',
     description: 'Two sittings of objective 10 + subjective 10 + assignment 5, averaged into 25 internal marks. Theory out of 75.',
-    scheme: { components: [INTERNALS_25, THEORY_75], bands: DEFAULT_GRADE_BANDS },
+    scheme: { components: [INTERNALS_25, THEORY_75], bands: DEFAULT_BAND_SET },
   },
   {
     id: 'best-internals-25-75',
@@ -97,7 +188,7 @@ export const SCHEME_PRESETS = [
     description: 'Same split, but only the higher sitting counts toward the 25 internal marks.',
     scheme: {
       components: [{ ...INTERNALS_25, rule: { mode: 'best', n: 1 } }, THEORY_75],
-      bands: DEFAULT_GRADE_BANDS,
+      bands: DEFAULT_BAND_SET,
     },
   },
   {
@@ -113,7 +204,7 @@ export const SCHEME_PRESETS = [
         { id: 'final',      label: 'FINAL',       weight: 50, rule: { mode: 'average' },
           parts: [{ id: 'paper', label: 'PAPER', max: 100 }] },
       ],
-      bands: DEFAULT_GRADE_BANDS,
+      bands: DEFAULT_BAND_SET,
     },
   },
   {
@@ -127,7 +218,7 @@ export const SCHEME_PRESETS = [
         { id: 'viva',     label: 'VIVA',     weight: 40, rule: { mode: 'average' },
           parts: [{ id: 'viva', label: 'VIVA', max: 40 }] },
       ],
-      bands: DEFAULT_GRADE_BANDS,
+      bands: DEFAULT_BAND_SET,
     },
   },
 ]
