@@ -1,9 +1,16 @@
 import { useState, useEffect } from 'react'
-import { SUBJECT_COLORS, GRADE_MAP, gpToLabel, generateSubjectCode } from '../../data/index.js'
+import { SUBJECT_COLORS, GRADE_MAP, gpToLabel, generateSubjectCode, subjectVars, subjectIdx } from '../../data/index.js'
 import { ColorPicker } from '../ui/ColorPicker.jsx'
 
+/** Non-colour signal for the grade tier, so the tier isn't colour-only. */
+const gradeTier = (gp) =>
+  gp === null || gp === undefined ? { color: 'var(--cad-text-lo)', mark: '', label: 'no grade' }
+  : gp >= 8 ? { color: 'var(--cad-success)', mark: '▲', label: 'high' }
+  : gp >= 6 ? { color: 'var(--cad-accent)',  mark: '■', label: 'mid'  }
+  : { color: 'var(--cad-danger)', mark: '▼', label: 'low' }
+
 export function SubjectRow({ subject, editMode, onUpdate, onRemove, staggerIndex = 0 }) {
-  const color = SUBJECT_COLORS[subject.colorIdx % SUBJECT_COLORS.length]
+  const colorName = SUBJECT_COLORS.find(c => c.id === subjectIdx(subject.colorIdx))?.name
   const [showColors, setShowColors] = useState(false)
   // Local draft so keystrokes don't re-render the whole app + write storage per keypress
   const [draft, setDraft] = useState(() => ({ name: subject.name, code: subject.code ?? '', credits: subject.credits }))
@@ -22,18 +29,20 @@ export function SubjectRow({ subject, editMode, onUpdate, onRemove, staggerIndex
   const commitOnBlur = (key) => (e) => {
     setFocused(null)
     commitField(key, e.target.value)
-    e.currentTarget.style.borderBottomColor = 'var(--cad-border)'
   }
   const commitOnEnter = (key) => (e) => {
     if (e.key === 'Enter') { commitField(key, e.target.value); e.currentTarget.blur() }
   }
 
+  const tier = gradeTier(subject.gradePoint)
+
   return (
     <div
       className="mb-1.5 anim-stagger-row"
       style={{
-        borderLeft: `3px solid ${color.border}`,
-        background: `linear-gradient(90deg, ${color.bg} 0%, transparent 70%)`,
+        ...subjectVars(subject.colorIdx),
+        borderLeft: '3px solid var(--subj-border)',
+        background: 'linear-gradient(90deg, var(--subj-bg) 0%, transparent 70%)',
         '--stagger-delay': `${staggerIndex * 40}ms`,
       }}
     >
@@ -42,11 +51,14 @@ export function SubjectRow({ subject, editMode, onUpdate, onRemove, staggerIndex
         <div className="flex items-center gap-1.5 min-w-0 flex-1">
           {/* Color swatch */}
           <button
+            type="button"
             onClick={() => editMode && setShowColors(v => !v)}
             disabled={!editMode}
+            aria-expanded={editMode ? showColors : undefined}
             className={`w-3 h-3 shrink-0 transition-transform ${editMode ? 'cursor-pointer hover:scale-125' : 'cursor-default'}`}
-            style={{ background: color.border, boxShadow: `0 0 4px ${color.border}80`, borderRadius: '1px' }}
-            title={editMode ? 'CHANGE COLOR' : color.name}
+            style={{ background: 'var(--subj-border)', boxShadow: '0 0 4px var(--subj-border)', borderRadius: '1px' }}
+            title={editMode ? 'CHANGE COLOR' : colorName}
+            aria-label={editMode ? `Change colour (currently ${colorName})` : colorName}
           />
 
           {/* Name */}
@@ -55,18 +67,19 @@ export function SubjectRow({ subject, editMode, onUpdate, onRemove, staggerIndex
             onChange={e => setDraft(d => ({ ...d, name: e.target.value }))}
             onBlur={commitOnBlur('name')}
             onKeyDown={commitOnEnter('name')}
+            onFocus={() => setFocused('name')}
             disabled={!editMode}
             spellCheck={false}
-            className="flex-1 min-w-0 bg-transparent"
+            aria-label="Subject name"
+            className="flex-1 min-w-0 bg-transparent cad-underline"
             style={{
               fontFamily:  'var(--cad-font-mono)',
-              fontSize:    '11px',
+              fontSize:    'var(--cad-fs-sm)',
               letterSpacing:'0.05em',
-              color:       color.text,
+              color:       'var(--subj-text)',
               borderBottom: editMode ? '1px solid var(--cad-border)' : '1px solid transparent',
               transition:  'border-color 0.15s',
             }}
-            onFocus={e => { setFocused('name'); e.currentTarget.style.borderBottomColor = 'var(--cad-accent)' }}
           />
         </div>
 
@@ -79,17 +92,18 @@ export function SubjectRow({ subject, editMode, onUpdate, onRemove, staggerIndex
             onChange={e => setDraft(d => ({ ...d, code: e.target.value }))}
             onBlur={commitOnBlur('code')}
             onKeyDown={commitOnEnter('code')}
+            onFocus={() => setFocused('code')}
             disabled={!editMode}
             spellCheck={false}
-            className="w-12 shrink-0 bg-transparent text-center"
+            aria-label="Subject code"
+            className="w-12 shrink-0 bg-transparent text-center cad-underline"
             style={{
               fontFamily:  'var(--cad-font-mono)',
-              fontSize:    '10px',
+              fontSize:    'var(--cad-fs-xs)',
               color:       'var(--cad-accent)',
               borderBottom: editMode ? '1px solid var(--cad-border)' : '1px solid transparent',
               transition:  'border-color 0.15s',
             }}
-            onFocus={e => { setFocused('code'); e.currentTarget.style.borderBottomColor = 'var(--cad-accent)' }}
           />
 
           {/* Credits — drop the redundant "CR" label per-row */}
@@ -101,25 +115,27 @@ export function SubjectRow({ subject, editMode, onUpdate, onRemove, staggerIndex
             onBlur={commitOnBlur('credits')}
             onKeyDown={commitOnEnter('credits')}
             disabled={!editMode}
-            className="w-8 text-right bg-transparent"
+            aria-label="Credits"
+            className="w-8 text-right bg-transparent cad-underline"
             style={{
               fontFamily:  'var(--cad-font-mono)',
-              fontSize:    '11px',
+              fontSize:    'var(--cad-fs-sm)',
               color:       'var(--cad-accent-text)',
               borderBottom: editMode ? '1px solid var(--cad-border)' : '1px solid transparent',
             }}
           />
 
           {/* Grade */}
-          <div className="shrink-0 w-8 text-right">
+          <div className="shrink-0 w-10 text-right">
             {editMode ? (
               <select
                 value={subject.gradePoint ?? ''}
                 onChange={e => onUpdate(subject.id, 'gradePoint', e.target.value === '' ? null : Number(e.target.value))}
+                aria-label="Grade point"
                 className="w-full text-right bg-transparent cursor-pointer"
                 style={{
                   fontFamily:  'var(--cad-font-mono)',
-                  fontSize:    '9px',
+                  fontSize:    'var(--cad-fs-xs)',
                   color:       'var(--cad-text-hi)',
                   borderBottom:'1px solid var(--cad-border)',
                 }}
@@ -129,28 +145,23 @@ export function SubjectRow({ subject, editMode, onUpdate, onRemove, staggerIndex
               </select>
             ) : (
               <span
-                style={{
-                  fontFamily: 'var(--cad-font-mono)',
-                  fontSize:   '10px',
-                  color:      subject.gradePoint === null
-                    ? 'var(--cad-text-lo)'
-                    : subject.gradePoint >= 8 ? 'var(--cad-success)'
-                    : subject.gradePoint >= 6 ? 'var(--cad-accent)'
-                    : 'var(--cad-danger)',
-                }}
-              >{gpToLabel(subject.gradePoint)}</span>
+                title={`Grade ${gpToLabel(subject.gradePoint)} (${tier.label})`}
+                style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-xs)', color: tier.color }}
+              >
+                {tier.mark && <span aria-hidden="true" style={{ marginRight: '2px' }}>{tier.mark}</span>}
+                {gpToLabel(subject.gradePoint)}
+              </span>
             )}
           </div>
 
           {/* Remove */}
           {editMode && (
             <button
+              type="button"
               onClick={() => onRemove(subject.id)}
               aria-label={`Remove ${subject.name}`}
-              className="w-4 text-center transition-colors shrink-0"
-              style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '10px', color: 'var(--cad-text-lo)' }}
-              onMouseEnter={e => { e.currentTarget.style.color = 'var(--cad-danger)' }}
-              onMouseLeave={e => { e.currentTarget.style.color = 'var(--cad-text-lo)' }}
+              className="w-4 text-center shrink-0 cad-x btn-mech"
+              style={{ fontSize: 'var(--cad-fs-xs)' }}
             >✕</button>
           )}
         </div>

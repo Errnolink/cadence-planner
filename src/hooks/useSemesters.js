@@ -57,16 +57,31 @@ export function useSemesters() {
     [semesters, activeSemId]
   )
 
+  // Mirror of `semesters` for callbacks that must read the list without
+  // running side effects inside a setState updater (React may invoke those
+  // more than once — StrictMode does so deliberately).
+  const semestersRef = useRef(semesters)
+  useEffect(() => { semestersRef.current = semesters }, [semesters])
+
   const updateSem = useCallback((updater) => {
     setSemesters(prev => prev.map(s => String(s.id) === String(activeSemId) ? updater(s) : s))
   }, [activeSemId])
 
   const addSemester = useCallback(() => {
     setSemesters(prev => {
-      const newId = (prev.length > 0 ? Math.max(...prev.map(p => p.id)) : 0) + 1
+      // Ids are opaque (like subjects and timetable entries already are).
+      // Max-plus-one over `id` produced NaN the moment any id was non-numeric
+      // — e.g. from a hand-edited backup — and then every
+      // String(s.id) === String(activeSemId) comparison matched "NaN".
+      const labelCounter = Math.max(
+        0,
+        prev.length,
+        ...prev.map(p => Number(String(p.label ?? '').match(/(\d+)\s*$/)?.[1])).filter(Number.isFinite),
+        ...prev.map(p => Number(p.id)).filter(Number.isFinite),
+      ) + 1
       const newSem = {
-        id: newId,
-        label: `SEM ${String(newId).padStart(2, '0')}`,
+        id: crypto.randomUUID(),
+        label: `SEM ${String(labelCounter).padStart(2, '0')}`,
         startDate: '',
         endDate: '',
         subjects: [],
@@ -78,19 +93,19 @@ export function useSemesters() {
   }, [])
 
   const removeSemester = useCallback((id) => {
+    // Pure updater; the active-id fallback is driven separately so it cannot
+    // be scheduled twice by a re-invoked updater.
     setSemesters(prev => {
       if (prev.length <= 1) return prev // Can't delete the last one
-      const next = prev.filter(s => String(s.id) !== String(id))
-      queueMicrotask(() => {
-        setActiveSemId(prevId => {
-          if (String(prevId) === String(id)) {
-            // If we deleted the active sem, switch to the first available one
-            return next.length > 0 ? next[0].id : prevId
-          }
-          return prevId
-        })
-      })
-      return next
+      return prev.filter(s => String(s.id) !== String(id))
+    })
+    setActiveSemId(prevId => {
+      if (String(prevId) !== String(id)) return prevId
+      const all = semestersRef.current
+      const survivors = all.filter(s => String(s.id) !== String(id))
+      // Nothing survives (or nothing was actually removed) → keep the selection
+      if (survivors.length === 0 || survivors.length === all.length) return prevId
+      return survivors[0].id
     })
   }, [])
 

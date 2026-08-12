@@ -1,0 +1,47 @@
+/* ─── SUBJECT COLOUR TOKENS ──────────────────────────────────────
+   Subject accents live in the theme layer, not in JS, so each theme
+   picks text shades that are actually legible on its own surfaces.
+
+   The dark block below is the default (nerv + minimal dark mode).
+   The light override exists because the dark palette measured
+   1.17:1 – 2.16:1 against the minimal light background — all twelve
+   colours failed WCAG AA, nine of them below 2:1.
+
+   Contrast (text vs. its own composited block background):
+     dark  : 5.63:1 – 9.89:1   (worst INDIGO)
+     light : 5.47:1 – 7.97:1   (worst BLUE)
+
+   Components read var(--subj-text/bg/border) after spreading
+   subjectVars(colorIdx) from src/data/colors.js.
+   ──────────────────────────────────────────────────────────────── */
+
+:root {
+  --subj-0-bg:  rgba(249,115,22,0.22);  --subj-0-border:  #f97316;  --subj-0-text:  #fb923c;
+  --subj-1-bg:  rgba(239,68,68,0.22);   --subj-1-border:  #ef4444;  --subj-1-text:  #f87171;
+  --subj-2-bg:  rgba(34,197,94,0.22);   --subj-2-border:  #22c55e;  --subj-2-text:  #4ade80;
+  --subj-3-bg:  rgba(59,130,246,0.22);  --subj-3-border:  #3b82f6;  --subj-3-text:  #60a5fa;
+  --subj-4-bg:  rgba(245,158,11,0.22);  --subj-4-border:  #f59e0b;  --subj-4-text:  #fcd34d;
+  --subj-5-bg:  rgba(20,184,166,0.22);  --subj-5-border:  #14b8a6;  --subj-5-text:  #2dd4bf;
+  --subj-6-bg:  rgba(236,72,153,0.22);  --subj-6-border:  #ec4899;  --subj-6-text:  #f472b6;
+  --subj-7-bg:  rgba(168,85,247,0.22);  --subj-7-border:  #a855f7;  --subj-7-text:  #c084fc;
+  --subj-8-bg:  rgba(99,102,241,0.24);  --subj-8-border:  #6366f1;  --subj-8-text:  #818cf8;
+  --subj-9-bg:  rgba(6,182,212,0.22);   --subj-9-border:  #06b6d4;  --subj-9-text:  #22d3ee;
+  --subj-10-bg: rgba(132,204,22,0.22);  --subj-10-border: #84cc16;  --subj-10-text: #a3e635;
+  --subj-11-bg: rgba(244,63,94,0.22);   --subj-11-border: #f43f5e;  --subj-11-text: #fb7185;
+}
+
+/* Light surfaces — lighter tint, 700/800 text. Every pair verified >= 4.5:1. */
+:root[data-theme="minimal"]:not([data-mode="dark"]) {
+  --subj-0-bg:  rgba(249,115,22,0.14);  --subj-0-text:  #9a3412;  /* orange-800  6.07:1 */
+  --subj-1-bg:  rgba(239,68,68,0.14);   --subj-1-text:  #991b1b;  /* red-800     6.66:1 */
+  --subj-2-bg:  rgba(34,197,94,0.14);   --subj-2-text:  #166534;  /* green-800   6.09:1 */
+  --subj-3-bg:  rgba(59,130,246,0.14);  --subj-3-text:  #1d4ed8;  /* blue-700    5.47:1 */
+  --subj-4-bg:  rgba(245,158,11,0.14);  --subj-4-text:  #92400e;  /* amber-800   6.12:1 */
+  --subj-5-bg:  rgba(20,184,166,0.14);  --subj-5-text:  #115e59;  /* teal-800    6.41:1 */
+  --subj-6-bg:  rgba(236,72,153,0.14);  --subj-6-text:  #9d174d;  /* pink-800    6.35:1 */
+  --subj-7-bg:  rgba(168,85,247,0.14);  --subj-7-text:  #6b21a8;  /* purple-800  7.05:1 */
+  --subj-8-bg:  rgba(99,102,241,0.14);  --subj-8-text:  #3730a3;  /* indigo-800  7.97:1 */
+  --subj-9-bg:  rgba(6,182,212,0.14);   --subj-9-text:  #155e75;  /* cyan-800    6.11:1 */
+  --subj-10-bg: rgba(132,204,22,0.14);  --subj-10-text: #3f6212;  /* lime-800    6.20:1 */
+  --subj-11-bg: rgba(244,63,94,0.14);   --subj-11-text: #9f1239;  /* rose-800    6.40:1 */
+}

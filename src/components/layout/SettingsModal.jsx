@@ -12,6 +12,9 @@ export function SettingsModal({ onClose }) {
   const [themeImportText, setThemeImportText] = useState('')
   const [themeSyncMsg, setThemeSyncMsg] = useState('')
   const [dataSyncMsg, setDataSyncMsg] = useState('')
+  // Validation messages are free text now, so the colour can't be inferred
+  // from the wording any more.
+  const [dataSyncErr, setDataSyncErr] = useState(false)
   const fileInputRef = useRef(null)
   const msgTimer = useRef(null)
   useEffect(() => () => clearTimeout(msgTimer.current), [])
@@ -82,27 +85,43 @@ Please output ONLY the raw JSON format without markdown wrapping or codeblocks.`
       a.click()
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
+      setDataSyncErr(false)
       setDataSyncMsg('BACKUP DOWNLOADED.')
       msgTimer.current = setTimeout(() => setDataSyncMsg(''), 3000)
     } catch {
+      setDataSyncErr(true)
       setDataSyncMsg('DOWNLOAD FAILED.')
       msgTimer.current = setTimeout(() => setDataSyncMsg(''), 3000)
     }
   }
 
   const handleRestoreBackup = (e) => {
-    const file = e.target.files?.[0]
+    const input = e.target
+    const file = input.files?.[0]
     if (!file) return
     const reader = new FileReader()
-    reader.onload = (ev) => {
+    reader.onload = async (ev) => {
       try {
-        const data = JSON.parse(ev.target.result)
-        API.importAllData(data)
+        setDataSyncErr(false)
+        setDataSyncMsg('RESTORING…')
+        // Awaited so the cloud push completes before the reload kills it.
+        await API.importAllData(JSON.parse(ev.target.result))
         window.location.reload()
-      } catch {
-        setDataSyncMsg('INVALID BACKUP FILE.')
-        msgTimer.current = setTimeout(() => setDataSyncMsg(''), 3000)
+      } catch (err) {
+        // Surface the real reason ("Unsupported backup version", "Semester 2
+        // has no id", …) instead of a blanket INVALID BACKUP FILE.
+        setDataSyncErr(true)
+        setDataSyncMsg(String(err?.message || 'INVALID BACKUP FILE.').toUpperCase())
+        msgTimer.current = setTimeout(() => setDataSyncMsg(''), 4000)
+      } finally {
+        input.value = '' // let the same file be picked again
       }
+    }
+    reader.onerror = () => {
+      setDataSyncErr(true)
+      setDataSyncMsg('COULD NOT READ FILE.')
+      msgTimer.current = setTimeout(() => setDataSyncMsg(''), 4000)
+      input.value = ''
     }
     reader.readAsText(file)
   }
@@ -308,7 +327,7 @@ Please output ONLY the raw JSON format without markdown wrapping or codeblocks.`
             <input type="file" ref={fileInputRef} onChange={handleRestoreBackup} accept=".json" className="hidden" />
           </div>
           {dataSyncMsg && (
-            <div className="text-center mt-2" style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '9px', color: dataSyncMsg.includes('FAILED') || dataSyncMsg.includes('INVALID') ? 'var(--cad-danger)' : 'var(--cad-success)' }}>
+            <div className="text-center mt-2" style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-xs)', color: dataSyncErr ? 'var(--cad-danger)' : 'var(--cad-success)' }}>
               {dataSyncMsg}
             </div>
           )}

@@ -1,11 +1,76 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { API } from '../data/api.js'
-import { ATTENDANCE_THRESHOLD } from '../data/constants.js'
+import {
+  computeSubjectStats,
+  computeOverallStats,
+  computeAllStats,
+  marginToThreshold,
+  recoveryPath,
+  statusTier,
+  pruneOrphans,
+} from '../data/attendanceMath.js'
 
 const EMPTY_EXAM_DATES = new Set()
 
+// One-shot garbage collection of attendance rows whose timetable entry was
+// deleted long ago. Bumped when the pruning rules change; the stamp keeps it
+// from running on every load.
+const PRUNE_STAMP_KEY = 'cadence_pruned_at'
+const PRUNE_SCHEMA = '2'
+
+// Memoized per page load so React StrictMode's double-invoked initialiser
+// cannot half-apply the sweep.
+let _bootPruneResult = null
+
+/**
+ * Sweep orphaned attendance keys once per schema version.
+ * Deliberately conservative: if the semester list can't be read or has no
+ * entries at all, nothing is pruned — losing real history to a bad read would
+ * be far worse than leaving dead keys in place.
+ */
+function bootPrune(attendance) {
+  if (_bootPruneResult) return _bootPruneResult.value
+  let value = attendance
+  try {
+    if (localStorage.getItem(PRUNE_STAMP_KEY) !== PRUNE_SCHEMA) {
+      const semesters = API.getSemesters([]) || []
+      const liveIds = new Set()
+      for (const sem of semesters) {
+        for (const entry of (sem?.timetable || [])) liveIds.add(String(entry.id))
+      }
+      if (liveIds.size > 0) {
+        const pruned = pruneOrphans(attendance, liveIds)
+        localStorage.setItem(PRUNE_STAMP_KEY, PRUNE_SCHEMA)
+        if (pruned !== attendance) {
+          API.saveAttendance(pruned)
+          value = pruned
+        }
+      }
+    }
+  } catch (e) {
+    console.error('Attendance prune sweep failed', e)
+  }
+  _bootPruneResult = { value }
+  return value
+}
+
+/**
+ * Write one date's object back into the map, dropping the date entirely when
+ * nothing is left on it. Empty `{}` days used to accumulate in localStorage
+ * and in every sync payload forever.
+ */
+function writeDay(prev, dateStr, day) {
+  if (Object.keys(day).length === 0) {
+    if (!(dateStr in prev)) return prev
+    const next = { ...prev }
+    delete next[dateStr]
+    return next
+  }
+  return { ...prev, [dateStr]: day }
+}
+
 export function useAttendance() {
-  const [attendance, setAttendance] = useState(() => API.getAttendance({}))
+  const [attendance, setAttendance] = useState(() => bootPrune(API.getAttendance({})))
 
   const lastSavedAttendanceRef = useRef('')
 
@@ -32,171 +97,93 @@ export function useAttendance() {
     API.saveAttendance(attendance)
   }, [attendance])
 
+  // ── Mutations ──────────────────────────────────────────────────
+  // All of these delete keys rather than writing null/false: a cleared mark
+  // is the absence of data, not a piece of data.
+
   const markAttendance = useCallback((dateStr, entryId, status) => {
     setAttendance(prev => {
-      const dayData = prev[dateStr] || {}
-      return {
-        ...prev,
-        [dateStr]: {
-          ...dayData,
-          [entryId]: status, // 'PRESENT', 'ABSENT', 'CANCELLED'
-        }
-      }
+      const day = { ...(prev[dateStr] || {}) }
+      if (status == null) delete day[entryId]
+      else day[entryId] = status // 'PRESENT' | 'ABSENT' | 'CANCELLED'
+      return writeDay(prev, dateStr, day)
     })
   }, [])
 
   const markDayAttendance = useCallback((dateStr, entryIds, status) => {
     setAttendance(prev => {
-      const dayData = { ...(prev[dateStr] || {}) }
+      const day = { ...(prev[dateStr] || {}) }
       entryIds.forEach(id => {
-        dayData[id] = status // 'PRESENT' or 'ABSENT'
+        if (status == null) delete day[id]
+        else day[id] = status // 'PRESENT' | 'ABSENT'
       })
-      return {
-        ...prev,
-        [dateStr]: dayData
-      }
+      return writeDay(prev, dateStr, day)
     })
   }, [])
 
   const toggleHoliday = useCallback((dateStr) => {
     setAttendance(prev => {
-      const dayData = prev[dateStr] || {}
-      return {
-        ...prev,
-        [dateStr]: {
-          ...dayData,
-          isHoliday: !dayData.isHoliday
-        }
-      }
+      const day = { ...(prev[dateStr] || {}) }
+      if (day.isHoliday) delete day.isHoliday
+      else day.isHoliday = true
+      return writeDay(prev, dateStr, day)
     })
   }, [])
 
   const setNote = useCallback((dateStr, entryId, note) => {
     setAttendance(prev => {
-      const dayData = prev[dateStr] || {}
-      return {
-        ...prev,
-        [dateStr]: {
-          ...dayData,
-          [`${entryId}_note`]: note,
-        }
-      }
+      const day = { ...(prev[dateStr] || {}) }
+      const key = `${entryId}_note`
+      if (note) day[key] = note
+      else delete day[key]
+      return writeDay(prev, dateStr, day)
     })
   }, [])
 
   const setSubstitute = useCallback((dateStr, entryId, substituteSubjectId) => {
     setAttendance(prev => {
-      const dayData = prev[dateStr] || {}
-      const updated = { ...dayData }
-      if (substituteSubjectId) {
-        updated[`${entryId}_sub`] = substituteSubjectId
-      } else {
-        delete updated[`${entryId}_sub`]
-      }
-      return { ...prev, [dateStr]: updated }
+      const day = { ...(prev[dateStr] || {}) }
+      const key = `${entryId}_sub`
+      if (substituteSubjectId) day[key] = substituteSubjectId
+      else delete day[key]
+      return writeDay(prev, dateStr, day)
     })
   }, [])
 
   const setExamDayPresent = useCallback((dateStr, value) => {
     setAttendance(prev => {
-      const dayData = { ...(prev[dateStr] || {}) }
-      if (value) dayData.examCountAsPresent = true
-      else delete dayData.examCountAsPresent
-      return { ...prev, [dateStr]: dayData }
+      const day = { ...(prev[dateStr] || {}) }
+      if (value) day.examCountAsPresent = true
+      else delete day.examCountAsPresent
+      return writeDay(prev, dateStr, day)
     })
   }, [])
 
-  // Calculate subject stats across all days
-  // Accounts for substitutes: if entry X has a sub pointing to subjectId, count that attendance toward subjectId
-  // Exam days (dates in examDates): skipped by default (classes don't occur). If the user opted the day
-  // in via "count as present", that day's scheduled classes are credited as PRESENT instead.
-  const getSubjectStats = useCallback((subjectId, timetable, examDates = EMPTY_EXAM_DATES) => {
-    let present = 0
-    let absent = 0
-    let cancelled = 0
-    let total = 0
-    
-    const subjectEntryIds = timetable.filter(t => t.subjectId === subjectId).map(t => t.id)
-    const allEntryIds = timetable.map(t => t.id)
-    
-    Object.entries(attendance).forEach(([dateStr, dayData]) => {
-      if (dayData.isHoliday) return
+  // ── Derived stats — thin wrappers over src/data/attendanceMath.js ──
 
-      const isExamDay = examDates.has(dateStr)
-      if (isExamDay && dayData.examCountAsPresent !== true) return
-      const examAsPresent = isExamDay
+  const getSubjectStats = useCallback(
+    (subjectId, timetable, examDates = EMPTY_EXAM_DATES, options) =>
+      computeSubjectStats(attendance, subjectId, timetable, examDates, options),
+    [attendance])
 
-      // Count entries that originally belong to this subject (and aren't substituted away)
-      subjectEntryIds.forEach(id => {
-        if (dayData[`${id}_sub`]) return // substituted away, don't count here
-        if (examAsPresent) { present++; total++; return }
-        if (dayData[id] === 'PRESENT') { present++; total++ }
-        else if (dayData[id] === 'ABSENT') { absent++; total++ }
-        else if (dayData[id] === 'CANCELLED') { cancelled++ }
-      })
+  const getOverallStats = useCallback(
+    (subjects, timetable, examDates = EMPTY_EXAM_DATES) =>
+      computeOverallStats(attendance, subjects, timetable, examDates),
+    [attendance])
 
-      // Count entries substituted INTO this subject
-      allEntryIds.forEach(id => {
-        if (dayData[`${id}_sub`] !== subjectId) return
-        if (examAsPresent) { present++; total++; return }
-        if (dayData[id] === 'PRESENT') { present++; total++ }
-        else if (dayData[id] === 'ABSENT') { absent++; total++ }
-        else if (dayData[id] === 'CANCELLED') { cancelled++ }
-      })
-    })
-
-    return { 
-      present, 
-      absent,
-      cancelled,
-      total, 
-      percentage: total === 0 ? 100 : Math.round((present / total) * 100) 
-    }
-  }, [attendance])
-
-  // Calculate overall stats
-  const getOverallStats = useCallback((subjects, timetable, examDates = EMPTY_EXAM_DATES) => {
-    let present = 0, absent = 0, cancelled = 0, total = 0
-    
-    subjects.forEach(subj => {
-      const stats = getSubjectStats(subj.id, timetable, examDates)
-      present += stats.present
-      absent += stats.absent
-      cancelled += stats.cancelled
-      total += stats.total
-    })
-
-    return {
-      present, absent, cancelled, total,
-      percentage: total === 0 ? 100 : Math.round((present / total) * 100)
-    }
-  }, [getSubjectStats])
-
-  const getMarginToThreshold = useCallback((present, total, threshold = ATTENDANCE_THRESHOLD) => {
-    // How many more classes can be missed while staying >= threshold
-    if (total === 0) return Infinity
-    // Solve: present / (total + x) >= threshold  →  x <= present/threshold - total
-    return Math.max(0, Math.floor(present / threshold - total))
-  }, [])
-
-  const getRecoveryPath = useCallback((present, total, threshold = ATTENDANCE_THRESHOLD) => {
-    // How many consecutive classes must be attended to reach threshold
-    if (total === 0) return 0
-    const currentPct = present / total
-    if (currentPct >= threshold) return 0
-    // Solve: (present + x) / (total + x) >= threshold  →  x >= (threshold*total - present) / (1 - threshold)
-    return Math.ceil((threshold * total - present) / (1 - threshold))
-  }, [])
-
-  const getStatusTier = useCallback((percentage) => {
-    if (percentage < ATTENDANCE_THRESHOLD * 100) return 'critical'
-    if (percentage < (ATTENDANCE_THRESHOLD + 0.1) * 100) return 'watch'
-    return 'safe'
-  }, [])
+  /** One traversal for every subject at once — prefer this in list views. */
+  const getAllStats = useCallback(
+    (subjects, timetable, examDates = EMPTY_EXAM_DATES) =>
+      computeAllStats(attendance, subjects, timetable, examDates),
+    [attendance])
 
   return useMemo(() => ({
     attendance, markAttendance, markDayAttendance, toggleHoliday, setNote, setSubstitute, setExamDayPresent,
-    getSubjectStats, getOverallStats, getMarginToThreshold, getRecoveryPath, getStatusTier
+    getSubjectStats, getOverallStats, getAllStats,
+    // Already stable module-level functions — no wrapper needed.
+    getMarginToThreshold: marginToThreshold,
+    getRecoveryPath: recoveryPath,
+    getStatusTier: statusTier,
   }), [attendance, markAttendance, markDayAttendance, toggleHoliday, setNote, setSubstitute, setExamDayPresent,
-      getSubjectStats, getOverallStats, getMarginToThreshold, getRecoveryPath, getStatusTier])
+    getSubjectStats, getOverallStats, getAllStats])
 }

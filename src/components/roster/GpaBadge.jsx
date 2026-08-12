@@ -70,11 +70,11 @@ export function GpaBadge({ label, hex, value, gradedCount, totalCount }) {
       style={{ border: '1px solid var(--cad-border)', background: 'var(--cad-bg-input)', overflow: 'hidden' }}
     >
       <div className="flex justify-between items-center mb-1">
-        <span style={{ fontSize: '8px', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--cad-text-lo)', fontFamily: 'var(--cad-font-mono)' }}>
+        <span className="cad-label" style={{ fontSize: 'var(--cad-fs-micro)' }}>
           {label}
         </span>
         {hex && (
-          <span className="hex-val" style={{ color: 'var(--cad-hex-color)', fontSize: '10px', fontFamily: 'var(--cad-font-mono)' }}>{hex}</span>
+          <span className="hex-val" style={{ color: 'var(--cad-hex-color)', fontSize: 'var(--cad-fs-micro)', fontFamily: 'var(--cad-font-mono)' }}>{hex}</span>
         )}
       </div>
 
@@ -88,21 +88,21 @@ export function GpaBadge({ label, hex, value, gradedCount, totalCount }) {
             >
               {displayValue}
             </span>
-            <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '9px', color: 'var(--cad-text-lo)' }}>/ 10.0</span>
+            <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-xs)', color: 'var(--cad-text-lo)' }}>/ 10.0</span>
             {rankLabel && (
-              <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '9px', color: 'var(--cad-text-mid)', marginLeft: 'auto' }}>
+              <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-xs)', color: 'var(--cad-text-mid)', marginLeft: 'auto' }}>
                 {rankLabel}
               </span>
             )}
           </div>
           {gradedCount !== undefined && (
-            <div style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '8px', color: 'var(--cad-text-lo)', marginTop: '4px' }}>
+            <div style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-micro)', color: 'var(--cad-text-lo)', marginTop: '4px' }}>
               {gradedCount}/{totalCount} GRADES RECORDED
             </div>
           )}
         </>
       ) : (
-        <div style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '10px', color: 'var(--cad-text-lo)' }}>
+        <div style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-xs)', color: 'var(--cad-text-lo)' }}>
           AWAITING GRADE INPUT
         </div>
       )}

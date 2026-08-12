@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { SUBJECT_COLORS, DAYS, GRID_START_HOUR, GRID_END_HOUR, pad2, parseTimeToMins } from '../../data/index.js'
+import { subjectVars, DAYS, GRID_START_HOUR, GRID_END_HOUR, pad2, parseTimeToMins } from '../../data/index.js'
 import { Modal } from '../ui/Modal.jsx'
 import { ConfirmDeleteButton } from '../ui/ConfirmDeleteButton.jsx'
 
@@ -64,7 +64,7 @@ export function TimetableModal({ mode, initialData, subjects, timetable, onSave,
 
   const previewSubj = subjects.find(s => String(s.id) === String(form.subjectId))
 
-  const labelStyle = { fontSize: '9px', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--cad-text-lo)', fontFamily: 'var(--cad-font-mono)', marginBottom: '4px' }
+  const labelStyle = { marginBottom: '4px' }
   const sectionStyle = { marginBottom: '12px' }
 
   return (
@@ -72,7 +72,7 @@ export function TimetableModal({ mode, initialData, subjects, timetable, onSave,
       <div>
         {/* Subject */}
         <div style={sectionStyle}>
-          <div style={labelStyle}>SUBJECT</div>
+          <div className="cad-label" style={labelStyle}>SUBJECT</div>
           <select
             value={form.subjectId ?? ''}
             onChange={e => {
@@ -82,7 +82,7 @@ export function TimetableModal({ mode, initialData, subjects, timetable, onSave,
             style={{
               width:       '100%',
               fontFamily:  'var(--cad-font-mono)',
-              fontSize:    '12px',
+              fontSize:    'var(--cad-fs-sm)',
               background:  'var(--cad-bg-input)',
               border:      '1px solid var(--cad-border)',
               color:       'var(--cad-accent-text)',
@@ -90,16 +90,15 @@ export function TimetableModal({ mode, initialData, subjects, timetable, onSave,
               borderRadius:'var(--cad-radius)',
             }}
           >
-            {subjects.map(s => {
-              const c = SUBJECT_COLORS[s.colorIdx % SUBJECT_COLORS.length]
-              return <option key={s.id} value={s.id} style={{ color: c.text }}>{s.name}</option>
-            })}
+            {subjects.map(s => (
+              <option key={s.id} value={s.id} style={{ ...subjectVars(s.colorIdx), color: 'var(--subj-text)' }}>{s.name}</option>
+            ))}
           </select>
         </div>
 
         {/* Day */}
         <div style={sectionStyle}>
-          <div style={labelStyle}>DAY</div>
+          <div className="cad-label" style={labelStyle}>DAY</div>
           <div className="flex gap-1">
             {DAYS.map(d => (
               <button
@@ -108,8 +107,8 @@ export function TimetableModal({ mode, initialData, subjects, timetable, onSave,
                 className="flex-1 py-1 btn-mech panel-chamfer-sm"
                 style={{
                   fontFamily:   'var(--cad-font-mono)',
-                  fontSize:     '9px',
-                  letterSpacing:'0.1em',
+                  fontSize:     'var(--cad-fs-xs)',
+                  letterSpacing:'var(--cad-track-mid)',
                   border:       form.day === d ? '1px solid var(--cad-accent)' : '1px solid var(--cad-border)',
                   color:        form.day === d ? 'var(--cad-accent-text)'      : 'var(--cad-text-mid)',
                   background:   form.day === d ? 'var(--cad-accent-dim)'       : 'transparent',
@@ -123,7 +122,7 @@ export function TimetableModal({ mode, initialData, subjects, timetable, onSave,
         {/* Start / End time */}
         <div className="grid grid-cols-2 gap-3" style={sectionStyle}>
           <div>
-            <div style={labelStyle}>START TIME</div>
+            <div className="cad-label" style={labelStyle}>START TIME</div>
             <input
               type="time"
               value={form.startTime}
@@ -133,7 +132,7 @@ export function TimetableModal({ mode, initialData, subjects, timetable, onSave,
               style={{
                 width:        '100%',
                 fontFamily:   'var(--cad-font-mono)',
-                fontSize:     '12px',
+                fontSize:     'var(--cad-fs-sm)',
                 color:        'var(--cad-accent-text)',
                 background:   'var(--cad-bg-input)',
                 border:       '1px solid var(--cad-border)',
@@ -143,7 +142,7 @@ export function TimetableModal({ mode, initialData, subjects, timetable, onSave,
             />
           </div>
           <div>
-            <div style={labelStyle}>END TIME</div>
+            <div className="cad-label" style={labelStyle}>END TIME</div>
             <input
               type="time"
               value={form.endTime}
@@ -153,7 +152,7 @@ export function TimetableModal({ mode, initialData, subjects, timetable, onSave,
               style={{
                 width:        '100%',
                 fontFamily:   'var(--cad-font-mono)',
-                fontSize:     '12px',
+                fontSize:     'var(--cad-fs-sm)',
                 color:        'var(--cad-accent-text)',
                 background:   'var(--cad-bg-input)',
                 border:       '1px solid var(--cad-border)',
@@ -167,7 +166,7 @@ export function TimetableModal({ mode, initialData, subjects, timetable, onSave,
         {/* Room - Conditional based on Settings */}
         {settings.showLocation && (
           <div style={sectionStyle}>
-            <div style={labelStyle}>ROOM / LOCATION</div>
+            <div className="cad-label" style={labelStyle}>ROOM / LOCATION</div>
             <input
               value={form.room}
               onChange={e => upd('room', e.target.value)}
@@ -175,12 +174,12 @@ export function TimetableModal({ mode, initialData, subjects, timetable, onSave,
               style={{
                 width:        '100%',
                 fontFamily:   'var(--cad-font-mono)',
-                fontSize:     '12px',
+                fontSize:     'var(--cad-fs-sm)',
                 color:        'var(--cad-accent-text)',
                 background:   'var(--cad-bg-input)',
                 border:       '1px solid var(--cad-border)',
                 padding:      '6px 8px',
-                letterSpacing:'0.1em',
+                letterSpacing:'var(--cad-track-mid)',
                 borderRadius: 'var(--cad-radius)',
               }}
               onFocus={e => { e.currentTarget.style.borderColor = 'var(--cad-accent)' }}
@@ -194,12 +193,12 @@ export function TimetableModal({ mode, initialData, subjects, timetable, onSave,
           <div
             style={{
               fontFamily:   'var(--cad-font-mono)',
-              fontSize:     '9px',
+              fontSize:     'var(--cad-fs-xs)',
               color:        'var(--cad-text-mid)',
               border:       '1px solid var(--cad-border)',
               padding:      '6px 8px',
               background:   'var(--cad-bg-input)',
-              letterSpacing:'0.1em',
+              letterSpacing:'var(--cad-track-mid)',
               marginBottom: '12px',
               borderRadius: 'var(--cad-radius)',
             }}
@@ -213,12 +212,12 @@ export function TimetableModal({ mode, initialData, subjects, timetable, onSave,
           <div
             style={{
               fontFamily:  'var(--cad-font-mono)',
-              fontSize:    '9px',
+              fontSize:    'var(--cad-fs-xs)',
               color:       'var(--cad-danger)',
               border:      '1px solid var(--cad-danger)',
               background:  'var(--cad-danger-dim)',
               padding:     '6px 8px',
-              letterSpacing:'0.1em',
+              letterSpacing:'var(--cad-track-mid)',
               marginBottom:'12px',
               borderRadius:'var(--cad-radius)',
             }}
@@ -232,8 +231,8 @@ export function TimetableModal({ mode, initialData, subjects, timetable, onSave,
             className="flex-1 py-1.5 btn-mech panel-chamfer-sm"
             style={{
               fontFamily:   'var(--cad-font-mono)',
-              fontSize:     '10px',
-              letterSpacing:'0.15em',
+              fontSize:     'var(--cad-fs-micro)',
+              letterSpacing:'var(--cad-track-wide)',
               border:       '1px solid var(--cad-accent)',
               color:        'var(--cad-accent-text)',
               background:   'var(--cad-accent-dim)',
@@ -250,8 +249,8 @@ export function TimetableModal({ mode, initialData, subjects, timetable, onSave,
             className="px-3 py-1.5 btn-mech panel-chamfer-sm"
             style={{
               fontFamily:   'var(--cad-font-mono)',
-              fontSize:     '10px',
-              letterSpacing:'0.15em',
+              fontSize:     'var(--cad-fs-micro)',
+              letterSpacing:'var(--cad-track-wide)',
               border:       '1px solid var(--cad-border)',
               color:        'var(--cad-text-mid)',
               background:   'transparent',

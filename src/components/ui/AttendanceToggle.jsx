@@ -1,5 +1,3 @@
-import React from 'react'
-
 const QUICK_MARK_TYPES = ['PRESENT', 'ABSENT', 'CANCELLED']
 
 /**
@@ -17,7 +15,7 @@ export function AttendanceToggle({ dateStr, entryId, activeStatus, onMark, size 
         let colorVar = '--cad-text-mid'
         let bg = 'transparent'
         if (isActive) {
-          if (type === 'PRESENT') { colorVar = '--cad-success'; bg = 'rgba(80,255,80,0.1)' }
+          if (type === 'PRESENT') { colorVar = '--cad-success'; bg = 'color-mix(in srgb, var(--cad-success) 12%, transparent)' }
           else if (type === 'ABSENT') { colorVar = '--cad-danger'; bg = 'var(--cad-danger-dim)' }
           else { colorVar = '--cad-text-lo'; bg = 'var(--cad-bg-primary)' }
         }
@@ -25,36 +23,26 @@ export function AttendanceToggle({ dateStr, entryId, activeStatus, onMark, size 
         return (
           <button
             key={type}
-            className={large ? 'panel-chamfer-sm' : undefined}
+            type="button"
+            aria-pressed={isActive}
+            className={`cad-toggle btn-mech ${large ? 'panel-chamfer-sm' : ''}`}
+            data-active={isActive || undefined}
             onClick={(e) => {
               e.stopPropagation()
               onMark(dateStr, entryId, isActive ? null : type)
             }}
             style={{
               fontFamily: 'var(--cad-font-mono)',
-              fontSize: large ? '10px' : '8px',
-              letterSpacing: '0.1em',
+              fontSize: large ? 'var(--cad-fs-xs)' : 'var(--cad-fs-micro)',
+              letterSpacing: 'var(--cad-track-mid)',
               flex: large ? 1 : undefined,
-              padding: large ? '6px 8px' : '4px 6px',
+              padding: large ? '6px 8px' : '2px 4px',
               borderRadius: large ? 'var(--cad-radius)' : '2px',
               border: isActive ? `1px solid var(${colorVar})` : (large ? '1px solid var(--cad-border)' : '1px solid var(--cad-border-dim)'),
               color: isActive ? `var(${colorVar})` : (large ? 'var(--cad-text-mid)' : 'var(--cad-text-lo)'),
               background: bg,
               textAlign: 'center',
-              cursor: 'pointer',
               transition: 'background 0.15s, border-color 0.15s, color 0.15s',
-            }}
-            onMouseEnter={e => {
-              if (!isActive) {
-                e.currentTarget.style.border = '1px solid var(--cad-border)'
-                e.currentTarget.style.color = 'var(--cad-text-hi)'
-              }
-            }}
-            onMouseLeave={e => {
-              if (!isActive) {
-                e.currentTarget.style.border = large ? '1px solid var(--cad-border)' : '1px solid var(--cad-border-dim)'
-                e.currentTarget.style.color = large ? 'var(--cad-text-mid)' : 'var(--cad-text-lo)'
-              }
             }}
           >
             {type}

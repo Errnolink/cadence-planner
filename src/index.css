@@ -10,6 +10,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;700&family=Bebas+Neue&display=swap');
 
 /* Import all theme token + style files */
+@import './themes/_subjects.css';
 @import './themes/nerv/tokens.css';
 @import './themes/nerv/styles.css';
 @import './themes/minimal/tokens.css';
@@ -23,6 +24,141 @@
   box-sizing: border-box;
   margin:     0;
   padding:    0;
+}
+
+/* ─── Type scale ──────────────────────────────────────────────────
+   Theme-independent. Sizes used to be written inline at 6-9px across
+   174 sites; routing them through tokens makes legibility a one-file
+   change (and makes a future compact mode a class toggle).
+   ──────────────────────────────────────────────────────────────── */
+:root {
+  --cad-fs-micro:   10px;
+  --cad-fs-xs:      11px;
+  --cad-fs-sm:      12px;
+  --cad-fs-md:      14px;
+  --cad-fs-lg:      20px;
+  --cad-fs-xl:      32px;
+  --cad-fs-hero:    48px;
+  --cad-track-wide: 0.15em;
+  --cad-track-mid:  0.10em;
+}
+
+/* Opt-in density for anyone who wants the original tighter reading */
+:root[data-density="compact"] {
+  --cad-fs-micro:   8px;
+  --cad-fs-xs:      9px;
+  --cad-fs-sm:      11px;
+  --cad-fs-md:      12px;
+}
+
+/* ─── Shared text/control vocabulary ─────────────────────────────── */
+.cad-label {
+  font-family:    var(--cad-font-mono);
+  font-size:      var(--cad-fs-xs);
+  letter-spacing: var(--cad-track-wide);
+  text-transform: uppercase;
+  color:          var(--cad-text-lo);
+}
+.cad-value {
+  font-family: var(--cad-font-mono);
+  font-size:   var(--cad-fs-sm);
+  color:       var(--cad-text-hi);
+}
+.cad-input {
+  width:         100%;
+  font-family:   var(--cad-font-mono);
+  font-size:     var(--cad-fs-sm);
+  color:         var(--cad-text-hi);
+  background:    var(--cad-bg-input);
+  border:        1px solid var(--cad-border);
+  padding:       6px 8px;
+  border-radius: var(--cad-radius);
+}
+.cad-input:focus { border-color: var(--cad-accent); }
+
+/* Chip / segmented control. Replaces five copies of the same
+   active-state border/color/background ternary. */
+.cad-chip {
+  font-family:    var(--cad-font-mono);
+  font-size:      var(--cad-fs-micro);
+  letter-spacing: var(--cad-track-wide);
+  text-transform: uppercase;
+  padding:        2px 8px;
+  border:         1px solid var(--cad-border);
+  color:          var(--cad-text-lo);
+  background:     transparent;
+  border-radius:  var(--cad-radius);
+}
+.cad-chip[data-active] {
+  border-color: var(--cad-accent);
+  color:        var(--cad-accent-text);
+  background:   var(--cad-accent-dim);
+}
+@media (hover: hover) and (pointer: fine) {
+  .cad-chip:hover:not([data-active]) { color: var(--cad-text-hi); border-color: var(--cad-text-mid); }
+}
+
+/* ─── SHARED INTERACTION RULES (theme-independent) ────────────────
+   These are hover/focus states that used to be onMouseEnter/onMouseLeave
+   handlers mutating e.currentTarget.style — including two that built a
+   fresh MediaQueryList on every mouse event of every timetable block.
+   CSS does this natively, doesn't fire on touch, and doesn't fight React
+   for ownership of the DOM.
+   ──────────────────────────────────────────────────────────────── */
+
+/* Timetable block. --subj-border comes from subjectVars() on the element. */
+.tt-block {
+  --tt-edge: color-mix(in srgb, var(--subj-border, currentColor) 14%, transparent);
+  --tt-glow: color-mix(in srgb, var(--subj-border, currentColor) 25%, transparent);
+  transition: transform 0.18s ease-out, box-shadow 0.18s ease-out, opacity 0.3s;
+}
+.tt-block-action {
+  background: none;
+  border: 0;
+  padding: 4px 6px;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+}
+@media (hover: hover) and (pointer: fine) {
+  .tt-block:not([data-holiday]):hover {
+    transform: translateY(-1px);
+    box-shadow: inset 0 0 0 1px var(--tt-edge), 0 4px 12px var(--tt-glow);
+  }
+}
+
+/* Close / remove affordances: neutral, danger on hover. */
+.cad-x {
+  color: var(--cad-text-lo);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--cad-font-mono);
+  transition: color 0.12s;
+}
+@media (hover: hover) and (pointer: fine) {
+  .cad-x:hover { color: var(--cad-danger); }
+}
+
+/* Ghost row / menu item that tints on hover. */
+.cad-hover-row { transition: background 0.12s; }
+@media (hover: hover) and (pointer: fine) {
+  .cad-hover-row:hover { background: var(--cad-accent-dim); }
+  .cad-hover-accent:hover { color: var(--cad-accent); }
+  .cad-hover-cell:not([data-today]):hover { background: var(--cad-bg-elevated); }
+  .cad-hover-success:hover { background: color-mix(in srgb, var(--cad-success) 12%, transparent); }
+  .cad-hover-danger:hover  { background: color-mix(in srgb, var(--cad-danger)  12%, transparent); }
+  .cad-toggle:not([data-active]):hover { border-color: var(--cad-border); color: var(--cad-text-hi); }
+}
+
+/* Inline field underline — replaces onFocus/onBlur border mutation. */
+.cad-underline:focus { border-bottom-color: var(--cad-accent) !important; }
+
+/* Screen-reader-only text — for glyphs that carry real meaning */
+.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
 }
 
 html, body, #root {

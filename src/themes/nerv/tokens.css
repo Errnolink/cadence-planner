@@ -16,11 +16,18 @@
   --cad-accent-mid:   #332b21;
   --cad-accent-glow:  rgba(255, 152, 48, 0.30);
 
-  /* Text */
+  /* Text — every tier clears WCAG AA (4.5:1) on --cad-bg-elevated (#1a1612),
+     the darkest surface any of them is painted on. The old --cad-text-xlo
+     (#6b5f4b) measured 2.88:1 there and 3.26:1 on --cad-bg-primary while
+     carrying real content (exam section counts, calendar weekday heads).
+     Verified by scripts/check-contrast.mjs.
+       mid 5.35:1 · lo 4.98:1 · xlo 4.53:1  (on bg-elevated)
+     The tiers are necessarily close together: AA on #1a1612 sets a floor the
+     scale has to sit above, so "quieter" now means a few percent, not half. */
   --cad-text-hi:      #E8E8DF;
   --cad-text-mid:     #9A8A70;
-  --cad-text-lo:      #8a7a5c;
-  --cad-text-xlo:     #6b5f4b;
+  --cad-text-lo:      #948567;
+  --cad-text-xlo:     #8d7e60;
 
   /* Borders */
   --cad-border:       #332b21;
@@ -34,7 +41,7 @@
   --cad-warn:         #FF9830;
 
   /* Hex label */
-  --cad-hex-color:    #8a7a5c;
+  --cad-hex-color:    #948567;
 
   /* Typography */
   --cad-font-ui:      'Bebas Neue', sans-serif;

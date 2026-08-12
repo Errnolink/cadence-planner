@@ -125,7 +125,12 @@ export const API = {
             // Strip JSON quotes from legacy rows pushed by the pre-fix client
             localStorage.setItem(storageKey, String(value).replace(/^"|"$/g, ''));
           } else if (pk === 'active_sem_id') {
-            localStorage.setItem(storageKey, JSON.stringify(Number(value)));
+            // Legacy rows stored the id as a numeric string; keep coercing
+            // those, but never coerce an opaque id (semesters created after
+            // the UUID switch) — Number('4f3a…') is NaN and would wipe it.
+            const n = Number(value);
+            const normalized = Number.isFinite(n) && String(n) === String(value) ? n : value;
+            localStorage.setItem(storageKey, JSON.stringify(normalized));
           } else {
             localStorage.setItem(storageKey, JSON.stringify(value));
           }
@@ -343,15 +348,23 @@ export const API = {
       themeId: API.get(KEYS.THEME, 'nerv')
     }
   },
-  importAllData: (data) => {
+  importAllData: async (data) => {
     if (!data || typeof data !== 'object') throw new Error('Invalid data format')
     if (data.version !== 1) throw new Error('Unsupported backup version')
 
     // Validate semesters structure
     if (data.semesters !== undefined) {
       if (!Array.isArray(data.semesters)) throw new Error('Semesters must be an array')
+      const seenIds = new Set()
       data.semesters.forEach((sem, i) => {
         if (typeof sem !== 'object' || sem === null) throw new Error(`Invalid semester at index ${i}`)
+        // A missing or duplicated id makes every String(s.id) comparison in
+        // the app ambiguous — reject it here rather than debug it later.
+        if (sem.id === undefined || sem.id === null || sem.id === '') throw new Error(`Semester ${i} has no id`)
+        const key = String(sem.id)
+        if (key === 'NaN') throw new Error(`Semester ${i} has an invalid id`)
+        if (seenIds.has(key)) throw new Error(`Duplicate semester id "${key}"`)
+        seenIds.add(key)
         if (sem.subjects !== undefined && !Array.isArray(sem.subjects)) throw new Error(`Invalid subjects in semester ${i}`)
         if (sem.timetable !== undefined && !Array.isArray(sem.timetable)) throw new Error(`Invalid timetable in semester ${i}`)
       })
@@ -383,6 +396,13 @@ export const API = {
     if (data.attendance !== undefined) API.saveAttendance(data.attendance)
     if (data.customThemes !== undefined) API.saveCustomThemes(data.customThemes)
     if (data.themeId !== undefined) API.set(KEYS.THEME, data.themeId)
+
+    // Each save above only ARMS the 2s debounced push. Callers reload right
+    // after a restore, which destroys the timer — so the restored data would
+    // live on this device only, and the next sync from another device would
+    // resolve the merge in favour of the stale server row and undo it.
+    // Flush synchronously instead.
+    if (API.userId) await API.syncToServer()
   },
   clearLocalData: () => {
     Object.values(KEYS).forEach(k => localStorage.removeItem(k))

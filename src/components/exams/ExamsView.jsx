@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
-import { SUBJECT_COLORS, toDateStr, daysUntil } from '../../data/index.js'
+import { subjectVars, toDateStr, daysUntil } from '../../data/index.js'
+import { useNow } from '../../hooks/useNow.js'
 import { ExamModal } from './ExamModal.jsx'
 
 /**
@@ -17,7 +18,10 @@ export function ExamsView({ exams = [], subjects = [], editMode, onAdd, onUpdate
   }, [subjects])
 
   const sorted = useMemo(() => [...exams].sort((a, b) => a.date.localeCompare(b.date)), [exams])
-  const todayStr = toDateStr(new Date())
+  // Ticks on a timer, so the UPCOMING/COMPLETED split and the countdowns
+  // don't freeze at mount and go stale past midnight.
+  const now = useNow()
+  const todayStr = toDateStr(now)
   const upcoming = sorted.filter(e => e.date >= todayStr)
   const completed = sorted.filter(e => e.date < todayStr)
 
@@ -32,9 +36,10 @@ export function ExamsView({ exams = [], subjects = [], editMode, onAdd, onUpdate
 
   const renderExam = (exam) => {
     const subj = subjectMap[exam.subjectId]
-    const color = subj
-      ? SUBJECT_COLORS[subj.colorIdx % SUBJECT_COLORS.length]
-      : { border: 'var(--cad-border)', text: 'var(--cad-text-mid)' }
+    // Subject accents come from theme tokens now — see data/colors.js.
+    const accent = subj
+      ? subjectVars(subj.colorIdx)
+      : { '--subj-border': 'var(--cad-border)', '--subj-text': 'var(--cad-text-mid)' }
     const d = daysUntil(exam.date)
     return (
       <div
@@ -42,8 +47,9 @@ export function ExamsView({ exams = [], subjects = [], editMode, onAdd, onUpdate
         onClick={() => editMode && setModal({ mode: 'edit', exam })}
         className="p-2.5 btn-mech"
         style={{
+          ...accent,
           border: '1px solid var(--cad-border-dim)',
-          borderLeft: `3px solid ${color.border}`,
+          borderLeft: '3px solid var(--subj-border)',
           borderRadius: '0 var(--cad-radius) var(--cad-radius) 0',
           background: 'var(--cad-bg-elevated)',
           textAlign: 'left',
@@ -51,17 +57,17 @@ export function ExamsView({ exams = [], subjects = [], editMode, onAdd, onUpdate
       >
         <div className="flex justify-between items-start gap-2">
           <div className="min-w-0">
-            <div style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '11px', color: color.text, fontWeight: 'bold' }}>
+            <div style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-xs)', color: 'var(--subj-text)', fontWeight: 'bold' }}>
               {subj?.name || 'UNKNOWN SUBJECT'}
             </div>
-            <div style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '8px', color: 'var(--cad-text-lo)', marginTop: '2px' }}>
+            <div style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-micro)', color: 'var(--cad-text-lo)', marginTop: '2px' }}>
               {exam.date} ∥ {exam.startTime}–{exam.endTime}{exam.room ? ` ∥ ${exam.room}` : ''}
             </div>
           </div>
           <span
             className="shrink-0 px-1.5 py-0.5"
             style={{
-              fontFamily: 'var(--cad-font-mono)', fontSize: '8px', letterSpacing: '0.1em',
+              fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-micro)', letterSpacing: 'var(--cad-track-mid)',
               color: d === 0 ? 'var(--cad-danger)' : d >= 0 ? 'var(--cad-accent)' : 'var(--cad-text-lo)',
               border: `1px solid ${d >= 0 ? 'var(--cad-accent)' : 'var(--cad-border)'}`,
               borderRadius: 'var(--cad-radius)',
@@ -71,7 +77,7 @@ export function ExamsView({ exams = [], subjects = [], editMode, onAdd, onUpdate
           </span>
         </div>
         {exam.notes && (
-          <div style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '8px', color: 'var(--cad-text-mid)', marginTop: '6px', opacity: 0.85 }}>
+          <div style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-micro)', color: 'var(--cad-text-mid)', marginTop: '6px', opacity: 0.85 }}>
             📝 {exam.notes}
           </div>
         )}
@@ -81,11 +87,11 @@ export function ExamsView({ exams = [], subjects = [], editMode, onAdd, onUpdate
 
   const renderSection = (title, list, emptyText) => (
     <>
-      <div style={{ fontSize: '10px', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--cad-text-lo)', fontFamily: 'var(--cad-font-mono)', marginBottom: '8px' }}>
+      <div className="cad-label" style={{ marginBottom: '8px' }}>
         {title} <span style={{ color: 'var(--cad-text-xlo)' }}>({list.length})</span>
       </div>
       {list.length === 0 ? (
-        <div style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '9px', color: 'var(--cad-text-lo)', padding: '12px 0', textAlign: 'center' }}>{emptyText}</div>
+        <div style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-xs)', color: 'var(--cad-text-lo)', padding: '12px 0', textAlign: 'center' }}>{emptyText}</div>
       ) : (
         <div className="flex flex-col gap-2">{list.map(renderExam)}</div>
       )}
@@ -95,14 +101,14 @@ export function ExamsView({ exams = [], subjects = [], editMode, onAdd, onUpdate
   return (
     <div className="flex flex-col h-full overflow-y-auto p-2 min-h-0">
       <div className="flex items-center justify-between mb-3 shrink-0">
-        <div style={{ fontSize: '10px', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--cad-text-lo)', fontFamily: 'var(--cad-font-mono)' }}>
+        <div className="cad-label">
           EXAM SCHEDULE ∷ {todayStr}
         </div>
         {editMode && (
           <button
             onClick={() => setModal({ mode: 'add' })}
             className="px-2 py-1 btn-mech panel-chamfer-sm"
-            style={{ border: '1px solid var(--cad-accent)', background: 'var(--cad-accent-dim)', color: 'var(--cad-accent-text)', fontFamily: 'var(--cad-font-mono)', fontSize: '9px', letterSpacing: '0.15em', borderRadius: 'var(--cad-radius)' }}
+            style={{ border: '1px solid var(--cad-accent)', background: 'var(--cad-accent-dim)', color: 'var(--cad-accent-text)', fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-xs)', letterSpacing: 'var(--cad-track-wide)', borderRadius: 'var(--cad-radius)' }}
           >＋ ADD EXAM</button>
         )}
       </div>
@@ -117,6 +123,7 @@ export function ExamsView({ exams = [], subjects = [], editMode, onAdd, onUpdate
           mode={modal.mode}
           initial={modal.exam}
           subjects={subjects}
+          exams={exams}
           onSave={(exam) => {
             if (modal.mode === 'add') onAdd(exam)
             else onUpdate(exam)

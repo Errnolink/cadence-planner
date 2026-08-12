@@ -1,16 +1,49 @@
-// Subject color palettes — theme-agnostic (border/bg/text are always explicit colors
-// so the timetable blocks stay vibrant regardless of the active UI theme)
+// Subject color palette.
+//
+// The actual colour VALUES live in src/themes/_subjects.css as
+// --subj-N-{bg,border,text} custom properties, so each theme can pick shades
+// that are legible on its own surfaces. (The old hard-coded dark palette
+// measured 1.17:1 – 2.16:1 on the minimal light theme — all twelve failed AA.)
+//
+// This module keeps the names (for the ColorPicker) and the palette size,
+// and exposes subjectVars() to bind a colorIdx to the theme's tokens.
+
 export const SUBJECT_COLORS = [
-  { id: 0,  name: 'ORANGE', bg: 'rgba(249,115,22,0.22)',  border: '#f97316', text: '#fb923c' },
-  { id: 1,  name: 'RED',    bg: 'rgba(239,68,68,0.22)',   border: '#ef4444', text: '#f87171' },
-  { id: 2,  name: 'GREEN',  bg: 'rgba(34,197,94,0.22)',   border: '#22c55e', text: '#4ade80' },
-  { id: 3,  name: 'BLUE',   bg: 'rgba(59,130,246,0.22)',  border: '#3b82f6', text: '#60a5fa' },
-  { id: 4,  name: 'AMBER',  bg: 'rgba(245,158,11,0.22)',  border: '#f59e0b', text: '#fcd34d' },
-  { id: 5,  name: 'TEAL',   bg: 'rgba(20,184,166,0.22)',  border: '#14b8a6', text: '#2dd4bf' },
-  { id: 6,  name: 'PINK',   bg: 'rgba(236,72,153,0.22)',  border: '#ec4899', text: '#f472b6' },
-  { id: 7,  name: 'PURPLE', bg: 'rgba(168,85,247,0.22)',  border: '#a855f7', text: '#c084fc' },
-  { id: 8,  name: 'INDIGO', bg: 'rgba(99,102,241,0.24)',  border: '#6366f1', text: '#818cf8' },
-  { id: 9,  name: 'CYAN',   bg: 'rgba(6,182,212,0.22)',   border: '#06b6d4', text: '#22d3ee' },
-  { id: 10, name: 'LIME',   bg: 'rgba(132,204,22,0.22)',  border: '#84cc16', text: '#a3e635' },
-  { id: 11, name: 'ROSE',   bg: 'rgba(244,63,94,0.22)',   border: '#f43f5e', text: '#fb7185' },
+  { id: 0,  name: 'ORANGE' },
+  { id: 1,  name: 'RED'    },
+  { id: 2,  name: 'GREEN'  },
+  { id: 3,  name: 'BLUE'   },
+  { id: 4,  name: 'AMBER'  },
+  { id: 5,  name: 'TEAL'   },
+  { id: 6,  name: 'PINK'   },
+  { id: 7,  name: 'PURPLE' },
+  { id: 8,  name: 'INDIGO' },
+  { id: 9,  name: 'CYAN'   },
+  { id: 10, name: 'LIME'   },
+  { id: 11, name: 'ROSE'   },
 ]
+
+/** Normalize any colorIdx (incl. negative / out-of-range) into 0..11 */
+export const subjectIdx = (colorIdx) => {
+  const n = Number(colorIdx)
+  if (!Number.isFinite(n)) return 0
+  return ((Math.trunc(n) % SUBJECT_COLORS.length) + SUBJECT_COLORS.length) % SUBJECT_COLORS.length
+}
+
+/**
+ * Style fragment binding one subject's accent to the active theme.
+ * Spread into a style prop, then reference var(--subj-text|bg|border) inside.
+ *
+ *   <div style={{ ...subjectVars(s.colorIdx), color: 'var(--subj-text)' }}>
+ */
+export const subjectVars = (colorIdx) => {
+  const i = subjectIdx(colorIdx)
+  return {
+    '--subj-bg':     `var(--subj-${i}-bg)`,
+    '--subj-border': `var(--subj-${i}-border)`,
+    '--subj-text':   `var(--subj-${i}-text)`,
+  }
+}
+
+/** Raw token references, for the rare spot that needs one channel only. */
+export const subjectVar = (colorIdx, channel) => `var(--subj-${subjectIdx(colorIdx)}-${channel})`

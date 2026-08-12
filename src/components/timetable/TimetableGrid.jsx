@@ -1,35 +1,67 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
-import { SUBJECT_COLORS, DAYS, MONTH_NAMES, GRID_START_HOUR, GRID_END_HOUR, pad2, getTodayDayIdx, parseTimeToMins, generateSubjectCode, isSecondOrFourthSaturday } from '../../data/index.js'
+import { DAYS, MONTH_NAMES, GRID_START_HOUR, GRID_END_HOUR, pad2, parseTimeToMins, generateSubjectCode, subjectVars, subjectVar } from '../../data/index.js'
+import { dateStrFromParts, getDayMeta } from '../../data/calendar.js'
 import { DayDetailModal } from '../calendar/DayDetailModal.jsx'
 import { useSettings } from '../../hooks/useSettings.jsx'
+import { useNow } from '../../hooks/useNow.js'
 import { AttendanceToggle } from '../ui/AttendanceToggle.jsx'
 
 
-const TOTAL_MINS = (GRID_END_HOUR - GRID_START_HOUR) * 60
-const TICK_HOURS = Array.from({ length: GRID_END_HOUR - GRID_START_HOUR + 1 }, (_, i) => GRID_START_HOUR + i)
-const DAY_MIN_W  = 80  // px — min width per day column on mobile
+const DAY_MIN_W = 80   // px — min width per day column on mobile
+const HOUR_PX   = 60   // px — vertical scale, so the scroller is only as tall as the window shown
+const TIME_COL_W = 44  // px
 
-function pct(timeStr) {
-  const offset = parseTimeToMins(timeStr) - GRID_START_HOUR * 60
-  return `${Math.max(0, Math.min(100, (offset / TOTAL_MINS) * 100))}%`
-}
-function pctH(start, end) {
-  const s = Math.max(parseTimeToMins(start) - GRID_START_HOUR * 60, 0)
-  const e = Math.min(parseTimeToMins(end)   - GRID_START_HOUR * 60, TOTAL_MINS)
-  return `${Math.max(0, ((e - s) / TOTAL_MINS) * 100)}%`
+/** Visible hour window derived from the data, clamped to the hard grid bounds. */
+function visibleWindow(timetable, exams) {
+  const times = [...timetable, ...exams].flatMap(x => [parseTimeToMins(x.startTime), parseTimeToMins(x.endTime)])
+    .filter(n => Number.isFinite(n) && n > 0)
+  if (!times.length) return [8, 18]
+  const start = Math.max(GRID_START_HOUR, Math.floor(Math.min(...times) / 60) - 1)
+  const end   = Math.min(GRID_END_HOUR,   Math.ceil(Math.max(...times) / 60) + 1)
+  return [start, Math.max(end, start + 1)]
 }
 
 export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBlockClick, onInstanceClick, attendanceHook, examDates, exams = [] }) {
   const { settings } = useSettings()
-  const todayIdx = getTodayDayIdx()
+  // Ticks once a minute (plus on tab focus) so "today", the now-line and the
+  // today column stop freezing at mount — leaving the tab open past midnight
+  // used to leave all three a day stale.
+  const now = useNow()
+  const todayIdx = useMemo(() => { const d = now.getDay(); return d === 0 ? 6 : d - 1 }, [now])
+
   const [weekOffset, setWeekOffset] = useState(0)
   const [showTodayOnly, setShowTodayOnly] = useState(false)
+  const [fullDay, setFullDay] = useState(false)
+  const [activeDayDetail, setActiveDayDetail] = useState(null)  // 'YYYY-MM-DD'
+
   const baseDate = useMemo(() => {
-    const d = new Date()
+    const d = new Date(now.getTime())
     d.setDate(d.getDate() + weekOffset * 7)
     return d
-  }, [weekOffset])
-  const [activeDayDetail, setActiveDayDetail] = useState(null)
+  }, [now, weekOffset])
+
+  // ─── Visible time window (P4/U2) ──────────────────────────────
+  // 00:00–24:00 rendered 175 absolutely-positioned lines in a 1440px scroller
+  // for classes that occupy ~08:00–18:00. GRID_START/END_HOUR stay the hard
+  // validation clamp; the grid only paints the hours that have something in them.
+  const [dataStart, dataEnd] = useMemo(() => visibleWindow(timetable, exams), [timetable, exams])
+  const gridStart = fullDay ? GRID_START_HOUR : dataStart
+  const gridEnd   = fullDay ? GRID_END_HOUR   : dataEnd
+  const totalMins = (gridEnd - gridStart) * 60
+  const tickHours = useMemo(
+    () => Array.from({ length: gridEnd - gridStart + 1 }, (_, i) => gridStart + i),
+    [gridStart, gridEnd]
+  )
+
+  const pct  = useCallback((timeStr) => {
+    const offset = parseTimeToMins(timeStr) - gridStart * 60
+    return `${Math.max(0, Math.min(100, (offset / totalMins) * 100))}%`
+  }, [gridStart, totalMins])
+  const pctH = useCallback((start, end) => {
+    const s = Math.max(parseTimeToMins(start) - gridStart * 60, 0)
+    const e = Math.min(parseTimeToMins(end)   - gridStart * 60, totalMins)
+    return `${Math.max(0, ((e - s) / totalMins) * 100)}%`
+  }, [gridStart, totalMins])
 
   const weekRangeStr = useMemo(() => {
     const monday = new Date(baseDate.getTime())
@@ -71,93 +103,98 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
     if (!editMode || !onCellClick) return
     const rect = e.currentTarget.getBoundingClientRect()
     const y = e.clientY - rect.top
-    const pct = Math.max(0, Math.min(1, y / rect.height))
-    const mins = GRID_START_HOUR * 60 + pct * TOTAL_MINS
-    
+    const frac = Math.max(0, Math.min(1, y / rect.height))
+    const mins = gridStart * 60 + frac * totalMins
+
     // Snap to nearest 30 mins
     const snappedMins = Math.floor(mins / 30) * 30
-    const startH = Math.floor(snappedMins / 60)
-    const startM = snappedMins % 60
-    
     const endMins = Math.min(GRID_END_HOUR * 60, snappedMins + 60)
-    const endH = Math.floor(endMins / 60)
-    const endM = endMins % 60
-    
-    const startTime = `${pad2(startH)}:${pad2(startM)}`
-    const endTime = `${pad2(endH)}:${pad2(endM)}`
-    
-    onCellClick(day, startTime, endTime)
-  }, [editMode, onCellClick])
+
+    onCellClick(day,
+      `${pad2(Math.floor(snappedMins / 60))}:${pad2(snappedMins % 60)}`,
+      `${pad2(Math.floor(endMins / 60))}:${pad2(endMins % 60)}`)
+  }, [editMode, onCellClick, gridStart, totalMins])
+
+  // Keyboard-reachable equivalent of the click-position-to-time affordance.
+  const addHour = Math.min(Math.max(gridStart, 9), gridEnd - 1)
+  const handleHeaderAdd = useCallback((day) => {
+    onCellClick?.(day, `${pad2(addHour)}:00`, `${pad2(addHour + 1)}:00`)
+  }, [onCellClick, addHour])
 
   const scrollRef = useRef(null)
 
-  // Auto-scroll to current time on mount
+  // Auto-scroll to the current time — on mount AND whenever the week or the
+  // visible window changes (it used to persist wherever you left it).
+  // Deliberately not keyed on `now`: re-scrolling every minute would fight the user.
   useEffect(() => {
     const el = scrollRef.current
     if (!el) return
-    const now = new Date(baseDate.getTime())
-    const nowMins = now.getHours() * 60 + now.getMinutes()
-    const offset = (nowMins - GRID_START_HOUR * 60) / TOTAL_MINS
+    const clock = new Date()
+    const nowMins = clock.getHours() * 60 + clock.getMinutes()
+    const offset = (nowMins - gridStart * 60) / totalMins
     // Position "now" at ~1/3 from top of visible area
     const scrollTarget = offset * el.scrollHeight - el.clientHeight / 3
     el.scrollTo({ top: Math.max(0, scrollTarget), behavior: 'smooth' })
-  }, [baseDate])
+  }, [weekOffset, gridStart, totalMins])
 
   const displayDays = showTodayOnly && weekOffset === 0 ? [DAYS[todayIdx]] : DAYS
-  const TIME_COL_W = 44 // px
+
+  /** Date + holiday/exam facts for a column, from the one shared source. */
+  const dayMetaFor = useCallback((day) => {
+    const d = new Date(baseDate.getTime())
+    d.setDate(d.getDate() + (DAYS.indexOf(day) - todayIdx))
+    const dateStr = dateStrFromParts(d.getFullYear(), d.getMonth(), d.getDate())
+    return { d, dateStr, meta: getDayMeta(dateStr, { settings, attendance: attendanceHook?.attendance, examDates }) }
+  }, [baseDate, todayIdx, settings, attendanceHook?.attendance, examDates])
+
+  const isEmpty = timetable.length === 0 && exams.length === 0
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      {/* Top Bar: Edit Hint + Today Toggle */}
-      <div className="flex items-center justify-between shrink-0 mb-1">
-        {editMode ? (
-          <div
-            className="text-[9px] tracking-wider blink"
-            style={{ fontFamily: 'var(--cad-font-mono)', color: 'var(--cad-accent)', opacity: 0.6 }}
-          >
-            ✎ CLICK EMPTY COLUMN TO ADD · CLICK BLOCK TO EDIT
-          </div>
-        ) : (
-          <div
-            className="text-[9px] tracking-wider"
-            style={{ fontFamily: 'var(--cad-font-mono)', color: 'var(--cad-text-mid)', opacity: 0.8 }}
-          >
-            ▸ CLICK BLOCK TO MARK ATTENDANCE
-          </div>
-        )}
-        
+      {/* Top Bar: Edit Hint + View Filters */}
+      <div className="flex items-center justify-between shrink-0 mb-1 gap-2">
+        <div
+          className={editMode ? 'blink' : undefined}
+          style={{
+            fontFamily: 'var(--cad-font-mono)',
+            fontSize: 'var(--cad-fs-micro)',
+            letterSpacing: 'var(--cad-track-mid)',
+            color: editMode ? 'var(--cad-accent)' : 'var(--cad-text-mid)',
+          }}
+        >
+          {editMode
+            ? <><span aria-hidden="true">✎ </span>CLICK EMPTY COLUMN OR + ADD · CLICK BLOCK TO EDIT</>
+            : <><span aria-hidden="true">▸ </span>CLICK BLOCK TO MARK ATTENDANCE</>}
+        </div>
+
         <div className="flex gap-1 shrink-0 items-center">
-          {/* TODAY button — highlighted/active on current week, outline when viewing other weeks */}
+          {/* TODAY button — active on the current week, outline elsewhere */}
           <button
+            type="button"
             onClick={() => setWeekOffset(0)}
-            className="px-2 py-0.5 btn-mech panel-chamfer-sm mr-0.5"
+            className="cad-chip btn-mech panel-chamfer-sm mr-0.5"
+            data-active={weekOffset === 0 || undefined}
             title={weekOffset === 0 ? "Currently viewing today's week" : "Jump to today's week"}
-            style={{
-              fontFamily: 'var(--cad-font-mono)', fontSize: '8px', letterSpacing: '0.1em',
-              border: weekOffset === 0 ? '1px solid var(--cad-accent)' : '1px solid var(--cad-border)',
-              color: weekOffset === 0 ? 'var(--cad-accent-text)' : 'var(--cad-text-mid)',
-              background: weekOffset === 0 ? 'var(--cad-accent-dim)' : 'transparent',
-              borderRadius: 'var(--cad-radius)',
-              cursor: weekOffset !== 0 ? 'pointer' : 'default',
-            }}
           >TODAY</button>
 
           {/* Week navigation: [◀] [ 20–26 JUL 2026 ] [▶] */}
           <button
+            type="button"
             onClick={() => setWeekOffset(w => w - 1)}
+            aria-label="Previous week"
             className="px-1.5 py-0.5 btn-mech panel-chamfer-sm"
             style={{
-              fontFamily: 'var(--cad-font-mono)', fontSize: '9px',
+              fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-xs)',
               border: '1px solid var(--cad-border)', color: 'var(--cad-text-lo)',
               background: 'transparent', borderRadius: 'var(--cad-radius)',
             }}
-          >◀</button>
+          ><span aria-hidden="true">◀</span></button>
 
           <div
             className="px-2 py-0.5 panel-chamfer-sm"
             style={{
               fontFamily: 'var(--cad-font-mono)',
-              fontSize: '8px',
+              fontSize: 'var(--cad-fs-micro)',
               letterSpacing: '0.08em',
               border: '1px solid var(--cad-border)',
               color: 'var(--cad-accent)',
@@ -170,97 +207,119 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
           </div>
 
           <button
+            type="button"
             onClick={() => setWeekOffset(w => w + 1)}
+            aria-label="Next week"
             className="px-1.5 py-0.5 btn-mech panel-chamfer-sm"
             style={{
-              fontFamily: 'var(--cad-font-mono)', fontSize: '9px',
+              fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-xs)',
               border: '1px solid var(--cad-border)', color: 'var(--cad-text-lo)',
               background: 'transparent', borderRadius: 'var(--cad-radius)',
             }}
-          >▶</button>
+          ><span aria-hidden="true">▶</span></button>
 
-          <div style={{ width: '1px', height: '14px', background: 'var(--cad-border-dim)', margin: '0 2px' }} />
+          <div aria-hidden="true" style={{ width: '1px', height: '14px', background: 'var(--cad-border-dim)', margin: '0 2px' }} />
 
-          {/* View Mode Filter: All Week vs Single Day */}
+          {/* View Mode Filter: All Week vs Single Day, plus the full 24h canvas */}
           {[
-            { label: 'ALL WEEK', todayOnly: false },
-            { label: 'SINGLE DAY', todayOnly: true },
-          ].map(mode => {
-            const isActive = (mode.todayOnly && showTodayOnly) || (!mode.todayOnly && !showTodayOnly)
-            return (
-              <button key={mode.label}
-                onClick={() => setShowTodayOnly(mode.todayOnly)}
-                className="px-2 py-0.5 btn-mech panel-chamfer-sm"
-                style={{
-                  fontFamily:   'var(--cad-font-mono)',
-                  fontSize:     '8px',
-                  letterSpacing:'0.15em',
-                  textTransform:'uppercase',
-                  border:       isActive ? '1px solid var(--cad-accent)'  : '1px solid var(--cad-border)',
-                  color:        isActive ? 'var(--cad-accent-text)'        : 'var(--cad-text-lo)',
-                  background:   isActive ? 'var(--cad-accent-dim)'         : 'transparent',
-                  borderRadius: 'var(--cad-radius)',
-                }}
-              >{mode.label}</button>
-            )
-          })}
+            { label: 'ALL WEEK',   active: !showTodayOnly, onClick: () => setShowTodayOnly(false) },
+            { label: 'SINGLE DAY', active: showTodayOnly,  onClick: () => setShowTodayOnly(true) },
+            { label: 'FULL DAY',   active: fullDay,        onClick: () => setFullDay(v => !v),
+              title: `Show all 24 hours instead of ${pad2(dataStart)}:00–${pad2(dataEnd)}:00` },
+          ].map(mode => (
+            <button key={mode.label}
+              type="button"
+              onClick={mode.onClick}
+              title={mode.title}
+              aria-pressed={mode.active}
+              className="cad-chip btn-mech panel-chamfer-sm"
+              data-active={mode.active || undefined}
+            >{mode.label}</button>
+          ))}
         </div>
       </div>
 
+      {isEmpty && (
+        <div
+          className="shrink-0 mb-1 px-3 py-2 panel-chamfer-sm"
+          style={{
+            border: '1px dashed var(--cad-border)', background: 'var(--cad-bg-elevated)',
+            fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-xs)', color: 'var(--cad-text-lo)',
+          }}
+        >
+          // NO CLASSES IN THIS SEMESTER — {editMode ? 'USE + ADD IN A DAY COLUMN' : 'ENABLE EDIT MODE TO ADD ONE'}
+        </div>
+      )}
+
       {/* Scrollable Container (Both X and Y) */}
       <div ref={scrollRef} className="flex-1 overflow-auto min-h-0 min-w-0" style={{ position: 'relative' }}>
-        <div style={{ position: 'relative', minHeight: '1440px', height: '100%', minWidth: `${TIME_COL_W + displayDays.length * DAY_MIN_W}px`, display: 'flex', flexDirection: 'column' }}>
+        <div style={{ position: 'relative', minHeight: `${(gridEnd - gridStart) * HOUR_PX}px`, height: '100%', minWidth: `${TIME_COL_W + displayDays.length * DAY_MIN_W}px`, display: 'flex', flexDirection: 'column' }}>
 
           {/* Sticky Day Header */}
           <div className="shrink-0 flex" style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--cad-bg-primary)', borderBottom: '1px solid var(--cad-border-dim)' }}>
             <div style={{ width: `${TIME_COL_W}px`, flexShrink: 0, borderRight: '1px solid var(--cad-border-dim)', background: 'var(--cad-bg-primary)' }} />
             {displayDays.map((day) => {
               const isToday = weekOffset === 0 && DAYS.indexOf(day) === todayIdx
-              const colIdx = DAYS.indexOf(day)
-              const diff = colIdx - todayIdx
-              const d = new Date(baseDate.getTime())
-              d.setDate(d.getDate() + diff)
-              const dateStr = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
-              const isManualHoliday = attendanceHook?.attendance?.[dateStr]?.isHoliday
-              const isHoliday = (settings.holidays2nd4thSat && isSecondOrFourthSaturday(d.getFullYear(), d.getMonth(), d.getDate())) || isManualHoliday
+              const { d, dateStr, meta } = dayMetaFor(day)
+              const dateLabel = `${pad2(d.getDate())} ${MONTH_NAMES[d.getMonth()]?.substring(0, 3)}`
+
+              const headerBody = (
+                <>
+                  <span className="font-bold">{day}</span>
+                  <span style={{ fontSize: 'var(--cad-fs-micro)', color: isToday ? 'var(--cad-accent)' : 'var(--cad-text-lo)', letterSpacing: '0.05em' }}>
+                    {dateLabel}
+                  </span>
+                  {isToday && <span className="blink" style={{ fontSize: 'var(--cad-fs-micro)', color: 'var(--cad-accent)' }}><span aria-hidden="true">▸</span>NOW</span>}
+                  {meta.isHoliday && (
+                    <span className="px-1 rounded" style={{ fontSize: 'var(--cad-fs-micro)', border: '1px solid var(--cad-danger)', color: 'var(--cad-danger)', background: 'var(--cad-danger-dim)' }}>
+                      HOLIDAY
+                    </span>
+                  )}
+                </>
+              )
 
               return (
                 <div key={day}
                   className="flex-1 text-center py-1.5 flex flex-col items-center justify-center gap-0.5 relative group"
-                  onClick={() => {
-                    if (!editMode) {
-                      setActiveDayDetail({
-                        date: { year: d.getFullYear(), month: d.getMonth(), day: d.getDate() },
-                        weekday: day
-                      })
-                    }
-                  }}
                   style={{
                     minWidth:     `${DAY_MIN_W}px`,
                     fontFamily:   'var(--cad-font-mono)',
-                    fontSize:     '9px',
-                    letterSpacing:'0.15em',
+                    fontSize:     'var(--cad-fs-xs)',
+                    letterSpacing:'var(--cad-track-wide)',
                     textTransform:'uppercase',
                     color:        isToday ? 'var(--cad-accent)'   : 'var(--cad-text-mid)',
                     background:   isToday ? 'var(--cad-accent-dim)' : 'transparent',
-                    cursor:       !editMode ? 'pointer' : 'default',
                   }}
                 >
-                  <div className="font-bold">{day}</div>
-                  <div style={{ fontSize: '7.5px', color: isToday ? 'var(--cad-accent)' : 'var(--cad-text-lo)', opacity: 0.85, letterSpacing: '0.05em' }}>
-                    {pad2(d.getDate())} {MONTH_NAMES[d.getMonth()]?.substring(0, 3)}
-                  </div>
-                  {isToday && <div className="text-[7px] blink" style={{ color: 'var(--cad-accent)', opacity: 0.5 }}>▸NOW</div>}
-                  {isHoliday ? (
-                    <div className="text-[7px] px-1 py-0.5 rounded" style={{ fontSize: '7px', border: '1px solid var(--cad-danger)', color: 'var(--cad-danger)', background: 'rgba(239,68,68,0.1)' }}>
-                      HOLIDAY
-                    </div>
+                  {editMode ? (
+                    <>
+                      {headerBody}
+                      {!meta.isHoliday && !meta.isExamDay && onCellClick && (
+                        <button
+                          type="button"
+                          onClick={() => handleHeaderAdd(day)}
+                          className="cad-chip btn-mech"
+                          style={{ fontSize: 'var(--cad-fs-micro)', color: 'var(--cad-accent)', borderColor: 'var(--cad-accent)' }}
+                          aria-label={`Add a class on ${day} at ${pad2(addHour)}:00`}
+                        >+ ADD</button>
+                      )}
+                    </>
                   ) : (
-                    !editMode && (
-                      <div className="text-[6px] opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: 'var(--cad-text-lo)', fontSize: '6px' }}>
-                        ● VIEW
-                      </div>
-                    )
+                    <button
+                      type="button"
+                      onClick={() => setActiveDayDetail(dateStr)}
+                      aria-label={`View schedule for ${day} ${dateLabel}${meta.isHoliday ? ' (holiday)' : ''}`}
+                      className="btn-mech flex flex-col items-center gap-0.5 w-full"
+                      style={{ background: 'none', border: 0, padding: 0, color: 'inherit', font: 'inherit' }}
+                    >
+                      {headerBody}
+                      {!meta.isHoliday && (
+                        <span aria-hidden="true" className="opacity-0 group-hover:opacity-100 transition-opacity"
+                          style={{ fontSize: 'var(--cad-fs-micro)', color: 'var(--cad-text-lo)' }}>
+                          ● VIEW
+                        </span>
+                      )}
+                    </button>
                   )}
                 </div>
               )
@@ -269,7 +328,7 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
 
           {/* Grid Body */}
           <div style={{ position: 'relative', flex: 1, display: 'flex' }}>
-            
+
             {/* Sticky time axis */}
             <div style={{
               position:   'sticky',
@@ -281,18 +340,18 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
               background: 'var(--cad-bg-primary)',
               zIndex:     5,
             }}>
-              {TICK_HOURS.map(h => (
+              {tickHours.map(h => (
                 <div
                   key={h}
                   style={{
                     position:    'absolute',
-                    top:         `${((h - GRID_START_HOUR) / (GRID_END_HOUR - GRID_START_HOUR)) * 100}%`,
+                    top:         `${((h - gridStart) / (gridEnd - gridStart)) * 100}%`,
                     left:        0,
                     right:       0,
                     transform:   'translateY(-50%)',
                     textAlign:   'center',
                     fontFamily:  'var(--cad-font-mono)',
-                    fontSize:    'clamp(8px, 1.2vw, 11px)',
+                    fontSize:    'var(--cad-fs-micro)',
                     color:       'var(--cad-text-lo)',
                     pointerEvents:'none',
                     userSelect:  'none',
@@ -306,17 +365,11 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
               {displayDays.map((day) => {
                 const isToday    = weekOffset === 0 && DAYS.indexOf(day) === todayIdx
                 const dayEntries = byDay[day] ?? []
-                
-                const colIdx = DAYS.indexOf(day)
-                const diff = colIdx - todayIdx
-                const d = new Date(baseDate.getTime())
-                d.setDate(d.getDate() + diff)
-                const dateStr = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
-                const dayData = attendanceHook?.attendance?.[dateStr] || {}
-                const isManualHoliday = dayData.isHoliday
-                const isHoliday = (settings.holidays2nd4thSat && isSecondOrFourthSaturday(d.getFullYear(), d.getMonth(), d.getDate())) || isManualHoliday
-                const dayExams = exams.filter(e => e.date === dateStr)
-                const isExamDay = dayExams.length > 0
+                const { dateStr, meta } = dayMetaFor(day)
+                const dayData    = attendanceHook?.attendance?.[dateStr] ?? {}
+                const isHoliday  = meta.isHoliday
+                const dayExams   = exams.filter(e => e.date === dateStr)
+                const isExamDay  = dayExams.length > 0
 
                 return (
                   <div
@@ -332,13 +385,13 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                     onClick={editMode && !isHoliday && !isExamDay ? e => handleColClick(day, e) : undefined}
                   >
                     {/* Hour grid lines */}
-                    {TICK_HOURS.map(h => (
+                    {tickHours.map(h => (
                       <div
                         key={h}
                         style={{
                           position:   'absolute',
                           left:       0, right: 0,
-                          top:        `${((h - GRID_START_HOUR) / (GRID_END_HOUR - GRID_START_HOUR)) * 100}%`,
+                          top:        `${((h - gridStart) / (gridEnd - gridStart)) * 100}%`,
                           height:     '1px',
                           background: 'var(--cad-border-dim)',
                           pointerEvents: 'none',
@@ -348,13 +401,13 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
 
                     {/* Now line */}
                     {weekOffset === 0 && DAYS.indexOf(day) === todayIdx && (() => {
-                      const now = new Date(baseDate.getTime())
                       const nowMins = now.getHours() * 60 + now.getMinutes()
-                      const nowPct = ((nowMins - GRID_START_HOUR * 60) / TOTAL_MINS) * 100
+                      const nowPct = ((nowMins - gridStart * 60) / totalMins) * 100
+                      if (nowPct < 0 || nowPct > 100) return null
                       return (
                         <div style={{
                           position: 'absolute', left: 0, right: 0,
-                          top: `${Math.max(0, Math.min(100, nowPct))}%`,
+                          top: `${nowPct}%`,
                           height: '2px',
                           background: 'var(--cad-danger)',
                           zIndex: 4,
@@ -371,83 +424,90 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                       const displaySubj = subId ? subjectMap[subId] : subjectMap[entry.subjectId]
                       if (!displaySubj) return null
                       const isSubstitute = !!subId
-                      const color    = SUBJECT_COLORS[displaySubj.colorIdx % SUBJECT_COLORS.length]
-                      const startMs  = parseTimeToMins(entry.startTime) - GRID_START_HOUR * 60
-                      const endMs    = parseTimeToMins(entry.endTime)   - GRID_START_HOUR * 60
-                      const durMins  = endMs - startMs
+                      const durMins  = parseTimeToMins(entry.endTime) - parseTimeToMins(entry.startTime)
                       const isShort  = durMins <= 45
 
-                      const status = dayData[entry.id]
+                      const status  = dayData[entry.id]
                       const hasNote = !!dayData[`${entry.id}_note`]
+                      const code    = displaySubj.code || generateSubjectCode(displaySubj.name)
 
                       const handleBlockAction = (e) => {
                         e.stopPropagation()
                         if (isHoliday) return
-                        
-                        if (editMode) {
-                          onBlockClick(entry)
-                        } else if (attendanceHook && onInstanceClick) {
-                          onInstanceClick(entry, dateStr)
-                        }
+                        if (editMode) onBlockClick(entry)
+                        else if (attendanceHook && onInstanceClick) onInstanceClick(entry, dateStr)
                       }
+
+                      const label = [
+                        displaySubj.name,
+                        `${entry.startTime} to ${entry.endTime}`,
+                        entry.room ? `room ${entry.room}` : null,
+                        isSubstitute ? 'substituted class' : null,
+                        status ? `marked ${status.toLowerCase()}` : 'not marked',
+                        hasNote ? 'has a note' : null,
+                        isHoliday ? 'holiday' : editMode ? 'edit entry' : 'open class',
+                      ].filter(Boolean).join(', ')
 
                       return (
                         <div
                           key={entry.id}
-                          onClick={handleBlockAction}
-                          title={`${displaySubj.name} · ${entry.room} · ${entry.startTime}–${entry.endTime}`}
+                          className="tt-block"
+                          data-holiday={isHoliday || undefined}
                           style={{
-                            position:        'absolute',
-                            left:            '3px',
-                            right:           '3px',
-                            top:             pct(entry.startTime),
-                            height:          pctH(entry.startTime, entry.endTime),
-                            background:      `linear-gradient(${color.bg}, ${color.bg}), var(--cad-bg-primary)`,
-                            borderLeft:      `3px solid ${color.border}`,
-                            boxShadow:       `inset 0 0 0 1px ${color.border}22`,
-                            padding:         '4px 6px',
-                            overflow:        'hidden',
-                            cursor:          isHoliday ? 'not-allowed' : 'pointer',
-                            transition:      'transform 0.18s ease-out, box-shadow 0.18s ease-out, opacity 0.3s',
-                            borderRadius:    '0 2px 2px 0',
-                            opacity:         isHoliday ? 0.3 : 1,
-                            filter:          isHoliday ? 'grayscale(100%)' : 'none',
-                          }}
-                          onMouseEnter={e => {
-                            if (!isHoliday && window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
-                              e.currentTarget.style.transform = 'translateY(-1px)'
-                              e.currentTarget.style.boxShadow = `inset 0 0 0 1px ${color.border}22, 0 4px 12px ${color.border}40`
-                            }
-                          }}
-                          onMouseLeave={e => {
-                            if (!isHoliday && window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
-                              e.currentTarget.style.transform = 'translateY(0)'
-                              e.currentTarget.style.boxShadow = `inset 0 0 0 1px ${color.border}22`
-                            }
+                            ...subjectVars(displaySubj.colorIdx),
+                            position:     'absolute',
+                            left:         '3px',
+                            right:        '3px',
+                            top:          pct(entry.startTime),
+                            height:       pctH(entry.startTime, entry.endTime),
+                            background:   'linear-gradient(var(--subj-bg), var(--subj-bg)), var(--cad-bg-primary)',
+                            borderLeft:   '3px solid var(--subj-border)',
+                            boxShadow:    'inset 0 0 0 1px var(--tt-edge)',
+                            overflow:     'hidden',
+                            borderRadius: '0 2px 2px 0',
+                            opacity:      isHoliday ? 0.3 : 1,
+                            filter:       isHoliday ? 'grayscale(100%)' : 'none',
                           }}
                         >
-                          <div
+                          <button
+                            type="button"
+                            onClick={handleBlockAction}
+                            disabled={isHoliday}
+                            aria-label={label}
+                            title={`${displaySubj.name} · ${entry.room} · ${entry.startTime}–${entry.endTime}`}
+                            className="tt-block-action btn-mech"
                             style={{
-                              fontFamily: 'var(--cad-font-mono)',
-                              fontSize:   '10px',
-                              fontWeight: '700',
-                              color:      color.text,
-                              overflow:   'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap',
+                              position: 'absolute', inset: 0,
+                              display: 'flex', flexDirection: 'column',
+                              cursor: isHoliday ? 'not-allowed' : 'pointer',
                             }}
-                          >{isSubstitute ? `⇄ ${displaySubj.code || generateSubjectCode(displaySubj.name)}` : (displaySubj.code || generateSubjectCode(displaySubj.name))}</div>
-                          {!isShort && (
-                            <>
-                              <div style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'clamp(8px, 1.1vw, 10px)', color: color.text, opacity: 0.85, marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                {entry.room}
-                              </div>
-                              <div style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'clamp(7px, 1vw, 10px)', color: color.text, opacity: 0.85, marginTop: 'auto', paddingTop: '4px' }}>
-                                {entry.startTime}–{entry.endTime}
-                              </div>
-                            </>
+                          >
+                            <span
+                              style={{
+                                fontFamily: 'var(--cad-font-mono)',
+                                fontSize:   'var(--cad-fs-micro)',
+                                fontWeight: '700',
+                                color:      'var(--subj-text)',
+                                overflow:   'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >{isSubstitute && <span aria-hidden="true">⇄ </span>}{code}</span>
+                            {!isShort && (
+                              <>
+                                <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-micro)', color: 'var(--subj-text)', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {entry.room}
+                                </span>
+                                <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-micro)', color: 'var(--subj-text)', marginTop: 'auto', paddingTop: '4px' }}>
+                                  {entry.startTime}–{entry.endTime}
+                                </span>
+                              </>
+                            )}
+                          </button>
+
+                          {editMode && (
+                            <span aria-hidden="true" style={{ position: 'absolute', bottom: '3px', left: '6px', pointerEvents: 'none', fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-micro)', color: 'var(--cad-accent)' }}>✎</span>
                           )}
-                          {editMode && <div style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '7px', color: 'var(--cad-accent)', opacity: 0.5 }}>✎</div>}
                           {!editMode && attendanceHook && showTodayOnly && !isHoliday && (
                             <div style={{ position: 'absolute', top: '4px', right: '4px', zIndex: 10 }}>
                               <AttendanceToggle dateStr={dateStr} entryId={entry.id} activeStatus={status} onMark={attendanceHook.markAttendance} />
@@ -455,22 +515,25 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                           )}
                           {(editMode || (!showTodayOnly && status)) && (
                             <div style={{
-                              position: 'absolute', top: '3px', right: '3px',
-                              fontFamily: 'var(--cad-font-mono)', fontSize: '7px', fontWeight: 'bold',
+                              position: 'absolute', top: '3px', right: '3px', pointerEvents: 'none',
+                              fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-micro)', fontWeight: 'bold',
                               padding: '1px 3px', borderRadius: '2px',
-                              background: status === 'PRESENT' ? 'rgba(80,255,80,0.15)' : status === 'ABSENT' ? 'var(--cad-danger-dim)' : 'var(--cad-bg-primary)',
+                              background: status === 'PRESENT' ? 'color-mix(in srgb, var(--cad-success) 15%, transparent)' : status === 'ABSENT' ? 'var(--cad-danger-dim)' : 'var(--cad-bg-primary)',
                               color: status === 'PRESENT' ? 'var(--cad-success)' : status === 'ABSENT' ? 'var(--cad-danger)' : 'var(--cad-text-lo)',
-                              border: `1px solid ${status === 'PRESENT' ? 'var(--cad-success)' : status === 'ABSENT' ? 'var(--cad-danger)' : 'var(--cad-text-lo)'}`
+                              border: `1px solid ${status === 'PRESENT' ? 'var(--cad-success)' : status === 'ABSENT' ? 'var(--cad-danger)' : 'var(--cad-text-lo)'}`,
                             }}>
-                              {status === 'PRESENT' ? 'P' : status === 'ABSENT' ? 'A' : 'C'}
+                              <span aria-hidden="true">{status === 'PRESENT' ? 'P' : status === 'ABSENT' ? 'A' : 'C'}</span>
                             </div>
                           )}
                           {hasNote && (
                             <div style={{
-                              position: 'absolute', bottom: '3px', right: '3px',
-                              fontFamily: 'var(--cad-font-mono)', fontSize: '7px',
-                              color: 'var(--cad-accent)', opacity: 0.7,
-                            }}>📝</div>
+                              position: 'absolute', bottom: '3px', right: '3px', pointerEvents: 'none',
+                              fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-micro)',
+                              color: 'var(--cad-accent)',
+                            }}>
+                              <span aria-hidden="true">📝</span>
+                              <span className="sr-only">Has a note</span>
+                            </div>
                           )}
                         </div>
                       )
@@ -480,47 +543,52 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                     {dayExams.map(exam => {
                       const subj = subjectMap[exam.subjectId]
                       if (!subj) return null
-                      const color = SUBJECT_COLORS[subj.colorIdx % SUBJECT_COLORS.length]
                       const short = parseTimeToMins(exam.endTime) - parseTimeToMins(exam.startTime) <= 45
                       return (
-                        <div
+                        <button
                           key={exam.id}
-                          onClick={e => e.stopPropagation()}
+                          type="button"
+                          onClick={e => { e.stopPropagation(); setActiveDayDetail(dateStr) }}
+                          aria-label={`Exam: ${subj.name}, ${exam.startTime} to ${exam.endTime}${exam.room ? `, room ${exam.room}` : ''}. Open day detail`}
                           title={`EXAM · ${subj.name}${exam.room ? ` · ${exam.room}` : ''} · ${exam.startTime}–${exam.endTime}${exam.notes ? ` · ${exam.notes}` : ''}`}
+                          className="btn-mech"
                           style={{
+                            ...subjectVars(subj.colorIdx),
                             position: 'absolute',
                             left: '3px',
                             right: '3px',
                             top: pct(exam.startTime),
                             height: pctH(exam.startTime, exam.endTime),
-                            background: `linear-gradient(${color.bg}, ${color.bg}), var(--cad-bg-primary)`,
+                            background: 'linear-gradient(var(--subj-bg), var(--subj-bg)), var(--cad-bg-primary)',
                             border: '1px dashed var(--cad-accent)',
                             borderLeft: '3px solid var(--cad-accent)',
                             boxShadow: '0 0 6px var(--cad-accent-glow)',
                             padding: '4px 6px',
                             overflow: 'hidden',
-                            cursor: 'default',
                             zIndex: 3,
                             borderRadius: '0 2px 2px 0',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            textAlign: 'left',
                           }}
                         >
-                          <div style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '8px', fontWeight: '700', color: 'var(--cad-accent)', letterSpacing: '0.1em' }}>
-                            ✎ EXAM
-                          </div>
-                          <div style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '10px', fontWeight: '700', color: color.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-micro)', fontWeight: '700', color: 'var(--cad-accent)', letterSpacing: 'var(--cad-track-mid)' }}>
+                            <span aria-hidden="true">✎ </span>EXAM
+                          </span>
+                          <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-micro)', fontWeight: '700', color: 'var(--subj-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {subj.code || generateSubjectCode(subj.name)}
-                          </div>
+                          </span>
                           {!short && (
                             <>
-                              <div style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'clamp(8px, 1vw, 10px)', color: color.text, opacity: 0.85, marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-micro)', color: 'var(--subj-text)', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                 {exam.room}
-                              </div>
-                              <div style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'clamp(7px, 1vw, 10px)', color: color.text, opacity: 0.85, marginTop: 'auto', paddingTop: '4px' }}>
+                              </span>
+                              <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-micro)', color: 'var(--subj-text)', marginTop: 'auto', paddingTop: '4px' }}>
                                 {exam.startTime}–{exam.endTime}
-                              </div>
+                              </span>
                             </>
                           )}
-                        </div>
+                        </button>
                       )
                     })}
                   </div>
@@ -534,22 +602,22 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
       {/* Legend */}
       <hr style={{ border: 'none', borderTop: '1px solid var(--cad-border-dim)', margin: '4px 0' }} />
       <div className="flex flex-wrap gap-x-4 gap-y-1 pt-1 pb-0.5 shrink-0 overflow-x-auto">
-        {subjects.map(s => {
-          const c = SUBJECT_COLORS[s.colorIdx % SUBJECT_COLORS.length]
-          return (
-            <div key={s.id} className="flex items-center gap-1.5 shrink-0">
-              <span style={{ width: '8px', height: '8px', background: c.border, boxShadow: `0 0 4px ${c.border}`, display: 'inline-block' }} />
-              <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '9px', color: 'var(--cad-text-mid)', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{s.name}</span>
-            </div>
-          )
-        })}
+        {subjects.map(s => (
+          <div key={s.id} className="flex items-center gap-1.5 shrink-0">
+            <span aria-hidden="true" style={{
+              width: '8px', height: '8px', display: 'inline-block',
+              background: subjectVar(s.colorIdx, 'border'),
+              boxShadow: `0 0 4px ${subjectVar(s.colorIdx, 'border')}`,
+            }} />
+            <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-xs)', color: 'var(--cad-text-mid)', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{s.name}</span>
+          </div>
+        ))}
       </div>
-      
+
       {/* Day detail modal */}
       {activeDayDetail && (
         <DayDetailModal
-          date={activeDayDetail.date}
-          weekday={activeDayDetail.weekday}
+          dateStr={activeDayDetail}
           timetable={timetable}
           subjects={subjects}
           attendanceHook={attendanceHook}

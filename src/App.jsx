@@ -112,22 +112,38 @@ export default function App() {
         onSecretTap={handleSecretTap}
       />
 
-      {/* Status strip — hidden on very small screens */}
+      {/* Status strip — visible at every breakpoint. It used to be hidden below
+          `sm`, so on mobile the only signal that edit mode was on was a button
+          that is easy to miss — while edit mode changes what tapping a class
+          block does. The mobile variant drops the credit counts, not the mode. */}
       <div
-        className="hidden sm:flex items-center px-3 py-0.5 shrink-0"
-        style={{ borderBottom: '1px solid var(--cad-border-dim)', background: 'var(--cad-bg-panel)' }}
+        className="flex items-center px-3 py-0.5 shrink-0"
+        style={{
+          borderBottom: editMode ? '1px solid var(--cad-danger)' : '1px solid var(--cad-border-dim)',
+          background: 'var(--cad-bg-panel)',
+        }}
       >
-        <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '9px', color: 'var(--cad-text-lo)', letterSpacing: '0.1em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {activeSem?.label} ∥ {totalCr} CR ∥ {activeSem?.subjects.length ?? 0} SUBJ ∥ {editMode ? 'MODE :: EDIT' : 'MODE :: VIEW'}
+        <span
+          role="status"
+          style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-micro)', color: editMode ? 'var(--cad-danger)' : 'var(--cad-text-lo)', letterSpacing: 'var(--cad-track-mid)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+        >
+          <span className="hidden sm:inline">
+            {activeSem?.label} <span aria-hidden="true">∥</span> {totalCr} CR{' '}
+            <span aria-hidden="true">∥</span> {activeSem?.subjects.length ?? 0} SUBJ{' '}
+            <span aria-hidden="true">∥</span>{' '}
+          </span>
+          {editMode ? 'MODE :: EDIT' : 'MODE :: VIEW'}
         </span>
-        {editMode && <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '9px', color: 'var(--cad-danger)', marginLeft: '8px', flexShrink: 0 }} className="blink">■</span>}
+        {editMode && <span aria-hidden="true" style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-micro)', color: 'var(--cad-danger)', marginLeft: '8px', flexShrink: 0 }} className="blink">■</span>}
       </div>
 
       {/* Main layout */}
       <div className="flex flex-1 overflow-hidden">
 
         {/* Left — Roster */}
-        <div
+        <aside
+          id="roster-panel"
+          aria-label="Subject roster"
           className={`flex-col border-r-2 shrink-0 overflow-hidden
             ${activeTab === 'roster' ? 'flex w-full' : 'hidden'}
             md:flex md:w-72`}
@@ -140,7 +156,7 @@ export default function App() {
           <div className="flex items-center justify-between mb-2 pb-1.5 shrink-0" style={{ borderBottom: '1px solid var(--cad-border-dim)' }}>
             <div className="flex items-center gap-1.5">
               <Dot on />
-              <span style={{ fontSize: '9px', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--cad-accent)', fontFamily: 'var(--cad-font-mono)' }}>ROSTER</span>
+              <h2 className="cad-label" style={{ color: 'var(--cad-accent)' }}>ROSTER</h2>
             </div>
             <span className="hex-val">0xA001</span>
           </div>
@@ -153,10 +169,10 @@ export default function App() {
             onUpdate={updateSubject}
             onRemove={removeSubject}
           />
-        </div>
+        </aside>
 
         {/* Right — Timetable / Calendar */}
-        <div
+        <main
           className={`flex-col flex-1 overflow-hidden
             ${activeTab !== 'roster' ? 'flex' : 'hidden'}
             md:flex`}
@@ -166,30 +182,34 @@ export default function App() {
           <div className="flex items-center justify-between mb-2 pb-1.5 shrink-0" style={{ borderBottom: '1px solid var(--cad-border-dim)' }}>
             <div className="flex items-center gap-1.5">
               <Dot on />
-              <span style={{ fontSize: '9px', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--cad-accent)', fontFamily: 'var(--cad-font-mono)' }}>PANEL-B</span>
+              <h2 className="cad-label" style={{ color: 'var(--cad-accent)' }}>PANEL-B</h2>
               <SyncChip />
             </div>
-            <div className="hidden md:flex gap-1">
-              {PANEL_TABS.map(tab => (
-                <button key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className="px-2 py-0.5 btn-mech"
-                  style={{
-                    fontFamily:   'var(--cad-font-mono)',
-                    fontSize:     '8px',
-                    letterSpacing:'0.15em',
-                    textTransform:'uppercase',
-                    border:       activeTab === tab.id ? '1px solid var(--cad-accent)'  : '1px solid var(--cad-border)',
-                    color:        activeTab === tab.id ? 'var(--cad-accent-text)'        : 'var(--cad-text-lo)',
-                    background:   activeTab === tab.id ? 'var(--cad-accent-dim)'         : 'transparent',
-                    borderRadius: 'var(--cad-radius)',
-                  }}
-                >{tab.label}</button>
-              ))}
-            </div>
+            <nav aria-label="Panel views" className="hidden md:block">
+              <div role="tablist" className="flex gap-1">
+                {PANEL_TABS.map(tab => (
+                  <button key={tab.id}
+                    type="button"
+                    id={`tab-${tab.id}`}
+                    role="tab"
+                    aria-selected={activeTab === tab.id}
+                    aria-controls="panel-view"
+                    onClick={() => setActiveTab(tab.id)}
+                    className="cad-chip btn-mech"
+                    data-active={activeTab === tab.id || undefined}
+                  >{tab.label}</button>
+                ))}
+              </div>
+            </nav>
           </div>
 
-          <div key={activeTab} className="anim-tab-enter flex flex-col flex-1 overflow-hidden min-h-0">
+          <div
+            key={activeTab}
+            id="panel-view"
+            role="tabpanel"
+            aria-labelledby={activeTab === 'roster' ? undefined : `tab-${activeTab}`}
+            className="anim-tab-enter flex flex-col flex-1 overflow-hidden min-h-0"
+          >
             {activeTab === 'calendar' ? (
               <CalendarView timetable={activeSem?.timetable ?? []} subjects={activeSem?.subjects ?? []} attendanceHook={attendanceHook} examDates={examDates} />
             ) : activeTab === 'attendance' ? (
@@ -217,7 +237,7 @@ export default function App() {
               />
             )}
           </div>
-        </div>
+        </main>
       </div>
 
       {/* Mobile tab bar */}

@@ -1,23 +1,18 @@
 import { useState, useMemo, useRef } from 'react'
-import { SUBJECT_COLORS, MONTH_NAMES, DAYS, generateSubjectCode, isSecondOrFourthSaturday } from '../../data/index.js'
+import { MONTH_NAMES, DAYS, generateSubjectCode, subjectVars } from '../../data/index.js'
+import { dateStrFromParts, getDayMeta } from '../../data/calendar.js'
 import { DayDetailModal } from './DayDetailModal.jsx'
 import { useSettings } from '../../hooks/useSettings.jsx'
 
 
 const DAYS_SET = new Set(DAYS)
 
-function dayLabel(year, month, day) {
-  const js = new Date(year, month, day).getDay()  // 0=Sun
-  // Convert JS getDay() to our DAYS label
-  return ['SUN','MON','TUE','WED','THU','FRI','SAT'][js]
-}
-
 export function CalendarView({ timetable, subjects, attendanceHook, examDates = new Set() }) {
   const { settings } = useSettings()
   const today      = new Date()
   const [year, setYear]   = useState(today.getFullYear())
   const [month, setMonth] = useState(today.getMonth())
-  const [detail, setDetail] = useState(null) // { year, month, day, weekday }
+  const [detailDate, setDetailDate] = useState(null) // 'YYYY-MM-DD'
 
   const prevMonth = () => { if (month === 0) { setMonth(11); setYear(y => y - 1) } else setMonth(m => m - 1) }
   const nextMonth = () => { if (month === 11) { setMonth(0); setYear(y => y + 1) } else setMonth(m => m + 1) }
@@ -46,14 +41,6 @@ export function CalendarView({ timetable, subjects, attendanceHook, examDates = 
   for (let i = 0; i < firstOffset; i++) cells.push(null)
   for (let d = 1; d <= daysInMonth; d++) cells.push(d)
 
-  const handleDayClick = (day) => {
-    const wday = dayLabel(year, month, day)
-    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-    const isManualHoliday = attendanceHook?.attendance?.[dateStr]?.isHoliday
-    const isHoliday = (settings.holidays2nd4thSat && isSecondOrFourthSaturday(year, month, day)) || isManualHoliday
-    setDetail({ year, month, day, weekday: (!isHoliday && DAYS_SET.has(wday)) ? wday : null, isHoliday, isManualHoliday })
-  }
-
   const wheelTimeout = useRef(null)
   const handleWheel = (e) => {
     if (e.target.closest('.calendar-scroll')) return
@@ -73,21 +60,21 @@ export function CalendarView({ timetable, subjects, attendanceHook, examDates = 
       {/* Month navigator */}
       <div className="flex items-center justify-between shrink-0 py-2 px-1">
         <button
+          type="button"
           onClick={prevMonth}
-          className="btn-mech"
-          style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '14px', color: 'var(--cad-text-mid)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', borderRadius: 'var(--cad-radius)' }}
-          onMouseEnter={e => { e.currentTarget.style.color = 'var(--cad-accent)' }}
-          onMouseLeave={e => { e.currentTarget.style.color = 'var(--cad-text-mid)' }}
+          className="btn-mech cad-hover-accent"
+          style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-md)', color: 'var(--cad-text-mid)', background: 'none', border: 'none', padding: '4px 8px', borderRadius: 'var(--cad-radius)' }}
           aria-label="Previous month"
-        >◀</button>
+        ><span aria-hidden="true">◀</span></button>
 
         <div className="flex gap-2 text-center items-center">
           <select
             value={month}
             onChange={e => setMonth(Number(e.target.value))}
+            aria-label="Month"
             style={{
               fontFamily:   'var(--cad-font-mono)',
-              fontSize:     '11px',
+              fontSize:     'var(--cad-fs-sm)',
               background:   'var(--cad-bg-input)',
               border:       '1px solid var(--cad-border)',
               color:        'var(--cad-accent)',
@@ -104,9 +91,10 @@ export function CalendarView({ timetable, subjects, attendanceHook, examDates = 
           <select
             value={year}
             onChange={e => setYear(Number(e.target.value))}
+            aria-label="Year"
             style={{
               fontFamily:   'var(--cad-font-mono)',
-              fontSize:     '11px',
+              fontSize:     'var(--cad-fs-sm)',
               background:   'var(--cad-bg-input)',
               border:       '1px solid var(--cad-border)',
               color:        'var(--cad-accent)',
@@ -124,13 +112,12 @@ export function CalendarView({ timetable, subjects, attendanceHook, examDates = 
         </div>
 
         <button
+          type="button"
           onClick={nextMonth}
-          className="btn-mech"
-          style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '14px', color: 'var(--cad-text-mid)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', borderRadius: 'var(--cad-radius)' }}
-          onMouseEnter={e => { e.currentTarget.style.color = 'var(--cad-accent)' }}
-          onMouseLeave={e => { e.currentTarget.style.color = 'var(--cad-text-mid)' }}
+          className="btn-mech cad-hover-accent"
+          style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-md)', color: 'var(--cad-text-mid)', background: 'none', border: 'none', padding: '4px 8px', borderRadius: 'var(--cad-radius)' }}
           aria-label="Next month"
-        >▶</button>
+        ><span aria-hidden="true">▶</span></button>
       </div>
 
       {/* Weekday header row */}
@@ -140,8 +127,8 @@ export function CalendarView({ timetable, subjects, attendanceHook, examDates = 
             textAlign:   'center',
             padding:     '4px 0',
             fontFamily:  'var(--cad-font-mono)',
-            fontSize:    '8px',
-            letterSpacing:'0.15em',
+            fontSize:    'var(--cad-fs-micro)',
+            letterSpacing:'var(--cad-track-wide)',
             color:       DAYS_SET.has(d) ? 'var(--cad-text-mid)' : 'var(--cad-text-xlo)',
           }}>{d}</div>
         ))}
@@ -159,25 +146,23 @@ export function CalendarView({ timetable, subjects, attendanceHook, examDates = 
           {cells.map((day, idx) => {
             if (!day) return <div key={`empty-${idx}`} style={{ borderRight: '1px solid var(--cad-border-dim)', borderBottom: '1px solid var(--cad-border-dim)' }} />
 
-            const wday    = dayLabel(year, month, day)
-            let entries = DAYS_SET.has(wday) ? (eventsByWeekday[wday] ?? []) : []
+            const dateStr = dateStrFromParts(year, month, day)
+            const meta    = getDayMeta(dateStr, { settings, attendance: attendanceHook?.attendance, examDates })
             const todayCell = isToday(day)
-            const isWeekend = !DAYS_SET.has(wday)
-            
-            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-            const isManualHoliday = attendanceHook?.attendance?.[dateStr]?.isHoliday
-            const isHoliday = (settings.holidays2nd4thSat && isSecondOrFourthSaturday(year, month, day)) || isManualHoliday
-            if (isHoliday) entries = []
-            const isExamDay = examDates.has(dateStr)
+            const isWeekend = !DAYS_SET.has(meta.weekday)
+            const entries = meta.isHoliday || isWeekend ? [] : (eventsByWeekday[meta.weekday] ?? [])
+            const dayAtt  = attendanceHook?.attendance?.[dateStr] ?? {}
 
             return (
               <div
                 key={day}
                 role="button"
                 tabIndex={0}
-                aria-label={`${MONTH_NAMES[month]} ${day}, ${year}`}
-                onClick={() => handleDayClick(day)}
-                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleDayClick(day) } }}
+                aria-label={`${MONTH_NAMES[month]} ${day}, ${year}${meta.isHoliday ? ', holiday' : ''}${meta.isExamDay ? ', exam day' : ''}${entries.length ? `, ${entries.length} classes` : ''}`}
+                onClick={() => setDetailDate(dateStr)}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setDetailDate(dateStr) } }}
+                className="cad-hover-cell"
+                data-today={todayCell || undefined}
                 style={{
                   borderRight:  '1px solid var(--cad-border-dim)',
                   borderBottom: '1px solid var(--cad-border-dim)',
@@ -186,58 +171,54 @@ export function CalendarView({ timetable, subjects, attendanceHook, examDates = 
                   background:   'transparent',
                   outline:      todayCell ? '1px solid var(--cad-accent)' : 'none',
                   outlineOffset:'-1px',
-                  transition:   'background 0.15s',
                   overflow:     'hidden',
                 }}
-                onMouseEnter={e => { if (!todayCell) e.currentTarget.style.background = 'var(--cad-bg-elevated)' }}
-                onMouseLeave={e => { if (!todayCell) e.currentTarget.style.background = 'transparent' }}
               >
                 {/* Day number */}
                 <div style={{
                   fontFamily:  'var(--cad-font-mono)',
-                  fontSize:    '11px',
+                  fontSize:    'var(--cad-fs-sm)',
                   marginBottom:'3px',
-                  color:       todayCell  ? 'var(--cad-accent)'
-                             : isHoliday ? 'var(--cad-danger)'
-                             : isWeekend ? 'var(--cad-text-lo)'
+                  color:       todayCell      ? 'var(--cad-accent)'
+                             : meta.isHoliday ? 'var(--cad-danger)'
+                             : isWeekend      ? 'var(--cad-text-lo)'
                              : 'var(--cad-text-mid)',
                   fontWeight:  todayCell ? '700' : '400',
                 }}>{day}</div>
 
-                {isHoliday && (
-                  <div style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '8px', color: 'var(--cad-danger)', opacity: 0.8 }}>
+                {meta.isHoliday && (
+                  <div style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-micro)', color: 'var(--cad-danger)' }}>
                     HOLIDAY
                   </div>
                 )}
 
-                {isExamDay && !isHoliday && (
+                {meta.isExamDay && !meta.isHoliday && (
                   <div style={{
-                    fontFamily: 'var(--cad-font-mono)', fontSize: '8px', color: 'var(--cad-accent)',
-                    opacity: 0.85, border: '1px solid var(--cad-accent)', borderRadius: '2px',
+                    fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-micro)', color: 'var(--cad-accent)',
+                    border: '1px solid var(--cad-accent)', borderRadius: '2px',
                     padding: '0 3px', display: 'inline-block', marginBottom: '2px',
                   }}>
-                    ✎ EXAM
+                    <span aria-hidden="true">✎ </span>EXAM
                   </div>
                 )}
 
                 {/* Event chips (max 3 shown) */}
-                {!isHoliday && entries.slice(0, 3).map(entry => {
+                {entries.slice(0, 3).map(entry => {
                   // Check for substitute on this date
-                  const dayAtt = attendanceHook?.attendance?.[dateStr] || {}
                   const subId = dayAtt[`${entry.id}_sub`]
                   const displaySubj = subId ? subjectMap[subId] : subjectMap[entry.subjectId]
                   if (!displaySubj) return null
-                  const color = SUBJECT_COLORS[displaySubj.colorIdx % SUBJECT_COLORS.length]
                   const hasNote = !!dayAtt[`${entry.id}_note`]
                   return (
                     <div
                       key={entry.id}
                       style={{
+                        ...subjectVars(displaySubj.colorIdx),
                         fontFamily:   'var(--cad-font-mono)',
-                        fontSize:     '8px',
-                        background:   color.bg,
-                        borderLeft:   `3px solid ${color.border}`,
-                        color:        color.text,
+                        fontSize:     'var(--cad-fs-micro)',
+                        background:   'var(--subj-bg)',
+                        borderLeft:   '3px solid var(--subj-border)',
+                        color:        'var(--subj-text)',
                         padding:      '1px 4px',
                         marginBottom: '2px',
                         overflow:     'hidden',
@@ -249,13 +230,16 @@ export function CalendarView({ timetable, subjects, attendanceHook, examDates = 
                         gap:          '2px',
                       }}
                     >
-                      {entry.startTime} {subId ? '⇄' : ''}{displaySubj.code || generateSubjectCode(displaySubj.name)}
-                      {hasNote && <span style={{ fontSize: '7px', opacity: 0.7 }}>📝</span>}
+                      {entry.startTime}{' '}
+                      {subId && <><span aria-hidden="true">⇄</span><span className="sr-only">substituted: </span></>}
+                      {displaySubj.code || generateSubjectCode(displaySubj.name)}
+                      {hasNote && <span aria-hidden="true" style={{ fontSize: 'var(--cad-fs-micro)', opacity: 0.7 }}>📝</span>}
+                      {hasNote && <span className="sr-only">has a note</span>}
                     </div>
                   )
                 })}
-                {!isHoliday && entries.length > 3 && (
-                  <div style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '7px', color: 'var(--cad-text-mid)', paddingLeft: '4px' }}>
+                {entries.length > 3 && (
+                  <div style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-micro)', color: 'var(--cad-text-mid)', paddingLeft: '4px' }}>
                     +{entries.length - 3} more
                   </div>
                 )}
@@ -271,31 +255,30 @@ export function CalendarView({ timetable, subjects, attendanceHook, examDates = 
         style={{ borderTop: '1px solid var(--cad-border-dim)' }}
       >
         <div className="flex items-center gap-1.5">
-          <div style={{ width: '8px', height: '8px', background: 'var(--cad-accent-dim)', border: '1px solid var(--cad-accent)' }} />
-          <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '8px', color: 'var(--cad-text-mid)' }}>TODAY</span>
+          <div aria-hidden="true" style={{ width: '8px', height: '8px', background: 'var(--cad-accent-dim)', border: '1px solid var(--cad-accent)' }} />
+          <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-micro)', color: 'var(--cad-text-mid)' }}>TODAY</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <div style={{ width: '8px', height: '8px', background: 'rgba(249,115,22,0.3)', borderLeft: '2px solid var(--cad-accent)' }} />
-          <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '8px', color: 'var(--cad-text-mid)' }}>SCHEDULED</span>
+          <div aria-hidden="true" style={{ width: '8px', height: '8px', background: 'var(--cad-accent-dim)', borderLeft: '2px solid var(--cad-accent)' }} />
+          <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-micro)', color: 'var(--cad-text-mid)' }}>SCHEDULED</span>
         </div>
         <div
           className="ml-auto"
-          style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '8px', color: 'var(--cad-text-mid)', letterSpacing: '0.1em' }}
+          style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-micro)', color: 'var(--cad-text-mid)', letterSpacing: 'var(--cad-track-mid)' }}
         >
-          CADENCE v3 ∷ TAP DAY TO VIEW SCHEDULE
+          CADENCE v3 <span aria-hidden="true">∷</span> TAP DAY TO VIEW SCHEDULE
         </div>
       </div>
 
       {/* Day detail modal */}
-      {detail && (
+      {detailDate && (
         <DayDetailModal
-          date={detail}
-          weekday={detail.weekday}
+          dateStr={detailDate}
           timetable={timetable}
           subjects={subjects}
           attendanceHook={attendanceHook}
           examDates={examDates}
-          onClose={() => setDetail(null)}
+          onClose={() => setDetailDate(null)}
         />
       )}
     </div>

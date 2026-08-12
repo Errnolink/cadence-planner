@@ -20,18 +20,23 @@
   --cad-text-hi:      #0f172a;
   --cad-text-mid:     #334155;
   --cad-text-lo:      #475569;
-  --cad-text-xlo:     #94a3b8;
+  /* was #94a3b8 — 2.45:1 on --cad-bg-primary, and it carries the exam
+     section counts and the calendar weekday headers. Now 4.97:1. */
+  --cad-text-xlo:     #5f6e82;
 
   --cad-border:       #cbd5e1;
   --cad-border-dim:   #e2e8f0;
   --cad-border-panel: #94a3b8;
 
-  --cad-danger:       #dc2626;
-  --cad-danger-dim:   rgba(220, 38, 38, 0.10);
-  --cad-success:      #16a34a;
+  /* danger/success are text colours (attendance marks, grade tiers, holiday
+     badges), not just borders: red-600 was 4.41:1 and green-600 3.01:1 on
+     --cad-bg-header. Dropped one step to red-700 / green-700. */
+  --cad-danger:       #b91c1c;
+  --cad-danger-dim:   rgba(185, 28, 28, 0.10);
+  --cad-success:      #15803d;
   --cad-warn:         #d97706;
 
-  --cad-hex-color:    #64748b;
+  --cad-hex-color:    #5f6e82;
   --cad-font-ui:      'Inter', sans-serif;
   --cad-font-mono:    'IBM Plex Mono', 'Fira Code', monospace;
 
@@ -45,7 +50,10 @@
   --cad-bg-primary:   #0f172a;
   --cad-bg-panel:     #1e293b;
   --cad-bg-header:    #0f172a;
-  --cad-bg-elevated:  #334155;
+  /* was slate-700 (#334155): too light to carry slate-400 labels, the accent,
+     or the danger colour at AA (4.04 / 3.47 / 2.75). Still reads as elevated
+     against the panel, now with 4.9:1+ for everything drawn on it. */
+  --cad-bg-elevated:  #1d2839;
   --cad-bg-input:     #0f172a;
 
   --cad-accent:       #818cf8;
@@ -56,17 +64,32 @@
 
   --cad-text-hi:      #f8fafc;
   --cad-text-mid:     #cbd5e1;
-  --cad-text-lo:      #94a3b8;
-  --cad-text-xlo:     #64748b;
+  /* shifted up one step each: slate-500 as --cad-text-xlo was 3.07:1 on the
+     panel. mid 9.85 · lo 7.25 · xlo 5.71 (on --cad-bg-panel). */
+  --cad-text-lo:      #aab8c9;
+  --cad-text-xlo:     #94a3b8;
 
   --cad-border:       #334155;
   --cad-border-dim:   #1e293b;
   --cad-border-panel: #475569;
 
-  --cad-danger:       #ef4444;
-  --cad-danger-dim:   rgba(239, 68, 68, 0.15);
+  --cad-danger:       #f87171;
+  --cad-danger-dim:   rgba(248, 113, 113, 0.15);
   --cad-success:      #22c55e;
   --cad-warn:         #f59e0b;
 
+  --cad-hex-color:    #94a3b8;
+
   --cad-shadow-panel: 0 4px 24px rgba(0,0,0,0.2), 0 1px 4px rgba(0,0,0,0.1);
+
+  /* Subject accents: the shared dark palette in _subjects.css is tuned for
+     #050505/#0f172a. Six of the twelve land at 3.76–4.37:1 once composited
+     over this theme's lighter panel, so those six take the 300-weight shade
+     here (5.6–6.4:1). The rest inherit unchanged. */
+  --subj-1-text:  #fca5a5;  /* red-300     6.22:1 on panel */
+  --subj-3-text:  #93c5fd;  /* blue-300    6.07:1 */
+  --subj-6-text:  #f9a8d4;  /* pink-300    6.31:1 */
+  --subj-7-text:  #d8b4fe;  /* purple-300  6.43:1 */
+  --subj-8-text:  #a5b4fc;  /* indigo-300  5.63:1 */
+  --subj-11-text: #fda4af;  /* rose-300    6.22:1 */
 }

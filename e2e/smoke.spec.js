@@ -11,19 +11,22 @@ test('app boots in NERV and switches panels', async ({ page }) => {
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'nerv')
   await expect(page.getByText('ROSTER').first()).toBeVisible()
 
+  // Panel switcher is an ARIA tablist, so these are tabs, not buttons.
   for (const tab of ['EXAMS', 'CALENDAR', 'ATTENDANCE', 'TIMETABLE']) {
-    await page.getByRole('button', { name: tab, exact: true }).click()
+    await page.getByRole('tab', { name: tab, exact: true }).click()
   }
   await expect(page.getByText('PANEL-B')).toBeVisible()
 })
 
 test('calendar days are keyboard-accessible and open the day modal', async ({ page }) => {
   await page.goto('/')
-  await page.getByRole('button', { name: 'CALENDAR', exact: true }).click()
+  await page.getByRole('tab', { name: 'CALENDAR', exact: true }).click()
 
   const today = new Date()
   const label = `${today.toLocaleString('en-US', { month: 'long' }).toUpperCase()} ${today.getDate()}, ${today.getFullYear()}`
-  const cell = page.getByRole('button', { name: label, exact: true })
+  // The cell's accessible name appends holiday / exam / class-count context,
+  // so anchor at the date and allow a suffix rather than matching exactly.
+  const cell = page.getByRole('button', { name: new RegExp(`^${label}(,|$)`) })
   await expect(cell).toHaveCount(1)
 
   await cell.focus()
@@ -116,9 +119,9 @@ test('mobile tab bar switches panels on narrow viewports', async ({ page }) => {
   await expect(page.getByRole('button', { name: /SETTINGS/ })).toBeVisible()
   await expect(page.getByTitle(/Switch theme/)).toBeVisible()
 
-  // Desktop switcher is hidden below md — only the mobile bar's button matches.
+  // Desktop switcher is hidden below md — only the mobile bar's tab matches.
   // Its accessible name includes the icon glyph, so match by substring.
-  await page.getByRole('button', { name: 'CALENDAR' }).click()
+  await page.getByRole('tab', { name: 'CALENDAR' }).click()
   await expect(page.getByRole('button', { name: /Previous month/ })).toBeVisible()
 })
 
