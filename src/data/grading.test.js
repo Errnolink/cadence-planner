@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   aggregateComponent,
+  groupIntoAttempts,
   computeSubjectGrade,
   targetForGrade,
   nextBandTarget,
@@ -8,6 +9,7 @@ import {
   pctToGradeLabel,
   validateScheme,
   resolveScheme,
+  sittingMax,
   migrateExamsToAssessments,
   classBlockingDates,
   isGraded,
@@ -17,185 +19,247 @@ import {
 
 const preset = (id) => SCHEME_PRESETS.find(p => p.id === id).scheme
 
-const mid = (n, score) => ({ id: `m${n}`, componentId: 'mid', title: `Mid ${n}`, score, maxScore: 50 })
-const final = (score) => ({ id: 'f', componentId: 'final', title: 'Final', score, maxScore: 75 })
+/** One sitting of the real internals split: objective 10 + subjective 10 + assignment 5. */
+const sitting = (attempt, objective, subjective, assignment) => [
+  { id: `o${attempt}`, componentId: 'internal', partId: 'objective',  attempt, score: objective,  maxScore: 10 },
+  { id: `s${attempt}`, componentId: 'internal', partId: 'subjective', attempt, score: subjective, maxScore: 10 },
+  { id: `a${attempt}`, componentId: 'internal', partId: 'assignment', attempt, score: assignment, maxScore: 5  },
+]
+const theory = (score) => ({ id: 't', componentId: 'theory', partId: 'paper', attempt: 1, score, maxScore: 75 })
 
-// ── The two real-world schemes this feature exists for ────────────
-// Same marks, same subject, one field different. Mid 1 = 40/50, Mid 2 = 30/50.
+// ─────────────────────────────────────────────────────────────────
+// The actual scheme: 100 = theory 75 + internals 25, where internals is
+// two sittings of (objective 10 + subjective 10 + assignment 5), averaged.
+// ─────────────────────────────────────────────────────────────────
 
-describe('average-of-mids vs best-of-mids (25 internal + 75 external)', () => {
-  const mids = [mid(1, 40), mid(2, 30)]
+describe('internals: two sittings of obj 10 + subj 10 + assign 5', () => {
+  // Mid 1 = 8+7+4 = 19/25 · Mid 2 = 6+9+5 = 20/25
+  const mids = [...sitting(1, 8, 7, 4), ...sitting(2, 6, 9, 5)]
 
-  it('AVERAGE: both mids pooled → 70/100 → 17.5 of 25 internal marks', () => {
-    const g = computeSubjectGrade(mids, preset('avg-mids-25-75'))
-    const mids_ = g.byComponent.find(c => c.component.id === 'mid')
-    expect(mids_.fraction).toBeCloseTo(0.70, 5)
-    expect(mids_.points).toBeCloseTo(17.5, 5)
-    expect(g.locked).toBeCloseTo(17.5, 5)
+  it('sums the three parts within each sitting', () => {
+    const attempts = groupIntoAttempts(mids)
+    expect(attempts).toHaveLength(2)
+    expect(attempts[0]).toMatchObject({ attempt: 1, score: 19, max: 25 })
+    expect(attempts[1]).toMatchObject({ attempt: 2, score: 20, max: 25 })
   })
 
-  it('BEST: only the higher mid counts → 40/50 → 20 of 25 internal marks', () => {
-    const g = computeSubjectGrade(mids, preset('best-mids-25-75'))
-    const mids_ = g.byComponent.find(c => c.component.id === 'mid')
-    expect(mids_.fraction).toBeCloseTo(0.80, 5)
-    expect(mids_.points).toBeCloseTo(20, 5)
-    expect(g.locked).toBeCloseTo(20, 5)
+  it('AVERAGE pools both sittings → 39/50 → 19.5 of 25', () => {
+    const g = computeSubjectGrade(mids, preset('avg-internals-25-75'))
+    const internals = g.byComponent.find(c => c.component.id === 'internal')
+    expect(internals.fraction).toBeCloseTo(39 / 50, 5)
+    expect(internals.marks).toBeCloseTo(19.5, 5)
   })
 
-  it('the two schemes differ by exactly 2.5 marks on identical input', () => {
-    const avg = computeSubjectGrade(mids, preset('avg-mids-25-75')).locked
-    const best = computeSubjectGrade(mids, preset('best-mids-25-75')).locked
-    expect(best - avg).toBeCloseTo(2.5, 5)
+  it('BEST takes the higher sitting → 20/25 → 20 of 25', () => {
+    const g = computeSubjectGrade(mids, preset('best-internals-25-75'))
+    const internals = g.byComponent.find(c => c.component.id === 'internal')
+    expect(internals.fraction).toBeCloseTo(20 / 25, 5)
+    expect(internals.marks).toBeCloseTo(20, 5)
+  })
+
+  it('a sitting is worth 25 marks', () => {
+    expect(sittingMax(preset('avg-internals-25-75').components[0])).toBe(25)
+  })
+
+  it('full subject: internals 19.5 + theory 60 → 79.5 → A', () => {
+    const g = computeSubjectGrade([...mids, theory(60)], preset('avg-internals-25-75'))
+    expect(g.locked).toBeCloseTo(79.5, 5)
+    expect(g.isComplete).toBe(true)
+    expect(pctToGradeLabel(g.locked)).toBe('A')
+  })
+})
+
+// ── the reason best-of needs sitting-level grouping ──────────────
+
+describe('best-of compares whole sittings, not individual papers', () => {
+  // Mid 1 is lopsided: a great objective, a poor subjective.
+  // Mid 1 = 10+2+3 = 15/25 · Mid 2 = 6+8+5 = 19/25
+  const mids = [...sitting(1, 10, 2, 3), ...sitting(2, 6, 8, 5)]
+
+  it('picks Mid 2 (19) over Mid 1 (15), not the best loose papers', () => {
+    const g = computeSubjectGrade(mids, preset('best-internals-25-75'))
+    const internals = g.byComponent.find(c => c.component.id === 'internal')
+    expect(internals.marks).toBeCloseTo(19, 5)
+    // Ranking loose entries would have grabbed Mid 1's 10/10 objective and
+    // scored higher than any real sitting ever did.
+    expect(internals.marks).toBeLessThan(20)
+  })
+
+  it('marks which sittings the rule actually counted', () => {
+    const g = computeSubjectGrade(mids, preset('best-internals-25-75'))
+    const internals = g.byComponent.find(c => c.component.id === 'internal')
+    expect(internals.attempts.find(a => a.attempt === 2).counted).toBe(true)
+    expect(internals.attempts.find(a => a.attempt === 1).counted).toBe(false)
+  })
+
+  it('average counts every sitting', () => {
+    const g = computeSubjectGrade(mids, preset('avg-internals-25-75'))
+    const internals = g.byComponent.find(c => c.component.id === 'internal')
+    expect(internals.attempts.every(a => a.counted)).toBe(true)
   })
 
   it('best-of never scores below average-of on the same marks', () => {
-    for (const [a, b] of [[40, 30], [10, 49], [25, 25], [0, 50], [50, 50]]) {
-      const marks = [mid(1, a), mid(2, b)]
-      const avg = computeSubjectGrade(marks, preset('avg-mids-25-75')).locked
-      const best = computeSubjectGrade(marks, preset('best-mids-25-75')).locked
+    const cases = [[8, 7, 4, 6, 9, 5], [10, 2, 3, 6, 8, 5], [5, 5, 2, 5, 5, 2], [10, 10, 5, 0, 0, 0]]
+    for (const [o1, s1, a1, o2, s2, a2] of cases) {
+      const m = [...sitting(1, o1, s1, a1), ...sitting(2, o2, s2, a2)]
+      const avg = computeSubjectGrade(m, preset('avg-internals-25-75')).locked
+      const best = computeSubjectGrade(m, preset('best-internals-25-75')).locked
       expect(best).toBeGreaterThanOrEqual(avg - 1e-9)
     }
   })
 
-  it('identical mids make the two schemes agree', () => {
-    const marks = [mid(1, 35), mid(2, 35)]
-    expect(computeSubjectGrade(marks, preset('avg-mids-25-75')).locked)
-      .toBeCloseTo(computeSubjectGrade(marks, preset('best-mids-25-75')).locked, 5)
-  })
-
-  it('full term: 40 + 30 mids and 60/75 final → 65.5 → A', () => {
-    const g = computeSubjectGrade([...mids, final(60)], preset('avg-mids-25-75'))
-    expect(g.locked).toBeCloseTo(17.5 + 60, 5)      // 77.5
-    expect(g.isComplete).toBe(true)
-    expect(pctToGradeLabel(g.locked)).toBe('A')     // 70-79
+  it('identical sittings make the two schemes agree', () => {
+    const m = [...sitting(1, 7, 7, 4), ...sitting(2, 7, 7, 4)]
+    expect(computeSubjectGrade(m, preset('avg-internals-25-75')).locked)
+      .toBeCloseTo(computeSubjectGrade(m, preset('best-internals-25-75')).locked, 5)
   })
 })
 
-// ── current vs locked vs ceiling ─────────────────────────────────
+// ── per-part tracking ────────────────────────────────────────────
 
-describe('standing before everything is graded', () => {
-  const g = computeSubjectGrade([mid(1, 40), mid(2, 30)], preset('avg-mids-25-75'))
+describe('per-part breakdown across sittings', () => {
+  const mids = [...sitting(1, 8, 4, 5), ...sitting(2, 9, 3, 4)]
+  const g = computeSubjectGrade(mids, preset('avg-internals-25-75'))
+  const internals = g.byComponent.find(c => c.component.id === 'internal')
 
-  it('locked counts only banked marks', () => expect(g.locked).toBeCloseTo(17.5, 5))
-  it('current normalises over graded weight only', () => expect(g.current).toBeCloseTo(70, 5))
-  it('ceiling adds every remaining mark', () => expect(g.ceiling).toBeCloseTo(92.5, 5))
-  it('knows what is still outstanding', () => {
+  it('totals each part over every sitting', () => {
+    const part = (id) => internals.byPart.find(p => p.part.id === id)
+    expect(part('objective')).toMatchObject({ score: 17, max: 20 })   // 8 + 9
+    expect(part('subjective')).toMatchObject({ score: 7, max: 20 })   // 4 + 3
+    expect(part('assignment')).toMatchObject({ score: 9, max: 10 })   // 5 + 4
+  })
+
+  it('shows subjective as the weak spot', () => {
+    const weakest = [...internals.byPart].sort((a, b) => a.fraction - b.fraction)[0]
+    expect(weakest.part.id).toBe('subjective')
+    expect(weakest.fraction).toBeCloseTo(0.35, 5)
+  })
+
+  it('reports a part with no marks as null rather than zero', () => {
+    const partial = computeSubjectGrade(sitting(1, 8, 6, null), preset('avg-internals-25-75'))
+    const c = partial.byComponent.find(x => x.component.id === 'internal')
+    expect(c.byPart.find(p => p.part.id === 'assignment').fraction).toBeNull()
+  })
+})
+
+describe('half-marked sittings', () => {
+  it('scores on what has been returned, not on unreturned papers as zero', () => {
+    // Objective and subjective back (8 + 6 of 20), assignment not yet marked.
+    const g = computeSubjectGrade(sitting(1, 8, 6, null), preset('avg-internals-25-75'))
+    const internals = g.byComponent.find(c => c.component.id === 'internal')
+    expect(internals.fraction).toBeCloseTo(14 / 20, 5)   // not 14/25
+    expect(internals.marks).toBeCloseTo(17.5, 5)
+  })
+
+  it('ignores a sitting where nothing is marked yet', () => {
+    const g = computeSubjectGrade([...sitting(1, 8, 7, 4), ...sitting(2, null, null, null)],
+      preset('avg-internals-25-75'))
+    const internals = g.byComponent.find(c => c.component.id === 'internal')
+    expect(internals.attempts).toHaveLength(1)
+    expect(internals.fraction).toBeCloseTo(19 / 25, 5)
+  })
+})
+
+// ── standing, targets ────────────────────────────────────────────
+
+describe('standing and targets', () => {
+  const mids = [...sitting(1, 8, 7, 4), ...sitting(2, 6, 9, 5)]   // 19.5 of 25
+  const g = computeSubjectGrade(mids, preset('avg-internals-25-75'))
+
+  it('separates banked marks, projection and ceiling', () => {
+    expect(g.locked).toBeCloseTo(19.5, 5)
+    expect(g.current).toBeCloseTo(78, 5)
+    expect(g.ceiling).toBeCloseTo(94.5, 5)
     expect(g.gradedWeight).toBe(25)
     expect(g.remainingWeight).toBe(75)
-    expect(g.isComplete).toBe(false)
   })
+
+  it('says what the theory paper has to be for an overall 70', () => {
+    const t = targetForGrade(g, 70)
+    expect(t.reachable).toBe(true)
+    expect(t.needed).toBeCloseTo(67.333, 2)
+  })
+
+  it('flags an unreachable target rather than returning over 100', () => {
+    expect(targetForGrade(g, 99).reachable).toBe(false)
+  })
+
+  it('aims from the projected standing, not banked marks', () => {
+    // Projection is 78 (an A), so the next band is A+ at 80 — not the P band
+    // at 40, which is all 19.5 banked marks would suggest.
+    const n = nextBandTarget(g)
+    expect(n.band.min).toBe(80)
+    expect(n.label).toBe('A+')
+    expect(n.needed).toBeCloseTo(80.667, 2)
+  })
+
+  it('returns null at the top band', () => {
+    const perfect = computeSubjectGrade([...sitting(1, 10, 10, 5), theory(75)], preset('avg-internals-25-75'))
+    expect(perfect.locked).toBeCloseTo(100, 5)
+    expect(nextBandTarget(perfect)).toBeNull()
+  })
+
   it('reports nothing when nothing is graded', () => {
-    const empty = computeSubjectGrade([], preset('avg-mids-25-75'))
+    const empty = computeSubjectGrade([], preset('avg-internals-25-75'))
     expect(empty.current).toBeNull()
     expect(empty.gradePoint).toBeNull()
     expect(empty.locked).toBe(0)
   })
 })
 
-// ── "what do I need on the final" ────────────────────────────────
-
-describe('targetForGrade', () => {
-  const g = computeSubjectGrade([mid(1, 40), mid(2, 30)], preset('avg-mids-25-75'))
-
-  it('needs 70% of the external paper to reach 70 overall', () => {
-    const t = targetForGrade(g, 70)
-    expect(t.reachable).toBe(true)
-    expect(t.needed).toBeCloseTo(70, 5)   // (70 - 17.5) / 75 * 100
-  })
-
-  it('flags an unreachable target instead of returning >100', () => {
-    const t = targetForGrade(g, 95)
-    expect(t.reachable).toBe(false)
-    expect(t.needed).toBeGreaterThan(100)
-  })
-
-  it('reports a target already banked', () => {
-    const t = targetForGrade(g, 15)
-    expect(t.alreadyAchieved).toBe(true)
-    expect(t.needed).toBe(0)
-  })
-
-  it('is unreachable once nothing is left to grade', () => {
-    const done = computeSubjectGrade([mid(1, 40), mid(2, 30), final(40)], preset('avg-mids-25-75'))
-    expect(targetForGrade(done, 90).reachable).toBe(false)
-  })
-
-  it('nextBandTarget aims from where the subject is heading, not marks banked', () => {
-    // Projected standing is 70 (an A), so the next band up is A+ at 80 —
-    // NOT the P band at 40, which is all the 17.5 banked marks would suggest.
-    const n = nextBandTarget(g)
-    expect(n.band.min).toBe(80)
-    expect(n.label).toBe('A+')
-    // Still costed against banked marks: (80 - 17.5) / 75 * 100
-    expect(n.needed).toBeCloseTo(83.333, 2)
-    expect(n.reachable).toBe(true)
-  })
-
-  it('nextBandTarget measures from final marks once the subject is complete', () => {
-    const done = computeSubjectGrade([mid(1, 40), mid(2, 30), final(60)], preset('avg-mids-25-75'))
-    expect(done.isComplete).toBe(true)
-    expect(done.locked).toBeCloseTo(77.5, 5)
-    const n = nextBandTarget(done)
-    expect(n.band.min).toBe(80)          // 77.5 → next is A+
-    expect(n.reachable).toBe(false)      // nothing left to earn it with
-  })
-
-  it('returns null at the top band', () => {
-    const perfect = computeSubjectGrade([mid(1, 50), mid(2, 50), final(75)], preset('avg-mids-25-75'))
-    expect(perfect.locked).toBeCloseTo(100, 5)
-    expect(nextBandTarget(perfect)).toBeNull()
-  })
-})
-
 // ── aggregation rules ────────────────────────────────────────────
 
 describe('aggregateComponent', () => {
-  it('ignores ungraded entries', () => {
-    expect(aggregateComponent([mid(1, 40), mid(2, null)], { mode: 'average' })).toBeCloseTo(0.8, 5)
+  const s = (attempt, score, max = 25) => ({ componentId: 'x', attempt, score, maxScore: max })
+
+  it('best 2 of 3 drops the lowest sitting', () => {
+    expect(aggregateComponent([s(1, 20), s(2, 15), s(3, 22)], { mode: 'best', n: 2 }))
+      .toBeCloseTo(42 / 50, 5)
+  })
+  it('best n beyond the sitting count uses everything', () => {
+    expect(aggregateComponent([s(1, 20)], { mode: 'best', n: 5 })).toBeCloseTo(0.8, 5)
+  })
+  it('latest uses the last sitting', () => {
+    expect(aggregateComponent([s(1, 25), s(2, 10)], { mode: 'latest' })).toBeCloseTo(0.4, 5)
+  })
+  it('orders sittings numerically, so 10 follows 9', () => {
+    const attempts = groupIntoAttempts([s(9, 5), s(10, 20), s(2, 1)])
+    expect(attempts.map(a => a.attempt)).toEqual([2, 9, 10])
+  })
+  it('pools rather than averaging percentages when sittings differ in size', () => {
+    // 100% of 10 and 50% of 90 → pooled 55/100, not the 75% mean
+    expect(aggregateComponent([s(1, 10, 10), s(2, 45, 90)], { mode: 'average' })).toBeCloseTo(0.55, 5)
   })
   it('returns null when nothing is graded', () => {
-    expect(aggregateComponent([mid(1, null)], { mode: 'average' })).toBeNull()
     expect(aggregateComponent([], { mode: 'average' })).toBeNull()
+    expect(aggregateComponent([s(1, null)], { mode: 'average' })).toBeNull()
   })
-  it('best 2 of 3 drops the lowest', () => {
-    const r = aggregateComponent([mid(1, 40), mid(2, 30), mid(3, 45)], { mode: 'best', n: 2 })
-    expect(r).toBeCloseTo(85 / 100, 5)
+  it('treats a zero as a real mark, not a missing one', () => {
+    expect(isGraded({ score: 0, maxScore: 10 })).toBe(true)
+    expect(aggregateComponent([s(1, 0), s(2, 25)], { mode: 'average' })).toBeCloseTo(0.5, 5)
   })
-  it('best n larger than the entry count uses everything', () => {
-    expect(aggregateComponent([mid(1, 40)], { mode: 'best', n: 5 })).toBeCloseTo(0.8, 5)
-  })
-  it('pools rather than averaging percentages when maximums differ', () => {
-    const entries = [
-      { componentId: 'x', score: 10, maxScore: 10 },   // 100%
-      { componentId: 'x', score: 45, maxScore: 90 },   // 50%
-    ]
-    // pooled 55/100 = 0.55, not the 0.75 mean of the two percentages
-    expect(aggregateComponent(entries, { mode: 'average' })).toBeCloseTo(0.55, 5)
-  })
-  it('latest picks the most recent dated entry', () => {
-    const entries = [
-      { componentId: 'x', score: 10, maxScore: 50, date: '2026-01-10' },
-      { componentId: 'x', score: 40, maxScore: 50, date: '2026-03-01' },
-    ]
-    expect(aggregateComponent(entries, { mode: 'latest' })).toBeCloseTo(0.8, 5)
-  })
-  it('treats a zero mark as graded, not as missing', () => {
-    expect(isGraded({ score: 0, maxScore: 50 })).toBe(true)
-    expect(aggregateComponent([mid(1, 0), mid(2, 50)], { mode: 'average' })).toBeCloseTo(0.5, 5)
-  })
-  it('rejects entries with no usable maximum', () => {
+  it('rejects an entry with no usable maximum', () => {
     expect(isGraded({ score: 10, maxScore: 0 })).toBe(false)
+  })
+  it('defaults a missing attempt key to a single sitting', () => {
+    expect(groupIntoAttempts([{ componentId: 'x', score: 5, maxScore: 10 }])).toHaveLength(1)
   })
 })
 
-// ── scheme plumbing ──────────────────────────────────────────────
+// ── schemes ──────────────────────────────────────────────────────
 
 describe('schemes', () => {
   it('every preset weights to exactly 100', () => {
     for (const p of SCHEME_PRESETS) {
       const v = validateScheme(p.scheme)
       expect(v.total, `${p.id} totals ${v.total}`).toBe(100)
-      expect(v.valid).toBe(true)
+    }
+  })
+  it('every preset component declares parts that sum to a usable sitting', () => {
+    for (const p of SCHEME_PRESETS) {
+      for (const c of p.scheme.components) {
+        expect(sittingMax(c), `${p.id}/${c.id}`).toBeGreaterThan(0)
+      }
     }
   })
   it('catches weights that do not add up', () => {
@@ -203,13 +267,19 @@ describe('schemes', () => {
     expect(v.valid).toBe(false)
     expect(v.total).toBe(80)
   })
+  it('the split and the rule are independent', () => {
+    const avg = preset('avg-internals-25-75').components[0]
+    const best = preset('best-internals-25-75').components[0]
+    expect(avg.parts).toEqual(best.parts)          // same split
+    expect(avg.rule).not.toEqual(best.rule)        // different rule
+  })
   it('a subject override beats the semester default', () => {
-    const semester = { gradingScheme: preset('avg-mids-25-75') }
+    const semester = { gradingScheme: preset('avg-internals-25-75') }
     const subject = { gradingScheme: preset('internal-only') }
     expect(resolveScheme(semester, subject)).toBe(subject.gradingScheme)
   })
   it('a subject with no override inherits the semester', () => {
-    const semester = { gradingScheme: preset('best-mids-25-75') }
+    const semester = { gradingScheme: preset('best-internals-25-75') }
     expect(resolveScheme(semester, { name: 'X' })).toBe(semester.gradingScheme)
   })
   it('falls back to the built-in default', () => {
@@ -245,10 +315,11 @@ describe('exam → assessment migration', () => {
     expect(out.every(a => a.blocksClasses)).toBe(true)
     expect(classBlockingDates(out)).toEqual(new Set(['2026-08-15', '2026-08-20']))
   })
-  it('an assignment deadline must NOT suspend that day\'s classes', () => {
+  it("an assignment deadline must NOT suspend that day's classes", () => {
     const assessments = [
       ...migrateExamsToAssessments(exams),
-      { id: 'a1', componentId: 'assignment', date: '2026-09-01', blocksClasses: false, score: 8, maxScore: 10 },
+      { id: 'a1', componentId: 'internal', partId: 'assignment', attempt: 1,
+        date: '2026-09-01', blocksClasses: false, score: 4, maxScore: 5 },
     ]
     expect(classBlockingDates(assessments).has('2026-09-01')).toBe(false)
     expect(classBlockingDates(assessments).size).toBe(2)

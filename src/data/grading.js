@@ -51,49 +51,67 @@ export const pctToGradeLabel = (pct, bands) => gradePointToLabel(pctToGradePoint
 //   best    — only the higher mid counts    max(mid1, mid2) / 50 × 25
 // That switch is the whole reason this is configurable.
 
-export const DEFAULT_SCHEME = {
-  components: [
-    { id: 'mid',   label: 'MIDS',  weight: 25, rule: { mode: 'average' } },
-    { id: 'final', label: 'FINAL', weight: 75, rule: { mode: 'average' } },
+// A component may declare `parts` — the split within one sitting. Parts carry
+// their own maximums and are summed per sitting before the rule is applied.
+// The split and the rule are independent knobs: two colleges can share
+// "average of two mids" while splitting each mid differently, which is why
+// both are editable rather than baked in.
+
+/** Objective 10 + subjective 10 + assignment 5, taken twice, averaged → 25. */
+const INTERNALS_25 = {
+  id: 'internal',
+  label: 'INTERNALS',
+  weight: 25,
+  rule: { mode: 'average' },
+  parts: [
+    { id: 'objective',  label: 'OBJECTIVE',  max: 10 },
+    { id: 'subjective', label: 'SUBJECTIVE', max: 10 },
+    { id: 'assignment', label: 'ASSIGNMENT', max: 5  },
   ],
+}
+
+const THEORY_75 = {
+  id: 'theory',
+  label: 'THEORY',
+  weight: 75,
+  rule: { mode: 'average' },
+  parts: [{ id: 'paper', label: 'PAPER', max: 75 }],
+}
+
+export const DEFAULT_SCHEME = {
+  components: [INTERNALS_25, THEORY_75],
   bands: DEFAULT_GRADE_BANDS,
 }
 
 /** Ready-made schemes offered in the scheme editor. */
 export const SCHEME_PRESETS = [
   {
-    id: 'avg-mids-25-75',
+    id: 'avg-internals-25-75',
     label: 'AVG OF MIDS · 25 + 75',
-    description: 'Both mids averaged into 25 internal marks, external out of 75.',
-    scheme: {
-      components: [
-        { id: 'mid',   label: 'MIDS',  weight: 25, rule: { mode: 'average' } },
-        { id: 'final', label: 'FINAL', weight: 75, rule: { mode: 'average' } },
-      ],
-      bands: DEFAULT_GRADE_BANDS,
-    },
+    description: 'Two sittings of objective 10 + subjective 10 + assignment 5, averaged into 25 internal marks. Theory out of 75.',
+    scheme: { components: [INTERNALS_25, THEORY_75], bands: DEFAULT_GRADE_BANDS },
   },
   {
-    id: 'best-mids-25-75',
+    id: 'best-internals-25-75',
     label: 'BEST OF MIDS · 25 + 75',
-    description: 'Highest single mid becomes the 25 internal marks, external out of 75.',
+    description: 'Same split, but only the higher sitting counts toward the 25 internal marks.',
     scheme: {
-      components: [
-        { id: 'mid',   label: 'MIDS',  weight: 25, rule: { mode: 'best', n: 1 } },
-        { id: 'final', label: 'FINAL', weight: 75, rule: { mode: 'average' } },
-      ],
+      components: [{ ...INTERNALS_25, rule: { mode: 'best', n: 1 } }, THEORY_75],
       bands: DEFAULT_GRADE_BANDS,
     },
   },
   {
     id: 'mids-assign-final',
     label: 'MIDS + ASSIGNMENTS + FINAL',
-    description: 'Best 2 of 3 mids (30), assignments (20), final (50).',
+    description: 'Separate assignment component. Best 2 of 3 mids (30), assignments (20), final (50).',
     scheme: {
       components: [
-        { id: 'mid',        label: 'MIDS',        weight: 30, rule: { mode: 'best', n: 2 } },
-        { id: 'assignment', label: 'ASSIGNMENTS', weight: 20, rule: { mode: 'average' } },
-        { id: 'final',      label: 'FINAL',       weight: 50, rule: { mode: 'average' } },
+        { id: 'mid',        label: 'MIDS',        weight: 30, rule: { mode: 'best', n: 2 },
+          parts: [{ id: 'paper', label: 'PAPER', max: 50 }] },
+        { id: 'assignment', label: 'ASSIGNMENTS', weight: 20, rule: { mode: 'average' },
+          parts: [{ id: 'work', label: 'WORK', max: 10 }] },
+        { id: 'final',      label: 'FINAL',       weight: 50, rule: { mode: 'average' },
+          parts: [{ id: 'paper', label: 'PAPER', max: 100 }] },
       ],
       bands: DEFAULT_GRADE_BANDS,
     },
@@ -104,13 +122,19 @@ export const SCHEME_PRESETS = [
     description: 'Labs and project subjects with no external paper.',
     scheme: {
       components: [
-        { id: 'internal', label: 'INTERNAL', weight: 60, rule: { mode: 'average' } },
-        { id: 'viva',     label: 'VIVA',     weight: 40, rule: { mode: 'average' } },
+        { id: 'internal', label: 'INTERNAL', weight: 60, rule: { mode: 'average' },
+          parts: [{ id: 'record', label: 'RECORD', max: 30 }, { id: 'execution', label: 'EXECUTION', max: 30 }] },
+        { id: 'viva',     label: 'VIVA',     weight: 40, rule: { mode: 'average' },
+          parts: [{ id: 'viva', label: 'VIVA', max: 40 }] },
       ],
       bands: DEFAULT_GRADE_BANDS,
     },
   },
 ]
+
+/** Total marks in one sitting of a component (the sum of its parts). */
+export const sittingMax = (component) =>
+  (component?.parts ?? []).reduce((a, p) => a + (Number(p.max) || 0), 0)
 
 export const AGGREGATION_MODES = ['average', 'best', 'latest']
 
@@ -141,33 +165,57 @@ export const isGraded = (a) =>
   a && a.score !== null && a.score !== undefined && a.score !== '' &&
   Number.isFinite(Number(a.score)) && Number(a.maxScore) > 0
 
-const fractionOf = (a) => Number(a.score) / Number(a.maxScore)
+/**
+ * Group a component's entries into sittings ("attempt 1", "attempt 2", …).
+ *
+ * A sitting is the unit the average/best rule operates on, and it is not the
+ * same thing as a single mark. One mid can be split into objective +
+ * subjective + assignment; "best of the mids" means those parts are summed
+ * per sitting FIRST and the sitting totals are then compared. Ranking the
+ * individual papers instead would happily pick two halves of the same mid.
+ *
+ * Ungraded parts are excluded from a sitting rather than counted as zero, so
+ * a half-marked mid reports the standing on what has actually been returned.
+ */
+export function groupIntoAttempts(entries) {
+  const byAttempt = new Map()
+  for (const e of (entries ?? [])) {
+    if (!isGraded(e)) continue
+    const key = e.attempt ?? 1
+    if (!byAttempt.has(key)) byAttempt.set(key, { attempt: key, parts: [], score: 0, max: 0 })
+    const group = byAttempt.get(key)
+    group.parts.push(e)
+    group.score += Number(e.score)
+    group.max += Number(e.maxScore)
+  }
+  return [...byAttempt.values()]
+    .filter(g => g.max > 0)
+    .map(g => ({ ...g, fraction: g.score / g.max }))
+    .sort((a, b) => String(a.attempt).localeCompare(String(b.attempt), undefined, { numeric: true }))
+}
 
 /**
- * Collapse the graded entries of one component into a single fraction (0..1).
+ * Collapse one component's entries into a single fraction (0..1).
  *
- * Entries are ranked by their own percentage where the rule needs an order,
- * then the selected ones are pooled (Σscore / Σmax) rather than averaged as
- * percentages — pooling is the defensible reading when entries carry
- * different maximums.
- *
+ * Sittings are pooled (Σscore / Σmax) rather than averaged as percentages,
+ * which is the defensible reading when sittings carry different maximums.
  * Returns null when nothing in the component is graded yet.
  */
 export function aggregateComponent(entries, rule = { mode: 'average' }) {
-  const graded = (entries ?? []).filter(isGraded)
-  if (graded.length === 0) return null
+  const attempts = groupIntoAttempts(entries)
+  if (attempts.length === 0) return null
 
-  let selected = graded
+  let selected = attempts
   if (rule?.mode === 'best') {
     const n = Math.max(1, Number(rule.n) || 1)
-    selected = [...graded].sort((a, b) => fractionOf(b) - fractionOf(a)).slice(0, n)
+    selected = [...attempts].sort((a, b) => b.fraction - a.fraction).slice(0, n)
   } else if (rule?.mode === 'latest') {
-    // Undated entries sort oldest so an explicitly dated mark always wins.
-    selected = [...graded].sort((a, b) => String(a.date ?? '').localeCompare(String(b.date ?? ''))).slice(-1)
+    // Sittings sort by attempt key, so the last one is the most recent.
+    selected = attempts.slice(-1)
   }
 
-  const score = selected.reduce((a, e) => a + Number(e.score), 0)
-  const max = selected.reduce((a, e) => a + Number(e.maxScore), 0)
+  const score = selected.reduce((a, g) => a + g.score, 0)
+  const max = selected.reduce((a, g) => a + g.max, 0)
   return max > 0 ? score / max : null
 }
 
@@ -191,14 +239,40 @@ export function computeSubjectGrade(assessments, scheme = DEFAULT_SCHEME) {
     const entries = (assessments ?? []).filter(a => a.componentId === c.id)
     const fraction = aggregateComponent(entries, c.rule)
     const weight = Number(c.weight) || 0
+    const attempts = groupIntoAttempts(entries)
+
+    // Which sittings the rule actually used — the UI greys out a dropped mid
+    // rather than leaving the student to work out why the total looks high.
+    const counted = new Set(
+      c.rule?.mode === 'best'
+        ? [...attempts].sort((a, b) => b.fraction - a.fraction)
+            .slice(0, Math.max(1, Number(c.rule.n) || 1)).map(a => a.attempt)
+        : c.rule?.mode === 'latest'
+          ? attempts.slice(-1).map(a => a.attempt)
+          : attempts.map(a => a.attempt)
+    )
+
+    // Per-part standing across every sitting: "objective 14/20 over both mids".
+    // This is the answer to "where am I actually losing marks".
+    const byPart = (c.parts ?? []).map(p => {
+      const marks = entries.filter(e => e.partId === p.id && isGraded(e))
+      const score = marks.reduce((a, e) => a + Number(e.score), 0)
+      const max = marks.reduce((a, e) => a + Number(e.maxScore), 0)
+      return { part: p, score, max, count: marks.length, fraction: max > 0 ? score / max : null }
+    })
+
     return {
       component: c,
       entries,
+      attempts: attempts.map(a => ({ ...a, counted: counted.has(a.attempt) })),
+      byPart,
+      sittingMax: sittingMax(c),
       gradedCount: entries.filter(isGraded).length,
       totalCount: entries.length,
-      fraction,                                        // 0..1 or null
+      fraction,                                          // 0..1 or null
       pct: fraction === null ? null : fraction * 100,
-      points: fraction === null ? 0 : fraction * weight, // contribution to the 100
+      marks: fraction === null ? null : fraction * weight, // marks earned of `weight`
+      points: fraction === null ? 0 : fraction * weight,   // contribution to the 100
       weight,
     }
   })
