@@ -37,7 +37,10 @@ function HudButton({ onClick, title, variant = 'plain', active = false, pressed,
       onClick={onClick}
       title={title}
       aria-pressed={pressed}
-      className="flex items-center gap-1.5 px-2.5 py-1.5 panel-chamfer-sm btn-mech"
+      // min-w/h 40px below sm: these collapse to icon-only on a phone, and a
+      // 34x32 icon button is below any usable tap target.
+      className="flex items-center justify-center gap-1.5 shrink-0 min-w-[40px] min-h-[40px]
+                 px-2 sm:px-2.5 py-1.5 sm:min-w-0 sm:min-h-0 panel-chamfer-sm btn-mech"
       style={{
         border:       active ? '1px solid var(--cad-danger)' : '1px solid var(--cad-border)',
         color:        active ? 'var(--cad-danger)' : variant === 'accent' ? 'var(--cad-accent-text)' : 'var(--cad-text-mid)',
@@ -107,20 +110,32 @@ export function ControlBar({ semesters, activeSemId, onSemChange, onRemoveSem, e
         <span className="sr-only sm:hidden">Theme</span>
       </HudButton>
 
-      {/* Settings toggle */}
-      <HudButton onClick={onOpenSettings}>
+      {/* Settings toggle — icon-only below sm */}
+      <HudButton onClick={onOpenSettings} title="Settings">
         <span aria-hidden="true" style={{ fontSize: 'var(--cad-fs-sm)' }}>⚙</span>
-        <span>SETTINGS</span>
+        <span className="hidden sm:inline">SETTINGS</span>
+        <span className="sr-only sm:hidden">Settings</span>
       </HudButton>
 
-      {/* Edit toggle */}
-      <HudButton onClick={onToggleEdit} active={editMode} pressed={editMode}>
+      {/* Edit toggle — icon-only below sm. This used to sit at x=450 on a
+          390px screen, i.e. entirely off-screen, which made edit mode
+          unreachable on a phone and with it every add/delete in the app. */}
+      <HudButton
+        onClick={onToggleEdit}
+        active={editMode}
+        pressed={editMode}
+        title={editMode ? 'Lock (leave edit mode)' : 'Edit'}
+      >
         <span aria-hidden="true" style={{ fontSize: 'var(--cad-fs-sm)' }}>{editMode ? '⊠' : '✎'}</span>
-        <span>{editMode ? 'LOCK' : 'EDIT'}</span>
+        <span className="hidden sm:inline">{editMode ? 'LOCK' : 'EDIT'}</span>
+        <span className="sr-only sm:hidden">{editMode ? 'Lock, leave edit mode' : 'Edit'}</span>
       </HudButton>
 
-      {/* Clock — HH:MM:SS on desktop, HH:MM on mobile */}
-      <Clock />
+      {/* Clock — desktop only. A phone already shows the time in its own
+          status bar, and this was the widest thing pushing EDIT off-screen. */}
+      <div className="hidden sm:block">
+        <Clock />
+      </div>
     </header>
   )
 }
