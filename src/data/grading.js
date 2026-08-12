@@ -419,7 +419,11 @@ export function targetForGrade(grade, targetPct) {
  */
 export function nextBandTarget(grade, bands = DEFAULT_GRADE_BANDS) {
   const standing = grade.isComplete ? grade.locked : (grade.current ?? grade.locked)
-  const ascending = [...bands].sort((a, b) => a.min - b.min)
+  // bandsOf, not a bare spread: every other reader accepts either a band set
+  // ({scale, bands}) or a plain array, and scheme.bands is a set. Spreading
+  // the set threw "is not iterable" — an inconsistency the UI had to guard
+  // against locally, which is exactly the wrong place for it.
+  const ascending = [...bandsOf(bands)].sort((a, b) => a.min - b.min)
   const next = ascending.find(b => b.min > standing)
   if (!next) return null
   return { band: next, label: gradePointToLabel(next.gp), ...targetForGrade(grade, next.min) }

@@ -197,6 +197,14 @@ describe('standing and targets', () => {
     expect(n.needed).toBeCloseTo(80.667, 2)
   })
 
+  it('accepts a band set as well as a bare array', () => {
+    // scheme.bands is a set; a bare spread threw "is not iterable" here while
+    // every other band reader accepted both forms.
+    expect(() => nextBandTarget(g, JNTU_BANDS)).not.toThrow()
+    expect(nextBandTarget(g, JNTU_BANDS).label).toBe(nextBandTarget(g, JNTU_BANDS.bands).label)
+    expect(nextBandTarget(g, DEFAULT_SCHEME.bands).label).toBe('A+')
+  })
+
   it('returns null at the top band', () => {
     const perfect = computeSubjectGrade([...sitting(1, 10, 10, 5), theory(75)], preset('avg-internals-25-75'))
     expect(perfect.locked).toBeCloseTo(100, 5)

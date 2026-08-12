@@ -40,7 +40,15 @@ export function ExamModal({ mode, initial, subjects = [], exams = [], onSave, on
     const err = validate()
     if (err) { setError(err); return }
     setError('')
-    onSave({ id: initial?.id ?? crypto.randomUUID(), ...form })
+    // A scheduled paper is an assessment that replaces the day's classes, and
+    // it is the theory component of the subject's scheme — that flag is what
+    // keeps attendance correct, so it is set here rather than left to callers.
+    onSave({
+      id: initial?.id ?? crypto.randomUUID(),
+      ...form,
+      componentId: initial?.componentId ?? 'theory',
+      blocksClasses: true,
+    })
   }
 
   const previewSubj = subjects.find(s => String(s.id) === String(form.subjectId))
@@ -60,6 +68,7 @@ export function ExamModal({ mode, initial, subjects = [], exams = [], onSave, on
               upd('subjectId', selected ? selected.id : e.target.value)
             }}
             className="cad-input"
+            aria-label="Exam subject"
             style={{ cursor: 'pointer' }}
           >
             {subjects.map(s => (
@@ -70,23 +79,23 @@ export function ExamModal({ mode, initial, subjects = [], exams = [], onSave, on
 
         <div style={sectionStyle}>
           <div className="cad-label" style={labelGap}>DATE</div>
-          <input type="date" value={form.date} onChange={e => upd('date', e.target.value)} className="cad-input" />
+          <input type="date" value={form.date} onChange={e => upd('date', e.target.value)} className="cad-input" aria-label="Exam date" />
         </div>
 
         <div style={{ ...sectionStyle, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
           <div>
             <div className="cad-label" style={labelGap}>START</div>
-            <input type="time" value={form.startTime} onChange={e => upd('startTime', e.target.value)} className="cad-input" max={`${pad2(GRID_END_HOUR)}:00`} />
+            <input type="time" value={form.startTime} onChange={e => upd('startTime', e.target.value)} className="cad-input" aria-label="Exam start time" max={`${pad2(GRID_END_HOUR)}:00`} />
           </div>
           <div>
             <div className="cad-label" style={labelGap}>END</div>
-            <input type="time" value={form.endTime} onChange={e => upd('endTime', e.target.value)} className="cad-input" max={`${pad2(GRID_END_HOUR)}:00`} />
+            <input type="time" value={form.endTime} onChange={e => upd('endTime', e.target.value)} className="cad-input" aria-label="Exam end time" max={`${pad2(GRID_END_HOUR)}:00`} />
           </div>
         </div>
 
         <div style={sectionStyle}>
           <div className="cad-label" style={labelGap}>ROOM (OPTIONAL)</div>
-          <input value={form.room} onChange={e => upd('room', e.target.value)} placeholder="HALL A / C4-202" className="cad-input" />
+          <input value={form.room} onChange={e => upd('room', e.target.value)} placeholder="HALL A / C4-202" className="cad-input" aria-label="Exam room" />
         </div>
 
         <div style={sectionStyle}>
@@ -97,6 +106,7 @@ export function ExamModal({ mode, initial, subjects = [], exams = [], onSave, on
             rows={3}
             placeholder="Syllabus, weightage, prep notes…"
             className="cad-input"
+            aria-label="Exam notes"
             style={{ resize: 'vertical' }}
           />
         </div>

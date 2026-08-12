@@ -17,6 +17,8 @@ import { AttendanceView } from './components/attendance/AttendanceView.jsx'
 import { ExamsView } from './components/exams/ExamsView.jsx'
 import { ClassifiedPanel } from './components/layout/ClassifiedPanel.jsx'
 
+const EMPTY_ASSESSMENTS = []
+
 // Konami code (↑↑↓↓←→←→BA) — opens the CLASSIFIED OPERATIONS panel
 const KONAMI_SEQ = ['arrowup','arrowup','arrowdown','arrowdown','arrowleft','arrowright','arrowleft','arrowright','b','a']
 
@@ -99,7 +101,9 @@ export default function App() {
   // the day's classes, an assignment deadline does not. Deriving this from
   // every dated assessment would let an assignment silently cancel a day of
   // teaching and move the attendance percentage.
-  const assessments = activeSem?.assessments ?? []
+  // Memoized: `?? []` allocates a fresh array whenever a semester has no
+  // assessments, which would defeat both useMemos below on every render.
+  const assessments = useMemo(() => activeSem?.assessments ?? EMPTY_ASSESSMENTS, [activeSem])
   const examDates = useMemo(() => classBlockingDates(assessments), [assessments])
 
   // Sit-down papers only — the grid draws these as exam blocks.
