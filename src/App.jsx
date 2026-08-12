@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { useSemesters } from './hooks/useSemesters.js'
 import { useAttendance } from './hooks/useAttendance.js'
 import { PANEL_TABS } from './data/index.js'
+import { classBlockingDates } from './data/grading.js'
 import { Dot } from './components/ui/Dot.jsx'
 import { SyncChip } from './components/ui/SyncChip.jsx'
 import { ControlBar }   from './components/layout/ControlBar.jsx'
@@ -25,7 +26,8 @@ export default function App() {
     setActiveSemId, addSemester, updateSem, removeSemester,
     addSubject, updateSubject, removeSubject,
     saveTimetableEntry, deleteTimetableEntry,
-    addExam, updateExam, removeExam,
+    addSitting, updateAssessment, setAssessmentScore, removeAssessment, removeSitting,
+    setGradingScheme, setSubjectScheme,
   } = useSemesters()
 
 
@@ -92,8 +94,18 @@ export default function App() {
 
   const totalCr = activeSem?.subjects.reduce((a, s) => a + (parseFloat(s.credits) || 0), 0).toFixed(1) ?? '0.0'
 
-  // Exam dates for the active semester — used to treat exam days as "no classes" in attendance
-  const examDates = useMemo(() => new Set((activeSem?.exams ?? []).map(e => e.date)), [activeSem])
+  // Dates where teaching is suspended, used to skip those days in attendance.
+  // Only assessments flagged blocksClasses count: a sit-down paper replaces
+  // the day's classes, an assignment deadline does not. Deriving this from
+  // every dated assessment would let an assignment silently cancel a day of
+  // teaching and move the attendance percentage.
+  const assessments = activeSem?.assessments ?? []
+  const examDates = useMemo(() => classBlockingDates(assessments), [assessments])
+
+  // Sit-down papers only — the grid draws these as exam blocks.
+  const scheduledExams = useMemo(
+    () => assessments.filter(a => a.blocksClasses && a.date),
+    [assessments])
 
   return (
     <div
@@ -216,18 +228,23 @@ export default function App() {
               <AttendanceView timetable={activeSem?.timetable ?? []} subjects={activeSem?.subjects ?? []} attendanceHook={attendanceHook} examDates={examDates} />
             ) : activeTab === 'exams' ? (
               <ExamsView
-                exams={activeSem?.exams ?? []}
                 subjects={activeSem?.subjects ?? []}
+                semester={activeSem}
+                assessments={assessments}
                 editMode={editMode}
-                onAdd={addExam}
-                onUpdate={updateExam}
-                onRemove={removeExam}
+                onAddSitting={addSitting}
+                onUpdateAssessment={updateAssessment}
+                onSetScore={setAssessmentScore}
+                onRemoveAssessment={removeAssessment}
+                onRemoveSitting={removeSitting}
+                onSetScheme={setGradingScheme}
+                onSetSubjectScheme={setSubjectScheme}
               />
             ) : (
               <TimetableGrid
                 subjects={activeSem?.subjects ?? []}
                 timetable={activeSem?.timetable ?? []}
-                exams={activeSem?.exams ?? []}
+                exams={scheduledExams}
                 editMode={editMode}
                 attendanceHook={attendanceHook}
                 examDates={examDates}

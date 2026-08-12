@@ -455,3 +455,28 @@ export function migrateExamsToAssessments(exams = []) {
 /** Only assessments that actually replace a day's classes feed examDates. */
 export const classBlockingDates = (assessments = []) =>
   new Set(assessments.filter(a => a.blocksClasses && a.date).map(a => a.date))
+
+/**
+ * Bring one semester up to the gradebook shape. Idempotent — safe to run on
+ * every load and on every cloud pull.
+ *
+ * `exams` is deliberately left in place rather than deleted. Nothing reads it
+ * after this point, but keeping the original array means downgrading to an
+ * older build still shows the user their exam schedule instead of an empty
+ * tab. It can be dropped in a later schema version once this one has settled.
+ */
+export function normalizeSemester(sem) {
+  if (!sem || typeof sem !== 'object') return sem
+  if (Array.isArray(sem.assessments)) {
+    // Already migrated; just make sure a scheme is present.
+    return sem.gradingScheme ? sem : { ...sem, gradingScheme: DEFAULT_SCHEME }
+  }
+  return {
+    ...sem,
+    assessments: migrateExamsToAssessments(sem.exams ?? []),
+    gradingScheme: sem.gradingScheme ?? DEFAULT_SCHEME,
+  }
+}
+
+export const normalizeSemesters = (list) =>
+  Array.isArray(list) ? list.map(normalizeSemester) : list

@@ -18,12 +18,19 @@ export function ClassifiedPanel({ semesters, onPurge, onClose }) {
         purged++
         return { ...t, room: '' }
       })
+      // Rooms live on assessments now; `exams` is only kept as a legacy
+      // snapshot for downgrades, but purge it too so a rollback doesn't
+      // resurrect the locations this just cleared.
       const exams = (sem.exams ?? []).map(x => {
         if (!x.room) return x
-        purged++
         return { ...x, room: '' }
       })
-      return { ...sem, timetable, exams }
+      const assessments = (sem.assessments ?? []).map(a => {
+        if (!a.room) return a
+        purged++
+        return { ...a, room: '' }
+      })
+      return { ...sem, timetable, exams, assessments }
     })
     onPurge(next)
     setResult(

@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { INITIAL_SEMESTERS, SUBJECT_COLORS } from '../data/index.js'
 import { API } from '../data/api.js'
+import { normalizeSemesters, DEFAULT_SCHEME } from '../data/grading.js'
 
 /**
  * useSemesters — all semester CRUD state, extracted from App.jsx.
@@ -8,7 +9,7 @@ import { API } from '../data/api.js'
  */
 export function useSemesters() {
   const [semesters, setSemesters] = useState(() => {
-    return API.getSemesters(INITIAL_SEMESTERS)
+    return normalizeSemesters(API.getSemesters(INITIAL_SEMESTERS))
   })
   
   const [activeSemId, setActiveSemId] = useState(() => {
@@ -19,7 +20,7 @@ export function useSemesters() {
 
   useEffect(() => {
     const handleSync = () => {
-      const newSems = API.getSemesters(INITIAL_SEMESTERS)
+      const newSems = normalizeSemesters(API.getSemesters(INITIAL_SEMESTERS))
       setSemesters(newSems)
       lastSavedSemestersRef.current = JSON.stringify(newSems)
       setActiveSemId(API.getActiveSemId(newSems[0]?.id || 1))
@@ -87,6 +88,8 @@ export function useSemesters() {
         subjects: [],
         timetable: [],
         exams: [],
+        assessments: [],
+        gradingScheme: DEFAULT_SCHEME,
       }
       return [...prev, newSem]
     })
@@ -162,22 +165,97 @@ export function useSemesters() {
     }))
   }, [updateSem])
 
-  // ── Exam CRUD ─────────────────────────────────────────────────
-  const addExam = useCallback(exam => {
-    updateSem(sem => ({ ...sem, exams: [...(sem.exams || []), exam] }))
-  }, [updateSem])
-
-  const updateExam = useCallback(exam => {
+  // ── Assessment CRUD ───────────────────────────────────────────
+  // Replaces the old exam CRUD. An assessment is one mark: a component, a
+  // sitting, and optionally a part within that sitting. `blocksClasses`
+  // decides whether its date suspends teaching — true for a sit-down paper,
+  // false for an assignment deadline.
+  const addAssessment = useCallback(assessment => {
     updateSem(sem => ({
       ...sem,
-      exams: (sem.exams || []).map(e => String(e.id) === String(exam.id) ? exam : e),
+      assessments: [...(sem.assessments || []), { id: crypto.randomUUID(), ...assessment }],
     }))
   }, [updateSem])
 
-  const removeExam = useCallback(id => {
+  /** Add a whole sitting at once — one entry per part of the component. */
+  const addSitting = useCallback((component, subjectId, attempt, shared = {}) => {
     updateSem(sem => ({
       ...sem,
-      exams: (sem.exams || []).filter(e => String(e.id) !== String(id)),
+      assessments: [
+        ...(sem.assessments || []),
+        ...(component.parts ?? [{ id: 'score', label: component.label, max: 100 }]).map(part => ({
+          id: crypto.randomUUID(),
+          subjectId,
+          componentId: component.id,
+          partId: part.id,
+          attempt,
+          title: `${component.label} ${attempt} · ${part.label}`,
+          score: null,
+          maxScore: part.max,
+          date: '', startTime: '', endTime: '', room: '', notes: '',
+          blocksClasses: false,
+          ...shared,
+        })),
+      ],
+    }))
+  }, [updateSem])
+
+  const updateAssessment = useCallback(assessment => {
+    updateSem(sem => ({
+      ...sem,
+      assessments: (sem.assessments || []).map(a =>
+        String(a.id) === String(assessment.id) ? { ...a, ...assessment } : a),
+    }))
+  }, [updateSem])
+
+  /** Set one mark without rebuilding the whole record. '' clears it. */
+  const setAssessmentScore = useCallback((id, score) => {
+    const parsed = score === '' || score === null || score === undefined ? null : Number(score)
+    updateSem(sem => ({
+      ...sem,
+      assessments: (sem.assessments || []).map(a =>
+        String(a.id) === String(id)
+          ? { ...a, score: Number.isFinite(parsed) ? parsed : null }
+          : a),
+    }))
+  }, [updateSem])
+
+  const removeAssessment = useCallback(id => {
+    updateSem(sem => ({
+      ...sem,
+      assessments: (sem.assessments || []).filter(a => String(a.id) !== String(id)),
+    }))
+  }, [updateSem])
+
+  /** Drop every entry of one sitting (all its parts). */
+  const removeSitting = useCallback((subjectId, componentId, attempt) => {
+    updateSem(sem => ({
+      ...sem,
+      assessments: (sem.assessments || []).filter(a => !(
+        String(a.subjectId) === String(subjectId) &&
+        a.componentId === componentId &&
+        String(a.attempt ?? 1) === String(attempt)
+      )),
+    }))
+  }, [updateSem])
+
+  // ── Grading scheme ────────────────────────────────────────────
+  const setGradingScheme = useCallback(scheme => {
+    updateSem(sem => ({ ...sem, gradingScheme: scheme }))
+  }, [updateSem])
+
+  /** null clears the override so the subject inherits the semester scheme. */
+  const setSubjectScheme = useCallback((subjectId, scheme) => {
+    updateSem(sem => ({
+      ...sem,
+      subjects: sem.subjects.map(s => {
+        if (String(s.id) !== String(subjectId)) return s
+        if (scheme === null) {
+          const { gradingScheme: _drop, ...rest } = s
+          return rest
+        }
+        return { ...s, gradingScheme: scheme }
+      }),
     }))
   }, [updateSem])
 
@@ -199,9 +277,15 @@ export function useSemesters() {
     // Timetable actions
     saveTimetableEntry,
     deleteTimetableEntry,
-    // Exam actions
-    addExam,
-    updateExam,
-    removeExam,
+    // Assessment actions
+    addAssessment,
+    addSitting,
+    updateAssessment,
+    setAssessmentScore,
+    removeAssessment,
+    removeSitting,
+    // Grading scheme
+    setGradingScheme,
+    setSubjectScheme,
   }
 }
