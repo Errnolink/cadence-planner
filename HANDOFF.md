@@ -1,7 +1,7 @@
 # Cadence Planner — Handoff
 
-**Written:** 2026-08-13. Last updated after the sync-stamp and quick-mark fixes
-in §6c.
+**Written:** 2026-08-13. Last updated at the end of the `improvement-v3` round.
+**Start with §5** — it is the implementation plan for what is left.
 **Repo:** `C:\Users\Chef\Documents\Errnolink\cadence-planner` · `github.com/Errnolink/cadence-planner`
 
 Read this, then `IMPROVEMENT_PLAN.md` for the full audit and the backlog. This
@@ -13,7 +13,8 @@ file covers what changed, what is in flight, and what will bite you.
 
 | Branch | State | Pushed |
 |---|---|---|
-| `main` | `429d642` — gradebook merged in, plus the awarded-grade and roster work | **yes**, `origin/main` matches |
+| `improvement-v3` | 10 commits — sync clobber, attendance tier, gradebook rounding, settings page, mobile, real semester dates | **yes**; awaiting a test pass, then merge to `main` |
+| `main` | `429d642` — gradebook, awarded grades, roster work | yes, `origin/main` matches |
 | `exams-gradebook` | fully contained in `main`; keep or delete, it carries nothing unique | yes |
 
 The gradebook is **on `main`** — §4 describes shipped code, not a side branch.
@@ -23,7 +24,7 @@ and are stale.
 
 ```bash
 npm run dev        # vite, :5173
-npm test           # vitest — 203 unit tests, all green
+npm test           # vitest — 231 unit tests, all green
 npm run test:e2e   # playwright — 17 tests, all green
 npm run lint       # oxlint — 3 pre-existing warnings, no errors
 npm run build      # vite build
@@ -174,10 +175,10 @@ Subject colours are theme tokens now, so a custom theme can restyle them.
 
 ---
 
-## 4. The gradebook — `exams-gradebook`
+## 4. The gradebook
 
-Turns the Exams tab from a schedule into a gradebook. Built and committed;
-only the scheme editor is outstanding.
+Turns the Exams tab from a schedule into a gradebook. Shipped and on `main` —
+this section describes live code, not a side branch.
 
 ### The user's real grading scheme (JNTU)
 
@@ -302,74 +303,258 @@ now prefers a derived grade and falls back to the typed one.
 
 ---
 
-## 5. Next up, in priority order
+## 5. Implementation plan
 
-1. **CI** (§X3) — nothing runs automatically, and §6c is what that costs. Gate
-   unit + e2e + the contrast script *and* a mobile-width check; the header
-   regression in §9 would have been caught by one assertion.
-2. **Attendance context** (`IMPROVEMENT_PLAN.md` §M2). `attendanceHook` is
-   prop-drilled through eight components as an opaque bag. This also unblocks #3.
-3. **Orphan pruning on delete** — deleting a subject or slot leaves its
-   attendance rows until the next boot sweep. Needs #2.
-4. **`DOCUMENTATION.md` predates the gradebook *and* the settings page.** Its data model still shows
-   `Exam` and a hand-typed `subject.gradePoint` as the grade source; `grading.js`
-   (659 lines), assessments, sittings, schemes, bands and `SchemeModal` are
-   absent. The largest feature in the app is undocumented.
-5. **CSP** (§X4) — `index.html` `connect-src` still ships `ws: http:`, a dev
-   escape hatch that permits plaintext HTTP to any host in production.
-6. **`API.set` has no quota handling** — a `QuotaExceededError` is caught and
-   logged, so the user's edit silently fails to persist. `IMPROVEMENT_PLAN.md` §C4.
+Written 2026-08-13, at the end of the `improvement-v3` round. Ordered by value
+per unit of risk. Each item names the files, the approach, and how you know it
+worked — the last part is the one that keeps getting skipped, and §6c is what
+that costs.
+
+Items 1–6 need no decisions. Items 7–9 do; they are parked at the bottom with
+the question stated.
+
+---
+
+### 1 · CI — half a day, unblocks the confidence for everything else
+
+Do this first. Two of the bugs in §6c shipped described in their own commit
+messages as green, and a third had been red since the day it was written.
+
+Add `.github/workflows/ci.yml`, Node 22 (`package.json` requires
+`^20.19.0 || >=22.12.0`), running on push and PR:
+
+```
+npm ci
+npm run lint          # must stay at 3 warnings, 0 errors — fail on a 4th
+npm test              # 231 unit
+npx playwright install --with-deps chromium
+npm run test:e2e      # 17
+node scripts/check-contrast.mjs   # exits 1 on failure, 192 pairs
+npm run build
+```
+
+Two extras worth the effort, both guarding failure modes this repo has actually
+suffered:
+
+- **A mobile-width assertion.** Not `document.scrollWidth === clientWidth` —
+  the clipping ancestor in `App.jsx` makes that pass while a control sits
+  off-screen. Measure each header child's `getBoundingClientRect().right`
+  against the viewport at 360, 375, 390 and 412. §9 and the 320px note in §6.
+- **A "no NUL bytes in `src/`" check**, one line of grep. A stray NUL makes
+  ripgrep treat a file as binary and silently drop it from every code search;
+  `SchemeModal.jsx` carried one for weeks (§6d).
+
+**Done when:** a deliberately broken assertion fails the build on a PR.
+
+---
+
+### 2 · `DOCUMENTATION.md` is two features behind — half a day
+
+It still presents `Exam` and a hand-typed `subject.gradePoint` as the grade
+source. Absent entirely: `grading.js` (700+ lines), assessments, sittings,
+schemes, bands, rounding, `SchemeModal`, and the settings page. The largest
+feature in the app is undocumented, and the second largest was replaced.
+
+Rewrite against source, not against this file:
+
+- **Data model** — `Semester.assessments`, `Semester.gradingScheme`, the
+  component/part/sitting vocabulary from §4, `subject.awardedGp`. Say plainly
+  that `exams` is retained for downgrade safety and read by nothing.
+- **Grading** — `computeSubjectGrade`, the three numbers it separates
+  (`current` / `locked` / `ceiling`), `subjectGradePoint`'s
+  awarded > derived > manual precedence, and the rounding rule.
+- **Semester dates** — now real; see §3.
+- **Directory structure** — `SettingsPage.jsx` replaced `SettingsModal.jsx`,
+  and `exams/` gained `SchemeModal`, `SittingRow`, `SubjectGradeCard`.
+- **Modal** — three variants now (`center` / `sheet` / `page`).
+
+**Done when:** every exported symbol in `src/data/grading.js` is either
+documented or deliberately omitted, and no example in the file contradicts a
+test.
+
+---
+
+### 3 · Tighten the production CSP — 30 minutes
+
+`index.html:20` `connect-src` ends `… ws: http:`. Those two are a dev-server
+escape hatch and they permit plaintext HTTP to **any** host in the shipped
+bundle, which defeats most of what the rest of the policy buys.
+
+Vite substitutes at build time, so split them:
+
+- Keep `'self' https://*.supabase.co wss://*.supabase.co https://vitals.vercel-insights.com`
+  in the shipped meta tag.
+- Add `ws: http:` only under `import.meta.env.DEV`, or serve the dev CSP from
+  a `vite.config.js` header rather than the HTML.
+
+**Done when:** `npm run build && npm run preview` still signs in, syncs and
+loads fonts with no CSP violation in the console, and `dist/index.html` no
+longer contains `ws:` or bare `http:`. Check the built file, not the source.
+
+---
+
+### 4 · `API.set` swallows a failed write — half a day
+
+`api.js` catches everything from `localStorage.setItem` and only
+`console.error`s it. On `QuotaExceededError` (or Safari private mode) the
+user's edit is gone with no signal — and the provider has already advanced its
+`lastSaved*Ref`, so nothing retries and the next save compares against a value
+that was never stored.
+
+1. Have `API.set` return a boolean, and on failure leave the `lastSaved*Ref`
+   alone so the next change retries naturally.
+2. Dispatch `cadence-sync` with a new `'storage-error'` detail and surface it
+   in `SyncChip` — that component already renders an error state.
+3. Distinguish quota from everything else: `e.name === 'QuotaExceededError'`
+   deserves "storage full, export a backup", not a generic failure.
+
+**Done when:** a test stubs `setItem` to throw, and asserts the mark stays in
+React state, the chip shows the error, and a second edit attempts the write
+again. `IMPROVEMENT_PLAN.md` §C4.
+
+---
+
+### 5 · Attendance context — 1 day, unblocks 6
+
+`attendanceHook` is prop-drilled through six component files as an opaque bag.
+Every stats call site now also threads `timetable`, `examDates` **and**
+`semester` beside it — four arguments that always travel together, which is the
+shape of a context begging to be extracted.
+
+Add `AttendanceProvider` next to the other three in `main.jsx`, holding the
+hook plus the active semester's `timetable` / `examDates` / `semester`, and
+have the stats selectors read those internally. Call sites drop to
+`useAttendanceStats(subjectId)`.
+
+Do it **after** CI. It touches every view, and it is exactly the kind of change
+where a green local run is not evidence.
+
+**Done when:** no component takes `attendanceHook` as a prop, and the e2e suite
+is untouched and still green.
+
+---
+
+### 6 · Prune orphans on delete — 2 hours, needs 5
+
+`removeSubject` (`useSemesters.js:147`) cascades to the timetable, and
+`:171` removes an entry — but neither touches the attendance map, so its rows
+survive until the next boot sweep, and that sweep is gated behind
+`cadence_pruned_at` so it may not run for a schema version. Meanwhile the
+orphaned marks sit in every sync payload.
+
+`pruneOrphans(attendance, liveEntryIds)` already exists and returns the *same
+object* when nothing changed, so the call is cheap and the write guard handles
+the no-op. Call it from the delete paths once the context from 5 gives them
+access to attendance state.
+
+**Done when:** deleting a subject with marks drops its rows immediately, and a
+test asserts the attendance map shrinks — including the `_note` and `_sub`
+suffixed keys, which are the ones a naive filter forgets.
+
+---
+
+### 7 · The control bar at 320px — needs a decision
+
+Measured: `EDIT` sits at x=356 on a 320px screen and the document only scrolls
+to 337, so it is unreachable. Fine at 360 and above. The bar's floor is ~368px
+and every child is `shrink-0`.
+
+**Question:** drop the `CADENCE` logo below `sm`? It buys ~74px and fixes it
+outright, at the cost of the app's identity on the smallest screens. The
+alternative is to declare 360px the supported floor and leave it.
+
+Affects iPhone SE (1st gen) and Android at the largest display-size setting.
+
+---
+
+### 8 · Tap targets in the roster row — needs a decision
+
+`.tap-44` (§6d) covers isolated controls. The roster row defeats it: its
+controls sit ~6px apart, so a 44px hit overlay on one steals taps from its
+neighbour — measured, then reverted.
+
+**Question:** make edit-mode roster rows taller so the swatch, the grade select
+and the remove ✕ can each carry a real target? That is a visible density
+change to the densest view in the app.
+
+Same question, smaller, for `SemDropdown`'s delete (~10×13).
+
+---
+
+### 9 · `SemDropdown` menu semantics — 2 hours, no decision needed but low value
+
+`aria-haspopup="menu"` with no `role="menu"`, no `menuitem`s, focus never
+enters the popup, and Escape does not close it (only `mousedown` outside).
+Its delete button's armed state changes the visible text to `SURE?` / `REALLY?`
+while `aria-label` stays `Delete <semester>`, so the confirm stage is silent to
+a screen reader.
+
+Either implement the menu pattern properly or drop `aria-haspopup` to `true`
+and stop claiming it. Move the stage word into the accessible name either way.
+
+---
+
+### Also outstanding, smaller
+
+- **Roster CR / GP headers** (`SubjectRoster.jsx:81-87`) sit ~188px right of
+  the values they label on a phone, because `SubjectRow` is one row at `sm`+
+  and two rows below it. Hide the header row below `sm`.
+- **RLS is not in version control.** `supabase/migrations/` holds only
+  `20260806_add_key_updated_at.sql`. The policy in the README was applied by
+  hand in the dashboard; capture it as a migration so a fresh project is not
+  one forgotten step away from a public table.
+- **Timetable room label** clips ~8px inside a class block. It ellipsises, so
+  it is honest — lowest priority in this file.
 
 ---
 
 ## 6. Known issues
 
-- **Deleting a subject/slot orphans attendance rows** until the next boot sweep.
-- **Restoring a backup reloads the page.** Works, but heavy-handed.
-- **The header runs out of room at 320px.** Measured: at 320 CSS px `EDIT` sits
-  at x=356 while the document only scrolls to 337, so it is genuinely
-  unreachable — the §9 failure mode again, one breakpoint further down. Fine at
-  360, 375, 390 and 412. Affects iPhone SE (1st gen) and Android handsets at the
-  largest display-size setting. The header's floor is ~368px: `px-3` 24 + five
-  `gap-2` 40 + `SemDropdown` `minWidth:110` + three 40px `HudButton`s, and every
-  child is `shrink-0`. Dropping the CADENCE logo below `sm` buys ~74px. Not done
-  — it changes the header's identity, so it wants a decision, not a patch.
-- **Tap targets under 44×44.** Partly addressed — see `.tap-44` in `index.css`.
-  A `min-height:44px` on `.btn-mech` is the obvious fix and the wrong one: the
-  control bar's fixed floor is already ~368px against 375, so widening its three
-  40px buttons would push EDIT back off-screen, and three 44px quick-mark
-  toggles would stand taller than the class block they live in. `.tap-44` grows
-  the hit region with a centred transparent pseudo-element under
-  `@media (pointer: coarse)` — no layout change, desktop untouched.
+Everything here is scheduled in §5 unless marked otherwise — that is the plan,
+this is the evidence behind it. Measurements are from a real browser at the
+stated width, not estimated from source.
 
-  **It only suits ISOLATED controls.** The overlay paints above later siblings,
-  so two within 44px of each other fight and the loser stops responding. Applied
-  and measured: modal close ✕ 10×18 → **39×35** (the panel's `overflow-hidden`
-  clips the last few px), calendar month arrows 30×30 → **41×44**, attendance
-  filter chips → **44×44**. Tried and **reverted** on the roster remove ✕: its
-  overlay reached the subject-name input's own centre column and stole taps from
-  it. The dense roster row needs taller rows, not a bigger hit box.
+- **Deleting a subject/slot orphans attendance rows** until the next boot sweep,
+  and that sweep is gated behind `cadence_pruned_at`. §5 item 6.
+- **Restoring a backup reloads the page.** Works, but heavy-handed. Not
+  scheduled — no one has complained and the reload is what makes it reliable.
+- **The header runs out of room at 320px.** `EDIT` sits at x=356 while the
+  document only scrolls to 337, so it is unreachable — the §9 failure mode one
+  breakpoint further down. Fine at 360, 375, 390, 412. The floor is ~368px:
+  `px-3` 24 + five `gap-2` 40 + `SemDropdown` `minWidth:110` + three 40px
+  `HudButton`s, every child `shrink-0`. §5 item 7 — needs a decision.
+- **Tap targets under 44×44.** Partly addressed by `.tap-44` (`index.css`),
+  which grows the hit region with a centred transparent pseudo-element under
+  `@media (pointer: coarse)` — no layout change, desktop untouched. Note why the
+  obvious `min-height:44px` on `.btn-mech` is wrong: it would widen the header's
+  three 40px buttons and push `EDIT` off-screen at 375px, and stack three 44px
+  quick-mark toggles taller than the class block they live in.
 
-  Still under 44, all in places where growth is constrained by the header floor:
-  `SubjectRow.jsx` colour swatch 12×12 and remove ✕ 16×14 · `SemDropdown.jsx`
-  delete ~10×13 · `Modal.jsx` close ✕ ~12×15 (`.cad-x` sets no padding at all) ·
-  `AttendanceToggle.jsx` `size="sm"` 64×19, three of them 2px apart, which is the
-  main phone path for marking attendance · `ColorPicker.jsx` 28×28 ·
-  `CalendarView.jsx` month arrows ~30×26 · `.cad-chip` 19px tall. One rule on
-  `.btn-mech`/`.cad-x` (`min-height:44px`, visual box kept small with transparent
-  padding) would cover most of them.
+  **`.tap-44` only suits ISOLATED controls.** The overlay paints above later
+  siblings, so two within 44px of each other fight and the loser stops
+  responding. Applied and measured: modal close ✕ 10×18 → **39×35** (the panel's
+  `overflow-hidden` clips the rest), calendar month arrows 30×30 → **41×44**,
+  attendance filter chips → **44×44**. Tried and **reverted** on the roster
+  remove ✕ — its overlay reached the subject-name input's own centre column and
+  stole taps from it.
+
+  Still under 44: `SubjectRow.jsx` swatch 12×12 and remove ✕ 16×14 ·
+  `SemDropdown.jsx` delete ~10×13 · `AttendanceToggle.jsx` `size="sm"` 64×19,
+  three of them 2px apart, the main phone path for marking attendance ·
+  `ColorPicker.jsx` 28×28 · `.cad-chip` 19px. §5 item 8 — needs a decision.
 - **`SubjectRoster.jsx:81-87` — the CR / GP column headers sit ~188px right of
   the values they label on a phone**, because `SubjectRow` is one row at `sm`+
-  and two rows below it. Hide the header row below `sm`.
+  and two rows below it. §5, "Also outstanding".
 - **`SemDropdown.jsx` advertises `aria-haspopup="menu"`** but the popup has no
   `role="menu"`, focus never enters it, and Escape does not close it. Its delete
   button's armed state changes the visible text to SURE?/REALLY? while the
   `aria-label` stays "Delete <sem>", so the confirm step is silent to a reader.
+  §5 item 9.
 - **`api.js` swallows `QuotaExceededError`** — the edit is lost with no signal
-  and `lastSaved*Ref` has already advanced. `IMPROVEMENT_PLAN.md` §C4.
+  and `lastSaved*Ref` has already advanced. §5 item 4.
 - **`supabase/migrations/` has no RLS policy.** If it was applied by hand in the
   dashboard it is not in version control, and RLS is the only thing protecting
-  user rows from the public anon key.
+  user rows from the public anon key. §5, "Also outstanding".
 
 ---
 
