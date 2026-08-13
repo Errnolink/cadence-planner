@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { subjectVars } from '../../data/index.js'
 import {
-  computeSubjectGrade, nextBandTarget, pctToGradeLabel, scaleOf,
+  computeSubjectGrade, nextBandTarget, pctToGradeLabel, scaleOf, impliedComponentMarks,
   AGGREGATION_LABELS, DEFAULT_GRADE_BANDS,
 } from '../../data/grading.js'
 import { SittingRow } from './SittingRow.jsx'
@@ -77,7 +77,7 @@ function targetLine(grade, scheme) {
  */
 export function SubjectGradeCard({
   subject, scheme, assessments = [], editMode,
-  onAddSitting, onSetScore, onRemoveSitting, onEditScheme, hasOverride,
+  onAddSitting, onSetScore, onRemoveSitting, onEditScheme, onUpdateSubject, hasOverride,
 }) {
   const [open, setOpen] = useState(false)
 
@@ -90,6 +90,22 @@ export function SubjectGradeCard({
   // With nothing graded the "next band" is the pass mark measured from zero,
   // which is true and useless — say nothing is graded instead.
   const target = grade.gradedWeight > 0 ? targetLine(grade, scheme) : null
+
+  // Which component the university never publishes a mark for: the single
+  // ungraded one. With two or more still open the answer is not determined,
+  // and impliedComponentMarks reports that rather than guessing.
+  const impliedComponent = useMemo(() => {
+    const ungraded = grade.byComponent.filter(c => c.fraction === null)
+    if (ungraded.length === 1) return ungraded[0].component
+    return (scheme?.components ?? []).find(c => c.id === 'theory') ?? null
+  }, [grade, scheme])
+
+  const awardedGp = subject.awardedGp
+  const implied = useMemo(() => {
+    if (awardedGp === null || awardedGp === undefined || awardedGp === '') return null
+    if (!impliedComponent) return null
+    return impliedComponentMarks(assessments, scheme, impliedComponent.id, Number(awardedGp))
+  }, [awardedGp, impliedComponent, assessments, scheme])
   const components = scheme?.components ?? []
 
   const lockedPct = Math.max(0, Math.min(100, grade.locked))
@@ -264,6 +280,66 @@ export function SubjectGradeCard({
               // NOTHING GRADED YET — ENTER A MARK TO SEE WHERE THIS SUBJECT IS HEADING
             </div>
           )}
+
+          {/* Awarded result. Universities publish a letter for the subject and
+              never release the external paper's mark, so the mark cannot be
+              recovered — but it is bounded, and the bound is worth showing. */}
+          <div style={{ borderTop: '1px solid var(--cad-border-dim)', marginTop: '8px', paddingTop: '8px' }}>
+            <label
+              htmlFor={`awarded-${subject.id}`}
+              className="cad-label"
+              style={{ display: 'block', marginBottom: '4px' }}
+            >AWARDED GRADE (FROM RESULTS)</label>
+            <select
+              id={`awarded-${subject.id}`}
+              className="cad-input"
+              style={{ maxWidth: '220px', cursor: 'pointer' }}
+              value={subject.awardedGp ?? ''}
+              onChange={e => onUpdateSubject?.(
+                subject.id, 'awardedGp',
+                e.target.value === '' ? null : Number(e.target.value))}
+            >
+              <option value="">— NOT DECLARED YET —</option>
+              {bands.map(b => (
+                <option key={b.gp} value={b.gp}>{b.label} · {b.min}% AND ABOVE</option>
+              ))}
+            </select>
+
+            {implied && (
+              <div
+                role="status"
+                style={{
+                  marginTop: '6px', padding: '6px 8px',
+                  border: `1px solid ${implied.possible ? 'var(--cad-accent)' : 'var(--cad-danger)'}`,
+                  background: implied.possible ? 'var(--cad-accent-dim)' : 'var(--cad-danger-dim)',
+                  borderRadius: 'var(--cad-radius)',
+                  fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-micro)',
+                  color: implied.possible ? 'var(--cad-accent-text)' : 'var(--cad-danger)',
+                  lineHeight: 1.5,
+                }}
+              >
+                {implied.blockedBy.length > 0 ? (
+                  <>ENTER {implied.blockedBy.join(' AND ')} MARKS TO NARROW DOWN THE {impliedComponent.label} PAPER</>
+                ) : !implied.possible ? (
+                  <>GRADE {implied.band.label} DOES NOT FIT THESE MARKS — {fmt(implied.known)} BANKED
+                     LEAVES NO VALID {impliedComponent.label} SCORE. CHECK THE INTERNALS.</>
+                ) : (
+                  <>
+                    <span aria-hidden="true">▸ </span>
+                    {impliedComponent.label} WAS BETWEEN{' '}
+                    <strong>{fmt(implied.min)}</strong> AND{' '}
+                    <strong>{fmt(implied.max)}</strong> / {fmt(implied.weight, 0)}
+                    {implied.maxInclusive ? ' INCLUSIVE' : ''}
+                    <div style={{ opacity: 0.75, marginTop: '2px' }}>
+                      {implied.band.label} NEEDS {implied.band.min}%
+                      {implied.band.maxInclusive ? ' OR MORE' : `–${implied.band.max}%`} OVERALL,
+                      AND {fmt(implied.known)} IS ALREADY BANKED. THE EXACT MARK IS NOT PUBLISHED.
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
 
           <div style={{ marginTop: '8px' }}>
             <button

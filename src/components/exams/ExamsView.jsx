@@ -26,7 +26,7 @@ export function ExamsView({
   subjects = [], semester, assessments = [], editMode,
   onAddSitting = noop, onUpdateAssessment = noop, onSetScore = noop,
   onRemoveAssessment = noop, onRemoveSitting = noop,
-  onSetScheme = noop, onSetSubjectScheme = noop,
+  onSetScheme = noop, onSetSubjectScheme = noop, onUpdateSubject = noop,
 }) {
   const [mode, setMode] = useState('MARKS')
   const [modal, setModal] = useState(null)        // { mode: 'add' | 'edit', exam }
@@ -205,6 +205,7 @@ export function ExamsView({
               onAddSitting={onAddSitting}
               onSetScore={onSetScore}
               onRemoveSitting={onRemoveSitting}
+              onUpdateSubject={onUpdateSubject}
               onEditScheme={(s) => setSchemeFor({ subjectId: s.id })}
             />
           ))}

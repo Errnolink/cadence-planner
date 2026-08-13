@@ -243,6 +243,7 @@ export default function App() {
                 onRemoveSitting={removeSitting}
                 onSetScheme={setGradingScheme}
                 onSetSubjectScheme={setSubjectScheme}
+                onUpdateSubject={updateSubject}
               />
             ) : (
               <TimetableGrid

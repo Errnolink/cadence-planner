@@ -505,6 +505,13 @@ export function subjectGradePoint(subject, assessments = [], scheme = DEFAULT_SC
   const mine = assessments.filter(a => String(a.subjectId) === String(subject?.id))
   const grade = computeSubjectGrade(mine, scheme)
 
+  // An awarded grade is the university's published result. It outranks
+  // anything computed here — our projection is an estimate, that is the fact.
+  const awarded = subject?.awardedGp
+  if (awarded !== null && awarded !== undefined && awarded !== '') {
+    return { gp: Number(awarded), source: 'awarded', pct: null, isComplete: true }
+  }
+
   if (grade.gradedWeight > 0) {
     // Partway through a term, banked marks understate the outcome — a student
     // who has only sat internals holds 19.5 of 100. Grade the projection while
@@ -556,6 +563,83 @@ export function computeCGPA(semesters = []) {
     }
   }
   return credits ? points / credits : null
+}
+
+// ── Working backwards from an awarded grade ──────────────────────
+//
+// Universities commonly publish a letter grade for the subject and never
+// release the external paper's mark. The exact figure is unrecoverable, but
+// it is bounded: the awarded band fixes the total to a range, and everything
+// else is known, so the missing component is pinned to a window.
+//
+//   total   = known marks + unknown component
+//   band    = [floor, next floor)
+//   unknown ∈ [floor − known, nextFloor − known), clamped to [0, weight]
+//
+// Never present the midpoint as if it were the mark.
+
+/** The percentage window a grade point corresponds to: [min, max). */
+export function bandRange(gp, bands = DEFAULT_GRADE_BANDS) {
+  const list = [...bandsOf(bands)].sort((a, b) => a.min - b.min)
+  const i = list.findIndex(b => b.gp === gp)
+  if (i === -1) return null
+  return {
+    min: list[i].min,
+    max: i === list.length - 1 ? 100 : list[i + 1].min,
+    maxInclusive: i === list.length - 1,
+    label: list[i].label,
+  }
+}
+
+/**
+ * Infer one component's marks from the grade the university awarded.
+ *
+ * @returns {null | {
+ *   possible: boolean, min: number, max: number, maxInclusive: boolean,
+ *   midpoint: number, weight: number, known: number, band: object,
+ *   blockedBy: string[]   // components still ungraded, if any
+ * }}
+ */
+export function impliedComponentMarks(assessments, scheme, componentId, awardedGp) {
+  const components = scheme?.components ?? []
+  const target = components.find(c => c.id === componentId)
+  if (!target) return null
+
+  const band = bandRange(awardedGp, scheme?.bands)
+  if (!band) return null
+
+  const grade = computeSubjectGrade(assessments, scheme)
+
+  // Every other component must be graded, or "known" is not actually known
+  // and the window would be meaninglessly wide.
+  const blockedBy = grade.byComponent
+    .filter(c => c.component.id !== componentId && c.fraction === null)
+    .map(c => c.component.label)
+
+  const known = grade.byComponent
+    .filter(c => c.component.id !== componentId)
+    .reduce((a, c) => a + c.points, 0)
+
+  const weight = Number(target.weight) || 0
+  const rawMin = band.min - known
+  const rawMax = band.max - known
+
+  const min = Math.max(0, Math.min(weight, rawMin))
+  const max = Math.max(0, Math.min(weight, rawMax))
+
+  // An empty window means the awarded grade cannot be reconciled with the
+  // marks on record — usually a typo in the internals, occasionally a
+  // university revision. Say so rather than quietly clamping to something.
+  const possible = blockedBy.length === 0 && rawMin <= weight && rawMax > 0 && min < max
+
+  return {
+    possible,
+    min, max,
+    maxInclusive: band.maxInclusive && max === rawMax,
+    midpoint: (min + max) / 2,
+    weight, known, band,
+    blockedBy,
+  }
 }
 
 /** How many of a semester's subjects have a grade at all, and how they got it. */
