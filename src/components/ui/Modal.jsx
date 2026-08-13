@@ -5,6 +5,15 @@ import { useModalDismiss } from '../../hooks/useModalDismiss.js'
 const FOCUSABLE = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
 
 /**
+ * Panel width. `sm` is the historical width and stays the default so the six
+ * existing callers are untouched; `lg` exists for the editors (grading scheme)
+ * whose two-column rows collapse into an unreadable stack at `sm`.
+ * Written as whole class names, not interpolated, so Tailwind's scanner sees them.
+ */
+const MAX_W       = { sm: 'max-w-sm',    lg: 'max-w-2xl'    }
+const MAX_W_SHEET = { sm: 'md:max-w-sm', lg: 'md:max-w-2xl' }
+
+/**
  * Theme-aware modal with NERV mechanical transition.
  *
  * variant="center" (default) — centred card.
@@ -15,8 +24,10 @@ const FOCUSABLE = 'button, [href], input, select, textarea, [tabindex]:not([tabi
  *
  * `headerExtra` renders to the left of the hex label / close button, for the
  * one action (SET HOLIDAY) that belongs in the title bar.
+ *
+ * `size` widens the panel: 'sm' (default, unchanged) or 'lg'.
  */
-export function Modal({ title, subtitle, hex, onClose, variant = 'center', headerExtra, ariaLabel, children }) {
+export function Modal({ title, subtitle, hex, onClose, variant = 'center', size = 'sm', headerExtra, ariaLabel, children }) {
   const { closing, handleClose } = useModalDismiss(onClose)
   const panelRef = useRef(null)
   const titleId = useId()
@@ -67,7 +78,7 @@ export function Modal({ title, subtitle, hex, onClose, variant = 'center', heade
         aria-labelledby={ariaLabel ? undefined : titleId}
         onKeyDown={handlePanelKeyDown}
         className={`w-full panel-chamfer overflow-hidden flex flex-col ${
-          sheet ? 'md:max-w-sm' : 'max-w-sm'
+          sheet ? (MAX_W_SHEET[size] ?? MAX_W_SHEET.sm) : (MAX_W[size] ?? MAX_W.sm)
         } ${panelAnimClass}`}
         style={{
           border: '2px solid var(--cad-accent)',

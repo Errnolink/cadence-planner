@@ -114,7 +114,7 @@ export function ControlBar({ semesters, activeSemId, onSemChange, onRemoveSem, e
       <HudButton onClick={onOpenSettings} title="Settings">
         <span aria-hidden="true" style={{ fontSize: 'var(--cad-fs-sm)' }}>⚙</span>
         <span className="hidden sm:inline">SETTINGS</span>
-        <span className="sr-only sm:hidden">Settings</span>
+        <span className="sr-only sm:hidden">SETTINGS</span>
       </HudButton>
 
       {/* Edit toggle — icon-only below sm. This used to sit at x=450 on a
@@ -128,7 +128,7 @@ export function ControlBar({ semesters, activeSemId, onSemChange, onRemoveSem, e
       >
         <span aria-hidden="true" style={{ fontSize: 'var(--cad-fs-sm)' }}>{editMode ? '⊠' : '✎'}</span>
         <span className="hidden sm:inline">{editMode ? 'LOCK' : 'EDIT'}</span>
-        <span className="sr-only sm:hidden">{editMode ? 'Lock, leave edit mode' : 'Edit'}</span>
+        <span className="sr-only sm:hidden">{editMode ? 'LOCK' : 'EDIT'}</span>
       </HudButton>
 
       {/* Clock — desktop only. A phone already shows the time in its own
