@@ -9,12 +9,15 @@ import { Modal } from '../ui/Modal.jsx'
  * The engine now emits the rows it actually counted, so the two halves of the
  * modal can no longer contradict each other.
  */
-export function SubjectAttendanceModal({ subject, timetable, attendanceHook, examDates, onClose }) {
+export function SubjectAttendanceModal({ subject, timetable, attendanceHook, examDates, semester, onClose }) {
   const { getSubjectStats } = attendanceHook
 
+  // `semester` matters for the same reason as everything else in this comment:
+  // scope the history to the term but not the percentage (or the reverse) and
+  // the two halves of the modal contradict each other again.
   const stats = useMemo(
-    () => getSubjectStats(subject.id, timetable, examDates, { withHistory: true }),
-    [getSubjectStats, subject.id, timetable, examDates])
+    () => getSubjectStats(subject.id, timetable, examDates, { withHistory: true, semester }),
+    [getSubjectStats, subject.id, timetable, examDates, semester])
 
   const history = stats.history || []
 

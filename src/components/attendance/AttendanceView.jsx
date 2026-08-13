@@ -4,7 +4,7 @@ import { ATTENDANCE_THRESHOLD } from '../../data/constants.js'
 import { computeAllStats } from '../../data/attendanceMath.js'
 import { SubjectAttendanceModal } from './SubjectAttendanceModal.jsx'
 
-export function AttendanceView({ timetable, subjects, attendanceHook, examDates }) {
+export function AttendanceView({ timetable, subjects, attendanceHook, examDates, semester }) {
   const { attendance, getMarginToThreshold, getRecoveryPath, getStatusTier } = attendanceHook
   const [selectedSubjectData, setSelectedSubjectData] = useState(null)
   const [filter, setFilter] = useState('ALL')
@@ -20,8 +20,8 @@ export function AttendanceView({ timetable, subjects, attendanceHook, examDates 
   // getSubjectStats() per subject — 2 × subjects × dates × entries on every
   // keystroke elsewhere in the app.
   const { overall: overallStats, bySubject } = useMemo(
-    () => computeAllStats(attendance, subjects, timetable, examDates),
-    [attendance, subjects, timetable, examDates])
+    () => computeAllStats(attendance, subjects, timetable, examDates, semester),
+    [attendance, subjects, timetable, examDates, semester])
 
   const sectionStyle = { marginBottom: '24px' }
 
@@ -177,6 +177,7 @@ export function AttendanceView({ timetable, subjects, attendanceHook, examDates 
           timetable={timetable}
           examDates={examDates}
           attendanceHook={attendanceHook}
+          semester={semester}
           onClose={() => setSelectedSubjectData(null)}
         />
       )}

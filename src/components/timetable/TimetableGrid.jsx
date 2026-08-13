@@ -21,7 +21,7 @@ function visibleWindow(timetable, exams) {
   return [start, Math.max(end, start + 1)]
 }
 
-export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBlockClick, onInstanceClick, attendanceHook, examDates, exams = [] }) {
+export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBlockClick, onInstanceClick, attendanceHook, examDates, exams = [], semester }) {
   const { settings } = useSettings()
   // Ticks once a minute (plus on tab focus) so "today", the now-line and the
   // today column stop freezing at mount — leaving the tab open past midnight
@@ -137,15 +137,24 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
     el.scrollTo({ top: Math.max(0, scrollTarget), behavior: 'smooth' })
   }, [weekOffset, gridStart, totalMins])
 
-  const displayDays = showTodayOnly && weekOffset === 0 ? [DAYS[todayIdx]] : DAYS
+  const displayDays = useMemo(
+    () => (showTodayOnly && weekOffset === 0 ? [DAYS[todayIdx]] : DAYS),
+    [showTodayOnly, weekOffset, todayIdx])
 
   /** Date + holiday/exam facts for a column, from the one shared source. */
   const dayMetaFor = useCallback((day) => {
     const d = new Date(baseDate.getTime())
     d.setDate(d.getDate() + (DAYS.indexOf(day) - todayIdx))
     const dateStr = dateStrFromParts(d.getFullYear(), d.getMonth(), d.getDate())
-    return { d, dateStr, meta: getDayMeta(dateStr, { settings, attendance: attendanceHook?.attendance, examDates }) }
-  }, [baseDate, todayIdx, settings, attendanceHook?.attendance, examDates])
+    return { d, dateStr, meta: getDayMeta(dateStr, { settings, attendance: attendanceHook?.attendance, examDates, semester }) }
+  }, [baseDate, todayIdx, settings, attendanceHook?.attendance, examDates, semester])
+
+  // A week nobody's term covers. The grid happily paints the weekly pattern
+  // for any week you navigate to, so without saying so it would show a full
+  // timetable for a week whose marks the stats now ignore.
+  const weekOutOfTerm = useMemo(
+    () => displayDays.every(day => !dayMetaFor(day).meta.inTerm),
+    [displayDays, dayMetaFor])
 
   const isEmpty = timetable.length === 0 && exams.length === 0
 
@@ -197,14 +206,28 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
               fontSize: 'var(--cad-fs-micro)',
               letterSpacing: '0.08em',
               border: '1px solid var(--cad-border)',
-              color: 'var(--cad-accent)',
+              color: weekOutOfTerm ? 'var(--cad-text-lo)' : 'var(--cad-accent)',
               background: 'var(--cad-bg-input)',
               borderRadius: 'var(--cad-radius)',
               whiteSpace: 'nowrap',
             }}
+            title={weekOutOfTerm ? `Outside ${semester?.label || 'the semester'} — attendance here is not counted` : undefined}
           >
             {weekRangeStr}
+            {weekOutOfTerm && <span className="sr-only">, outside the semester</span>}
           </div>
+          {weekOutOfTerm && (
+            <span
+              aria-hidden="true"
+              className="px-1.5 py-0.5 panel-chamfer-sm"
+              style={{
+                fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-micro)',
+                letterSpacing: 'var(--cad-track-mid)', color: 'var(--cad-text-lo)',
+                border: '1px dashed var(--cad-border)', borderRadius: 'var(--cad-radius)',
+                whiteSpace: 'nowrap',
+              }}
+            >OFF-TERM</span>
+          )}
 
           <button
             type="button"
@@ -622,6 +645,7 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
           subjects={subjects}
           attendanceHook={attendanceHook}
           examDates={examDates}
+          semester={semester}
           onClose={() => setActiveDayDetail(null)}
         />
       )}

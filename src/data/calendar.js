@@ -29,6 +29,26 @@ export const weekdayOf = (dateStr) => {
 }
 
 /**
+ * Is a date inside a semester's bounds?
+ *
+ * A semester with no dates set contains every date, which is what every
+ * semester was until the bounds started being enforced — so an unbounded
+ * semester counts exactly as much attendance as it always did.
+ *
+ * Both bounds are inclusive, and the comparison is a plain string compare:
+ * 'YYYY-MM-DD' sorts lexicographically the same way it sorts chronologically,
+ * which is the whole reason the app stores dates in that shape.
+ *
+ * Exported because `computeSubjectStats` scopes on the same rule, and two
+ * copies of it would eventually disagree about a boundary day.
+ */
+export function isInTerm(dateStr, semester) {
+  const start = semester?.startDate || null
+  const end = semester?.endDate || null
+  return (!start || dateStr >= start) && (!end || dateStr <= end)
+}
+
+/**
  * Everything the UI needs to know about a single date.
  * Replaces the ad-hoc `date` object that was sometimes {year,month,day} and
  * sometimes also carried isHoliday/isManualHoliday depending on the caller —
@@ -42,11 +62,6 @@ export function getDayMeta(dateStr, { settings, attendance, examDates = EMPTY_SE
   const isManualHoliday = dayData.isHoliday === true
   const isAutoHoliday = Boolean(settings?.holidays2nd4thSat) && isSecondOrFourthSaturday(year, month0, day)
 
-  // Semester bounds are optional; an unbounded semester includes every date.
-  const start = semester?.startDate || null
-  const end = semester?.endDate || null
-  const inTerm = (!start || dateStr >= start) && (!end || dateStr <= end)
-
   return {
     dateStr,
     year, month0, day,
@@ -56,6 +71,6 @@ export function getDayMeta(dateStr, { settings, attendance, examDates = EMPTY_SE
     isHoliday: isManualHoliday || isAutoHoliday,
     isExamDay: examDates.has(dateStr),
     examCountAsPresent: dayData.examCountAsPresent === true,
-    inTerm,
+    inTerm: isInTerm(dateStr, semester),
   }
 }

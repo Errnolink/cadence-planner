@@ -116,6 +116,23 @@ Vitest added — **154 unit tests on `main`** where there were zero, now 175 on
 Keep logic here, not in components. Everything in these files is unit-tested and
 that is why the bugs above were provable rather than arguable.
 
+### Semester dates are real now
+
+`startDate` / `endDate` bound the term. `isInTerm` (`calendar.js`) is the single
+rule, used by both `getDayMeta` and `attendanceMath`'s `traverse` so the two
+cannot disagree about a boundary day. Both bounds are inclusive; the comparison
+is a plain string compare, which is why dates are stored as `YYYY-MM-DD`.
+
+**A semester with no dates set is unbounded and counts everything** — that is
+how every semester behaved before, so no existing record moved. `getDayMeta`
+had computed `inTerm` and had tests for it since the audit, but not one of its
+three call sites passed `semester`: the helper was wired up and dead.
+
+Out of term, the calendar dims the cell and draws no class chips, the timetable
+badges the week `OFF-TERM`, and the day modal says marks there are not counted.
+Marking is still allowed — the dates are the user's to get wrong, and silently
+discarding a mark is worse than one that admits it does not count.
+
 ### The attendance map — least obvious structure in the app
 
 ```js
@@ -300,9 +317,7 @@ now prefers a derived grade and falls back to the typed one.
    absent. The largest feature in the app is undocumented.
 5. **CSP** (§X4) — `index.html` `connect-src` still ships `ws: http:`, a dev
    escape hatch that permits plaintext HTTP to any host in production.
-6. **Semester dates are decorative** (§D1) — `startDate`/`endDate` bound nothing.
-   Needs a product decision: make them real, or remove them.
-7. **`API.set` has no quota handling** — a `QuotaExceededError` is caught and
+6. **`API.set` has no quota handling** — a `QuotaExceededError` is caught and
    logged, so the user's edit silently fails to persist. `IMPROVEMENT_PLAN.md` §C4.
 
 ---

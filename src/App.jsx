@@ -227,9 +227,9 @@ export default function App() {
             className="anim-tab-enter flex flex-col flex-1 overflow-hidden min-h-0"
           >
             {activeTab === 'calendar' ? (
-              <CalendarView timetable={activeSem?.timetable ?? []} subjects={activeSem?.subjects ?? []} attendanceHook={attendanceHook} examDates={examDates} />
+              <CalendarView timetable={activeSem?.timetable ?? []} subjects={activeSem?.subjects ?? []} attendanceHook={attendanceHook} examDates={examDates} semester={activeSem} />
             ) : activeTab === 'attendance' ? (
-              <AttendanceView timetable={activeSem?.timetable ?? []} subjects={activeSem?.subjects ?? []} attendanceHook={attendanceHook} examDates={examDates} />
+              <AttendanceView timetable={activeSem?.timetable ?? []} subjects={activeSem?.subjects ?? []} attendanceHook={attendanceHook} examDates={examDates} semester={activeSem} />
             ) : activeTab === 'exams' ? (
               <ExamsView
                 subjects={activeSem?.subjects ?? []}
@@ -253,6 +253,7 @@ export default function App() {
                 editMode={editMode}
                 attendanceHook={attendanceHook}
                 examDates={examDates}
+                semester={activeSem}
                 onCellClick={(day, startTime, endTime) => setTtModal({ mode: 'add', initialData: { day, startTime, endTime } })}
                 onBlockClick={(entry) => setTtModal({ mode: 'edit', initialData: entry })}
                 onInstanceClick={(entry, dateStr) => setInstanceModal({ entry, dateStr })}

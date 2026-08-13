@@ -169,20 +169,23 @@ export function useAttendance() {
 
   // ── Derived stats — thin wrappers over src/data/attendanceMath.js ──
 
+  // `semester` scopes the traversal to that term's dates. Omit it and the
+  // whole map counts, which is what an unbounded semester wants anyway.
+
   const getSubjectStats = useCallback(
     (subjectId, timetable, examDates = EMPTY_EXAM_DATES, options) =>
       computeSubjectStats(attendance, subjectId, timetable, examDates, options),
     [attendance])
 
   const getOverallStats = useCallback(
-    (subjects, timetable, examDates = EMPTY_EXAM_DATES) =>
-      computeOverallStats(attendance, subjects, timetable, examDates),
+    (subjects, timetable, examDates = EMPTY_EXAM_DATES, semester) =>
+      computeOverallStats(attendance, subjects, timetable, examDates, semester),
     [attendance])
 
   /** One traversal for every subject at once — prefer this in list views. */
   const getAllStats = useCallback(
-    (subjects, timetable, examDates = EMPTY_EXAM_DATES) =>
-      computeAllStats(attendance, subjects, timetable, examDates),
+    (subjects, timetable, examDates = EMPTY_EXAM_DATES, semester) =>
+      computeAllStats(attendance, subjects, timetable, examDates, semester),
     [attendance])
 
   return useMemo(() => ({

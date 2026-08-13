@@ -308,3 +308,61 @@ describe('percentage never rounds up across the threshold', () => {
     expect(computeSubjectStats({}, 'math', TT, new Set()).percentage).toBe(100)
   })
 })
+
+// ─────────────────────────────────────────────────────────────────
+// Semester dates used to bound nothing: attendance counted every date in
+// the map regardless of term, so a mark from last term still moved this
+// term's percentage. A semester with no dates set stays unbounded.
+// ─────────────────────────────────────────────────────────────────
+
+describe('semester dates scope the count', () => {
+  const TERM = { startDate: '2026-08-03', endDate: '2026-08-31' }
+  // 2026-07-27, 08-03, 08-10 and 09-07 are all Mondays.
+  const BEFORE = '2026-07-27'
+  const FIRST  = '2026-08-03'
+  const INSIDE = '2026-08-10'
+  const LAST   = '2026-08-31'
+  const AFTER  = '2026-09-07'
+
+  const att = {
+    [BEFORE]: { 'e-mon': 'ABSENT' },
+    [FIRST]:  { 'e-mon': 'PRESENT' },
+    [INSIDE]: { 'e-mon': 'PRESENT' },
+    [LAST]:   { 'e-mon': 'PRESENT' },
+    [AFTER]:  { 'e-mon': 'ABSENT' },
+  }
+
+  it('counts only the dates inside the term', () => {
+    const s = computeSubjectStats(att, 'math', TT, new Set(), { semester: TERM })
+    expect(s).toMatchObject({ present: 3, absent: 0, total: 3, percentage: 100 })
+  })
+
+  it('treats both bounds as inclusive', () => {
+    const only = { [FIRST]: att[FIRST], [LAST]: att[LAST] }
+    expect(computeSubjectStats(only, 'math', TT, new Set(), { semester: TERM }).total).toBe(2)
+  })
+
+  it('counts everything when the semester has no dates', () => {
+    const s = computeSubjectStats(att, 'math', TT, new Set(), { semester: { startDate: '', endDate: '' } })
+    expect(s).toMatchObject({ present: 3, absent: 2, total: 5 })
+    // and identically when no semester is passed at all
+    expect(computeSubjectStats(att, 'math', TT, new Set())).toMatchObject({ total: 5 })
+  })
+
+  it('honours a half-open term — one bound set, the other blank', () => {
+    expect(computeSubjectStats(att, 'math', TT, new Set(), { semester: { startDate: '2026-08-03', endDate: '' } }).total).toBe(4)
+    expect(computeSubjectStats(att, 'math', TT, new Set(), { semester: { endDate: '2026-08-31', startDate: '' } }).total).toBe(4)
+  })
+
+  it('scopes the history to the term as well, so it cannot contradict the percentage', () => {
+    const s = computeSubjectStats(att, 'math', TT, new Set(), { semester: TERM, withHistory: true })
+    expect(s.history).toHaveLength(s.total)
+    expect(s.history.every(r => r.date >= TERM.startDate && r.date <= TERM.endDate)).toBe(true)
+  })
+
+  it('scopes computeAllStats and its roll-up too', () => {
+    const { overall, bySubject } = computeAllStats(att, SUBJECTS, TT, new Set(), TERM)
+    expect(overall).toMatchObject({ present: 3, total: 3 })
+    expect(bySubject.get('math')).toMatchObject({ present: 3, total: 3 })
+  })
+})

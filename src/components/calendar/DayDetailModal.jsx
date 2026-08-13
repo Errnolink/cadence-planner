@@ -14,13 +14,13 @@ import { useSettings } from '../../hooks/useSettings.jsx'
  * 2nd-Saturday showed live attendance toggles from the grid and "// HOLIDAY"
  * from the calendar. Everything is now derived from `getDayMeta(dateStr)`.
  */
-export function DayDetailModal({ dateStr, timetable, subjects, attendanceHook, examDates = new Set(), onClose }) {
+export function DayDetailModal({ dateStr, timetable, subjects, attendanceHook, examDates = new Set(), semester, onClose }) {
   const { settings } = useSettings()
   const { attendance, markAttendance, markDayAttendance, setExamDayPresent } = attendanceHook || {}
 
   const meta = useMemo(
-    () => getDayMeta(dateStr, { settings, attendance, examDates }),
-    [dateStr, settings, attendance, examDates]
+    () => getDayMeta(dateStr, { settings, attendance, examDates, semester }),
+    [dateStr, settings, attendance, examDates, semester]
   )
 
   const dayData = attendance?.[dateStr] ?? {}
@@ -68,6 +68,20 @@ export function DayDetailModal({ dateStr, timetable, subjects, attendanceHook, e
       onClose={onClose}
       headerExtra={holidayButton}
     >
+      {/* Out-of-term banner. Marking is still allowed — the dates are the
+          user's to get wrong, and silently discarding a mark would be worse
+          than one that plainly says it does not count. */}
+      {!meta.inTerm && (
+        <div
+          className="px-4 py-2 shrink-0"
+          style={{ borderBottom: '1px solid var(--cad-border-dim)', background: 'var(--cad-bg-primary)' }}
+        >
+          <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-xs)', color: 'var(--cad-text-lo)', letterSpacing: 'var(--cad-track-mid)' }}>
+            <span aria-hidden="true">▸ </span>OUTSIDE {semester?.label || 'THE SEMESTER'} — MARKS HERE ARE NOT COUNTED
+          </span>
+        </div>
+      )}
+
       {/* Exam day banner */}
       {meta.isExamDay && (
         <div

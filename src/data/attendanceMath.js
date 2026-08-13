@@ -13,7 +13,7 @@
 //   } }
 
 import { ATTENDANCE_THRESHOLD } from './constants.js'
-import { weekdayOf } from './calendar.js'
+import { weekdayOf, isInTerm } from './calendar.js'
 
 /** @typedef {'PRESENT'|'ABSENT'|'CANCELLED'} Status */
 
@@ -58,7 +58,7 @@ const accumulate = (acc, status) => {
  * Cost: O(dates × marks-on-that-date), plus O(entries) on the rare exam day
  * that was opted into "count as present".
  */
-function traverse(attendance, timetable, examDates, emit) {
+function traverse(attendance, timetable, examDates, emit, semester) {
   if (!attendance) return
   const entryById = new Map(timetable.map(t => [String(t.id), t]))
   const dates = examDates instanceof Set ? examDates : new Set(examDates || [])
@@ -66,6 +66,15 @@ function traverse(attendance, timetable, examDates, emit) {
   for (const dateStr of Object.keys(attendance)) {
     const dayData = attendance[dateStr]
     if (!dayData || typeof dayData !== 'object') continue
+
+    // Outside the semester's dates the class never happened as far as this
+    // term is concerned. The attendance map is global across semesters and
+    // keyed by entry id, so without this a date belonging to last term still
+    // counted toward this one. A semester with no dates set is unbounded and
+    // keeps counting everything, which is how every semester behaved before
+    // the bounds were enforced.
+    if (!isInTerm(dateStr, semester)) continue
+
     if (dayData.isHoliday) continue
 
     // Exam days have no regular classes unless the user opted the day in.
@@ -128,7 +137,7 @@ const byDateDesc = (a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)
  *        that were actually counted, newest first, so a history view can
  *        never contradict the percentage next to it.
  */
-export function computeSubjectStats(attendance, subjectId, timetable = [], examDates = EMPTY_SET, { withHistory = false } = {}) {
+export function computeSubjectStats(attendance, subjectId, timetable = [], examDates = EMPTY_SET, { withHistory = false, semester } = {}) {
   const want = String(subjectId)
   const acc = blank()
   const history = withHistory ? [] : null
@@ -137,7 +146,7 @@ export function computeSubjectStats(attendance, subjectId, timetable = [], examD
     if (rec.subjectId !== want) return
     accumulate(acc, rec.status)
     if (history) history.push(rec)
-  })
+  }, semester)
 
   if (history) history.sort(byDateDesc)
   return finalize(acc, history)
@@ -149,7 +158,7 @@ export function computeSubjectStats(attendance, subjectId, timetable = [], examD
  * calling computeSubjectStats in a loop.
  * @returns {{overall: object, bySubject: Map<string, object>}}
  */
-export function computeAllStats(attendance, subjects = [], timetable = [], examDates = EMPTY_SET) {
+export function computeAllStats(attendance, subjects = [], timetable = [], examDates = EMPTY_SET, semester) {
   const accs = new Map()
   for (const s of subjects) accs.set(String(s.id), blank())
   const overallAcc = blank()
@@ -159,7 +168,7 @@ export function computeAllStats(attendance, subjects = [], timetable = [], examD
     if (!acc) return // substitute pointing at a subject outside this semester
     accumulate(acc, rec.status)
     accumulate(overallAcc, rec.status)
-  })
+  }, semester)
 
   const bySubject = new Map()
   for (const [id, acc] of accs) bySubject.set(id, finalize(acc, null))
@@ -167,8 +176,8 @@ export function computeAllStats(attendance, subjects = [], timetable = [], examD
 }
 
 /** Roll-up across every subject. */
-export function computeOverallStats(attendance, subjects = [], timetable = [], examDates = EMPTY_SET) {
-  return computeAllStats(attendance, subjects, timetable, examDates).overall
+export function computeOverallStats(attendance, subjects = [], timetable = [], examDates = EMPTY_SET, semester) {
+  return computeAllStats(attendance, subjects, timetable, examDates, semester).overall
 }
 
 /** How many more classes can be missed while staying >= threshold. */
