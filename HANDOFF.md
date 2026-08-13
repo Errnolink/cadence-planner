@@ -14,10 +14,10 @@ file covers what changed, what is in flight, and what will bite you.
 | Branch | State | Pushed |
 |---|---|---|
 | `main` | `14aae8e` — audit, correctness fixes, docs | **yes**, `origin/main` matches |
-| `exams-gradebook` | 9 commits — gradebook, mobile fix, derived GPA | **no** |
+| `exams-gradebook` | 11 commits — gradebook, mobile fix, derived GPA, scheme editor | **no** |
 
 `main` is green and deployed-ready. `exams-gradebook` branches off it and is
-feature-complete apart from the scheme editor — see §4.
+feature-complete — see §4.
 
 ```bash
 npm run dev        # vite, :5173
@@ -40,6 +40,8 @@ node scripts/check-contrast.mjs   # WCAG gate, 192 pairs, exits 1 on failure
 | `c21d8e5` | marks entry UI |
 | `3c23708` | mobile header fix |
 | `991481f` | GPA derived from marks, scale-aware badges |
+| `a1c83b7` `b2ea6d6` | this handoff, updated |
+| `a30808b` | scheme editor — free-form components and bands |
 
 **House rule:** commits carry **no** `Co-Authored-By` trailer and PR bodies carry
 no "Generated with" footer. The user asked for this explicitly.
@@ -237,10 +239,18 @@ per-component sittings; `SittingRow` gives each part its own numeric input,
 commits on blur and Enter, rejects out-of-range rather than clamping, and dims
 a sitting the rule discarded with a `DROPPED` chip and the reason.
 
-**Still outstanding:** `SchemeModal` ships preset pickers plus live validation
-only. Free-form editing of component label/weight/rule/parts and of the band
-floor/label/gp table is the remaining work; the validation it needs is already
-wired. `Modal` is capped at `max-w-sm`, so those editors want a wider variant.
+`SchemeModal` is complete: preset pickers, free-form component editing
+(name, weight, rule, parts, with a live sitting total) and a band table over
+floor/label/gp plus scale. `Modal` gained `size="lg"`.
+
+Two behaviours there are deliberate and easy to "fix" wrongly:
+- **Cross-field validation does not fight the cursor.** A weight total of 105
+  passes through while typing; save just stays blocked and names the real
+  number. Enforcing per-field would make the editor unusable.
+- **Changing a scheme cannot silently orphan marks.** Removing a component or
+  part with graded entries names them with counts and makes save two-step.
+  Nothing is deleted. Component ids derive from the label once at creation and
+  are not editable, so a rename can never orphan anything.
 
 ### GPA is now derived from marks
 
@@ -264,22 +274,20 @@ now prefers a derived grade and falls back to the typed one.
 
 ## 5. Next up, in priority order
 
-1. **Finish the scheme editor** (§4) — free-form components and the band table.
-   The only gradebook piece not built.
-2. **Push `exams-gradebook`.** Nine commits sit unpushed; `main` has none of the
-   gradebook. Decide whether it merges or stays a branch.
-3. **Attendance context** (`IMPROVEMENT_PLAN.md` §M2). `attendanceHook` is
+1. **Push `exams-gradebook`.** Eleven commits sit unpushed; `main` has none of
+   the gradebook. Decide whether it merges or stays a branch.
+2. **Attendance context** (`IMPROVEMENT_PLAN.md` §M2). `attendanceHook` is
    prop-drilled through eight components as an opaque bag. This also unblocks #4.
-4. **Orphan pruning on delete** — deleting a subject or slot leaves its
-   attendance rows until the next boot sweep. Needs #3.
-5. **CI** (§X3) — nothing runs automatically. Include the contrast script *and*
+3. **Orphan pruning on delete** — deleting a subject or slot leaves its
+   attendance rows until the next boot sweep. Needs #2.
+4. **CI** (§X3) — nothing runs automatically. Include the contrast script *and*
    a mobile-width check; the header regression in §9 would have been caught by
    one assertion.
-6. **CSP** (§X4) — `index.html` `connect-src` still ships `ws: http:`, a dev
+5. **CSP** (§X4) — `index.html` `connect-src` still ships `ws: http:`, a dev
    escape hatch that permits plaintext HTTP to any host in production.
-7. **Semester dates are decorative** (§D1) — `startDate`/`endDate` bound nothing.
+6. **Semester dates are decorative** (§D1) — `startDate`/`endDate` bound nothing.
    Needs a product decision: make them real, or remove them.
-8. **`API.set` has no quota handling** — a `QuotaExceededError` is caught and
+7. **`API.set` has no quota handling** — a `QuotaExceededError` is caught and
    logged, so the user's edit silently fails to persist. `IMPROVEMENT_PLAN.md` §C4.
 
 ---
