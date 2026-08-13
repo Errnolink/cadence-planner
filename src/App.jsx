@@ -11,7 +11,7 @@ import { SubjectRoster } from './components/roster/SubjectRoster.jsx'
 import { TimetableGrid } from './components/timetable/TimetableGrid.jsx'
 import { TimetableModal } from './components/timetable/TimetableModal.jsx'
 import { ClassInstanceModal } from './components/timetable/ClassInstanceModal.jsx'
-import { SettingsModal } from './components/layout/SettingsModal.jsx'
+import { SettingsPage } from './components/layout/SettingsPage.jsx'
 import { CalendarView }  from './components/calendar/CalendarView.jsx'
 import { AttendanceView } from './components/attendance/AttendanceView.jsx'
 import { ExamsView } from './components/exams/ExamsView.jsx'
@@ -290,8 +290,10 @@ export default function App() {
       )}
 
       {showSettings && (
-        <SettingsModal 
-          onClose={() => setShowSettings(false)} 
+        <SettingsPage
+          semester={activeSem}
+          onSetScheme={setGradingScheme}
+          onClose={() => setShowSettings(false)}
         />
       )}
 
