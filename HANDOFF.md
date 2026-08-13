@@ -102,8 +102,8 @@ plus `.cad-label` / `.cad-value` / `.cad-input` / `.cad-chip` / `.sr-only` in
 
 ### Testing
 
-Vitest added. **154 unit tests** where there were zero. Playwright grew two
-selector fixes for the new ARIA roles.
+Vitest added — **154 unit tests on `main`** where there were zero, now 175 on
+`exams-gradebook`. Playwright grew two selector fixes for the new ARIA roles.
 
 ---
 
@@ -163,10 +163,10 @@ Subject colours are theme tokens now, so a custom theme can restyle them.
 
 ---
 
-## 4. In flight — `exams-gradebook`
+## 4. The gradebook — `exams-gradebook`
 
-Turning the Exams tab from a schedule into a gradebook. Four commits landed,
-UI uncommitted.
+Turns the Exams tab from a schedule into a gradebook. Built and committed;
+only the scheme editor is outstanding.
 
 ### The user's real grading scheme (JNTU)
 
