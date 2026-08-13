@@ -132,35 +132,39 @@ export function SubjectRow({ subject, grade, editMode, onUpdate, onRemove, stagg
             }}
           />
 
-          {/* Grade */}
+          {/* Grade.
+
+              When marks or an awarded result exist they decide the grade, so
+              the manual dropdown would accept a change and do nothing. A
+              control that ignores input is worse than no control: show the
+              grade actually in force and where it came from instead. The
+              typed value is kept in storage and returns if the marks or the
+              awarded grade are cleared. */}
           <div className={`shrink-0 text-right flex items-center justify-end gap-1 ${editMode && overridden ? 'w-[4.5rem]' : 'w-10'}`}>
-            {editMode && overridden && (
+            {overridden ? (
               <span
                 title={awarded
-                  ? `${gpToLabel(shownGp)} AWARDED — THIS IS THE GRADE IN USE; THE DROPDOWN BESIDE IT IS IGNORED`
-                  : `${gpToLabel(shownGp)} COMPUTED FROM MARKS — THIS IS THE GRADE IN USE; THE DROPDOWN BESIDE IT IS IGNORED`}
-                style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-xs)', color: 'var(--cad-accent-text)' }}
+                  ? `${gpToLabel(shownGp)} — AWARDED GRADE, IN USE. CLEAR IT IN THE EXAMS TAB TO GO BACK TO THE COMPUTED OR TYPED GRADE.`
+                  : `${gpToLabel(shownGp)} — COMPUTED FROM ${grade.pct.toFixed(1)}% OF ENTERED MARKS, IN USE. CLEAR THE MARKS IN THE EXAMS TAB TO TYPE A GRADE INSTEAD.`}
+                style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-xs)', color: tier.color }}
               >
+                {tier.mark && <span aria-hidden="true" style={{ marginRight: '2px' }}>{tier.mark}</span>}
                 {gpToLabel(shownGp)}
-                <span aria-hidden="true" style={{ color: 'var(--cad-accent)' }}>•</span>
-                <span className="sr-only">{awarded ? ' awarded, in use' : ' computed from marks, in use'}</span>
+                <span aria-hidden="true" style={{ color: 'var(--cad-accent)', marginLeft: '2px' }}>•</span>
+                <span className="sr-only">
+                  {awarded ? ', awarded grade, in use' : ', computed from marks, in use'}
+                </span>
               </span>
-            )}
-            {editMode ? (
+            ) : editMode ? (
               <select
                 value={subject.gradePoint ?? ''}
                 onChange={e => onUpdate(subject.id, 'gradePoint', e.target.value === '' ? null : Number(e.target.value))}
-                aria-label={awarded
-                  ? `Manual grade point for ${subject.name}. Not in use — an awarded grade of ${gpToLabel(shownGp)} takes precedence.`
-                  : derived
-                    ? `Manual grade point for ${subject.name}. Not in use — ${gpToLabel(shownGp)} computed from marks takes precedence.`
-                    : `Grade point for ${subject.name}`}
-                className="text-right bg-transparent cursor-pointer"
+                aria-label={`Grade point for ${subject.name}`}
+                className="w-full text-right bg-transparent cursor-pointer"
                 style={{
-                  width:       overridden ? '2rem' : '100%',
                   fontFamily:  'var(--cad-font-mono)',
                   fontSize:    'var(--cad-fs-xs)',
-                  color:       overridden ? 'var(--cad-text-xlo)' : 'var(--cad-text-hi)',
+                  color:       'var(--cad-text-hi)',
                   borderBottom:'1px solid var(--cad-border)',
                 }}
               >
@@ -169,17 +173,11 @@ export function SubjectRow({ subject, grade, editMode, onUpdate, onRemove, stagg
               </select>
             ) : (
               <span
-                title={derived
-                  ? `Grade ${gpToLabel(shownGp)} (${tier.label}) — computed from ${grade.pct.toFixed(1)}% of entered marks`
-                  : `Grade ${gpToLabel(shownGp)} (${tier.label}) — entered by hand`}
+                title={`Grade ${gpToLabel(shownGp)} (${tier.label}) — entered by hand`}
                 style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-xs)', color: tier.color }}
               >
                 {tier.mark && <span aria-hidden="true" style={{ marginRight: '2px' }}>{tier.mark}</span>}
                 {gpToLabel(shownGp)}
-                {/* A dot marks a grade the app worked out from marks, so a
-                    typed value is never mistaken for a computed one. */}
-                {derived && <span aria-hidden="true" style={{ color: 'var(--cad-accent)', marginLeft: '2px' }}>•</span>}
-                {derived && <span className="sr-only"> computed from marks</span>}
               </span>
             )}
           </div>
