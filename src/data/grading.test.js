@@ -19,6 +19,7 @@ import {
   isGraded,
   SCHEME_PRESETS,
   DEFAULT_SCHEME,
+  roundMarks,
 } from './grading.js'
 
 const preset = (id) => SCHEME_PRESETS.find(p => p.id === id).scheme
@@ -421,5 +422,135 @@ describe('exam → assessment migration', () => {
   })
   it('handles a semester with no exams', () => {
     expect(migrateExamsToAssessments(undefined)).toEqual([])
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────
+// Rounding — some universities round each component to a whole number
+// before adding them up, and that half mark can cross a grade band.
+// ─────────────────────────────────────────────────────────────────
+
+describe('roundMarks', () => {
+  it('rounds a half up, not to even', () => {
+    expect(roundMarks(19.5, 'half-up')).toBe(20)
+    expect(roundMarks(20.5, 'half-up')).toBe(21)  // Math.round-to-even would give 20
+    expect(roundMarks(0.5, 'half-up')).toBe(1)
+  })
+
+  it('leaves marks alone below the half', () => {
+    expect(roundMarks(19.49, 'half-up')).toBe(19)
+    expect(roundMarks(19, 'half-up')).toBe(19)
+  })
+
+  it('survives the float dust that division leaves behind', () => {
+    // Two mids totalling 29 of 50, weighted to 25, is exactly 14.5 — but in
+    // binary floating point it arrives as 14.499999999999998, and a plain
+    // Math.round on that gives 14. This is not a contrived case: it is the
+    // app's own internals shape, and 21 such (score, max, weight) triples
+    // exist across the realistic mark range.
+    const measured = (29 / 50) * 25
+    expect(measured).toBeLessThan(14.5)
+    expect(Math.round(measured)).toBe(14)      // what we must not do
+    expect(roundMarks(measured, 'half-up')).toBe(15)
+  })
+
+  it('is a no-op unless the scheme asks for it', () => {
+    expect(roundMarks(19.5, 'none')).toBe(19.5)
+    expect(roundMarks(19.5)).toBe(19.5)
+    expect(roundMarks(19.5, undefined)).toBe(19.5)
+  })
+
+  it('passes null and non-numbers straight through', () => {
+    expect(roundMarks(null, 'half-up')).toBe(null)
+    expect(roundMarks(undefined, 'half-up')).toBe(undefined)
+    expect(roundMarks(NaN, 'half-up')).toBeNaN()
+  })
+})
+
+describe('rounding inside a scheme', () => {
+  // Mid 1 = 19/25, Mid 2 = 20/25 → averaged internals sit on exactly 19.5.
+  const mids = [...sitting(1, 8, 7, 4), ...sitting(2, 6, 9, 5)]
+  const rounded = { ...preset('avg-internals-25-75'), rounding: 'half-up' }
+
+  it('rounds each component, and the rounded figure is what counts', () => {
+    const g = computeSubjectGrade([...mids, theory(60.5)], rounded)
+    const internals = g.byComponent.find(c => c.component.id === 'internal')
+    const paper = g.byComponent.find(c => c.component.id === 'theory')
+
+    expect(internals.marks).toBe(20)   // 19.5 →  20
+    expect(paper.marks).toBe(61)       // 60.5 →  61
+    expect(g.locked).toBe(81)          // not 80
+  })
+
+  it('leaves the measured fraction untouched — only the marks move', () => {
+    const g = computeSubjectGrade(mids, rounded)
+    const internals = g.byComponent.find(c => c.component.id === 'internal')
+    expect(internals.fraction).toBeCloseTo(39 / 50, 5)
+    expect(internals.rawMarks).toBeCloseTo(19.5, 5)
+    expect(internals.marks).toBe(20)
+    expect(internals.rounded).toBe(true)
+  })
+
+  it('flags only the components rounding actually moved', () => {
+    // Mid 1 = Mid 2 = 20/25, so internals land on a whole 20 already.
+    const level = [...sitting(1, 8, 8, 4), ...sitting(2, 8, 8, 4)]
+    const g = computeSubjectGrade([...level, theory(60.5)], rounded)
+    expect(g.byComponent.find(c => c.component.id === 'internal').rounded).toBe(false)
+    expect(g.byComponent.find(c => c.component.id === 'theory').rounded).toBe(true)
+  })
+
+  it('can carry a subject across a grade band', () => {
+    // 19.5 + 60 = 79.5 exact → 80 rounded. JNTU puts an A at 80.
+    const exact = computeSubjectGrade([...mids, theory(60)], preset('avg-internals-25-75'))
+    const half = computeSubjectGrade([...mids, theory(60)], rounded)
+    expect(exact.locked).toBeCloseTo(79.5, 5)
+    expect(half.locked).toBe(80)
+    expect(half.gradePoint).toBeGreaterThan(exact.gradePoint)
+  })
+
+  it('defaults to exact when the scheme says nothing', () => {
+    const g = computeSubjectGrade(mids, preset('avg-internals-25-75'))
+    const internals = g.byComponent.find(c => c.component.id === 'internal')
+    expect(internals.marks).toBeCloseTo(19.5, 5)
+    expect(internals.rounded).toBe(false)
+    expect(g.rounding).toBe('none')
+  })
+
+  it('rounds a real half that floating point hides, end to end', () => {
+    // Mid 1 = 14/25, Mid 2 = 15/25 → 29/50 → exactly 14.5 of 25.
+    const g = computeSubjectGrade([...sitting(1, 8, 4, 2), ...sitting(2, 7, 5, 3)], rounded)
+    const internals = g.byComponent.find(c => c.component.id === 'internal')
+    expect(internals.rawMarks).toBeLessThan(14.5)   // the float sits just under
+    expect(internals.marks).toBe(15)                // the college's answer
+  })
+
+  it('does not chase a mark rounding would have given anyway', () => {
+    // Internals 20 of 25 banked, theory (75) outstanding, aiming for 80.
+    // Exact: needs 60 of 75. Rounded: 59.5 is recorded as 60, so 59.5 does it.
+    const banked = [...sitting(1, 8, 8, 4), ...sitting(2, 8, 8, 4)]      // 20 of 25
+    const exact = targetForGrade(computeSubjectGrade(banked, preset('avg-internals-25-75')), 80)
+    const half = targetForGrade(computeSubjectGrade(banked, rounded), 80)
+
+    expect((exact.needed / 100) * 75).toBeCloseTo(60, 5)
+    expect((half.needed / 100) * 75).toBeCloseTo(59.5, 5)
+  })
+
+  it('claims no slack while two components are still outstanding', () => {
+    // With more than one left the gain depends on where each lands, so
+    // promising it could understate what the student actually needs.
+    const scheme = { ...preset('mids-assign-final'), rounding: 'half-up' }
+    const only = [{ id: 'm1', componentId: 'mid', partId: 'paper', attempt: 1, score: 40, maxScore: 50 }]
+    const g = computeSubjectGrade(only, scheme)
+    expect(g.byComponent.filter(c => c.fraction === null && c.weight > 0)).toHaveLength(2)
+    expect(targetForGrade(g, 80).needed)
+      .toBeCloseTo(targetForGrade(computeSubjectGrade(only, preset('mids-assign-final')), 80).needed, 5)
+  })
+
+  it('rounds nothing that is not graded yet', () => {
+    const g = computeSubjectGrade(mids, rounded)   // theory still ungraded
+    const paper = g.byComponent.find(c => c.component.id === 'theory')
+    expect(paper.marks).toBe(null)
+    expect(paper.points).toBe(0)
+    expect(paper.rounded).toBe(false)
   })
 })

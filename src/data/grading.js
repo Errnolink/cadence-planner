@@ -172,6 +172,7 @@ const THEORY_75 = {
 export const DEFAULT_SCHEME = {
   components: [INTERNALS_25, THEORY_75],
   bands: DEFAULT_BAND_SET,
+  rounding: 'none',
 }
 
 /** Ready-made schemes offered in the scheme editor. */
@@ -233,6 +234,45 @@ export const AGGREGATION_LABELS = {
   average: 'AVERAGE OF ALL',
   best:    'BEST N',
   latest:  'MOST RECENT',
+}
+
+// ── Rounding ─────────────────────────────────────────────────────
+//
+// Some universities round each component's marks to a whole number before
+// adding them up: internals averaging 19.5 out of 25 are recorded as 20, and
+// that half mark can cross a grade band. Others keep the fraction.
+//
+// This is an institutional rule of exactly the same kind as the aggregation
+// mode and the bands, so it lives on the scheme, not in app settings — one
+// install can then hold a semester that rounds and a subject that does not,
+// the same way it already holds "average of mids" beside "best of mids".
+
+export const ROUNDING_MODES = ['none', 'half-up']
+
+export const ROUNDING_LABELS = {
+  none:      'EXACT',
+  'half-up': 'ROUND ½ UP',
+}
+
+export const ROUNDING_BLURBS = {
+  none:      'Each component keeps its exact marks. Two mids of 19 and 20 count as 19.5 of 25.',
+  'half-up': 'Each component is rounded to a whole number before the components are added. Two mids of 19 and 20 count as 20 of 25.',
+}
+
+/**
+ * Apply a scheme's rounding rule to one component's earned marks.
+ *
+ * `Math.round` is already half-up across the non-negative range marks occupy.
+ * The `toFixed` pass is not decoration: marks arrive from `score / max *
+ * weight`, and two mids totalling 29 of 50 weighted to 25 is exactly 14.5 but
+ * reaches here as 14.499999999999998 — a plain Math.round returns 14, losing
+ * the student the mark this option exists to give them. 21 such triples exist
+ * across the realistic range of scores, maxima and weights.
+ */
+export function roundMarks(marks, rounding = 'none') {
+  if (marks === null || marks === undefined || !Number.isFinite(marks)) return marks
+  if (rounding !== 'half-up') return marks
+  return Math.round(Number(marks.toFixed(6)))
 }
 
 /**
@@ -325,6 +365,7 @@ export function aggregateComponent(entries, rule = { mode: 'average' }) {
 export function computeSubjectGrade(assessments, scheme = DEFAULT_SCHEME) {
   const components = scheme?.components ?? []
   const bands = scheme?.bands ?? DEFAULT_GRADE_BANDS
+  const rounding = scheme?.rounding ?? 'none'
 
   const byComponent = components.map(c => {
     const entries = (assessments ?? []).filter(a => a.componentId === c.id)
@@ -352,6 +393,13 @@ export function computeSubjectGrade(assessments, scheme = DEFAULT_SCHEME) {
       return { part: p, score, max, count: marks.length, fraction: max > 0 ? score / max : null }
     })
 
+    // The scheme's rounding rule applies HERE, to each component's marks, and
+    // the rounded figure is what gets added into the 100 — which is what a
+    // university that rounds actually does. `rawMarks` is kept so the UI can
+    // show the arithmetic behind a mark that moved.
+    const rawMarks = fraction === null ? null : fraction * weight
+    const marks = roundMarks(rawMarks, rounding)
+
     return {
       component: c,
       entries,
@@ -360,10 +408,12 @@ export function computeSubjectGrade(assessments, scheme = DEFAULT_SCHEME) {
       sittingMax: sittingMax(c),
       gradedCount: entries.filter(isGraded).length,
       totalCount: entries.length,
-      fraction,                                          // 0..1 or null
+      fraction,                                          // 0..1 or null — as measured
       pct: fraction === null ? null : fraction * 100,
-      marks: fraction === null ? null : fraction * weight, // marks earned of `weight`
-      points: fraction === null ? 0 : fraction * weight,   // contribution to the 100
+      rawMarks,                                          // before rounding
+      marks,                                             // marks earned of `weight`
+      points: marks === null ? 0 : marks,                // contribution to the 100
+      rounded: rawMarks !== null && marks !== rawMarks,
       weight,
     }
   })
@@ -374,6 +424,7 @@ export function computeSubjectGrade(assessments, scheme = DEFAULT_SCHEME) {
 
   return {
     byComponent,
+    rounding,
     gradedWeight,
     remainingWeight,
     locked,                                                   // 0..100
@@ -402,7 +453,20 @@ export function targetForGrade(grade, targetPct) {
   if (locked >= targetPct) return { alreadyAchieved: true, reachable: true, needed: 0 }
   if (remainingWeight <= 0) return { alreadyAchieved: false, reachable: false, needed: null }
 
-  const needed = ((targetPct - locked) / remainingWeight) * 100
+  // Under half-up rounding the last half mark is free — a 59.5 paper is
+  // recorded as 60 — so asking for the full figure sends the student after a
+  // mark they do not need.
+  //
+  // Claimed only when a single component is outstanding, where the gain is
+  // exactly 0.5 (round(x) >= k iff x >= k - 0.5). With two components left the
+  // gain depends on where each one lands, anywhere from 0 to 1.0, and assuming
+  // any of it could tell someone they need less than they really do. Erring
+  // upward costs a student some extra revision; erring downward costs them the
+  // grade.
+  const outstanding = grade.byComponent?.filter(c => c.fraction === null && c.weight > 0) ?? []
+  const slack = grade.rounding === 'half-up' && outstanding.length === 1 ? 0.5 : 0
+
+  const needed = ((targetPct - locked - slack) / remainingWeight) * 100
   if (needed > 100) return { alreadyAchieved: false, reachable: false, needed }
   return { alreadyAchieved: false, reachable: true, needed }
 }
@@ -621,8 +685,15 @@ export function impliedComponentMarks(assessments, scheme, componentId, awardedG
     .reduce((a, c) => a + c.points, 0)
 
   const weight = Number(target.weight) || 0
-  const rawMin = band.min - known
-  const rawMax = band.max - known
+
+  // The band bounds a mark the university RECORDED. Under half-up rounding
+  // that recorded figure is round(raw), and round(x) >= k iff x >= k - 0.5, so
+  // the paper the student actually sat sits half a mark below the window the
+  // band alone implies. `blockedBy` has already established that this is the
+  // only ungraded component, so the whole shift lands here.
+  const slack = (scheme?.rounding ?? 'none') === 'half-up' ? 0.5 : 0
+  const rawMin = band.min - known - slack
+  const rawMax = band.max - known - slack
 
   const min = Math.max(0, Math.min(weight, rawMin))
   const max = Math.max(0, Math.min(weight, rawMax))

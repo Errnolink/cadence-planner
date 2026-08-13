@@ -172,3 +172,32 @@ describe('roster and gradebook must agree', () => {
     expect(fromAward).toBe(5)
   })
 })
+
+describe('implied marks under half-up rounding', () => {
+  const rounding = { ...scheme, rounding: 'half-up' }
+
+  it('shifts the window down by the half mark rounding would have added', () => {
+    // Internals average 19.5 → recorded as 20. An awarded A is the 70–80 band,
+    // so the recorded theory mark is 50–60, and the paper the student actually
+    // sat is 49.5–59.5.
+    const r = impliedComponentMarks(internals, rounding, 'theory', 8)
+    expect(r.known).toBe(20)          // internals, rounded
+    expect(r.min).toBeCloseTo(49.5, 5)
+    expect(r.max).toBeCloseTo(59.5, 5)
+    expect(r.possible).toBe(true)
+  })
+
+  it('leaves the window alone when the scheme does not round', () => {
+    // The exact case, unchanged: 19.5 banked pins the paper to 50.5–60.5.
+    const r = impliedComponentMarks(internals, scheme, 'theory', 8)
+    expect(r.known).toBeCloseTo(19.5, 5)
+    expect(r.min).toBeCloseTo(50.5, 5)
+    expect(r.max).toBeCloseTo(60.5, 5)
+  })
+
+  it('still clamps to the component weight', () => {
+    const r = impliedComponentMarks(internals, rounding, 'theory', 10)   // 90-100
+    expect(r.max).toBeLessThanOrEqual(75)
+    expect(r.min).toBeGreaterThanOrEqual(0)
+  })
+})
