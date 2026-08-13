@@ -250,3 +250,61 @@ describe('pruneOrphans', () => {
     expect(pruneOrphans(att, [7])).toEqual({ '2026-08-10': { 7: 'PRESENT' } })
   })
 })
+
+// ─────────────────────────────────────────────────────────────────
+// The reported percentage is compared against a threshold, so it must
+// never round UP across it. 56 of 75 is 74.667%: it used to print as
+// "75%" and tier as WATCH, telling a student they were at the line
+// when they were below it.
+// ─────────────────────────────────────────────────────────────────
+
+describe('percentage never rounds up across the threshold', () => {
+  /** n Mondays, the first `present` of them attended. */
+  const record = (present, total) => {
+    const attendance = {}
+    const d = new Date(2026, 0, 5) // a Monday
+    for (let i = 0; i < total; i++) {
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+      attendance[key] = { 'e-mon': i < present ? 'PRESENT' : 'ABSENT' }
+      d.setDate(d.getDate() + 7)
+    }
+    return attendance
+  }
+  const pctOf = (present, total) =>
+    computeSubjectStats(record(present, total), 'math', TT, new Set()).percentage
+
+  it('floors a shortfall instead of rounding it up to the threshold', () => {
+    expect(pctOf(56, 75)).toBe(74)     // 74.667% — was 75
+    expect(pctOf(149, 200)).toBe(74)   // 74.5%
+    expect(pctOf(38, 51)).toBe(74)     // 74.51%
+    expect(pctOf(71, 95)).toBe(74)     // 74.74%
+  })
+
+  it('still reports exactly 75 when the record really is 75%', () => {
+    expect(pctOf(3, 4)).toBe(75)
+    expect(pctOf(75, 100)).toBe(75)
+    expect(pctOf(45, 60)).toBe(75)
+  })
+
+  it('tiers a shortfall as critical, and agrees with recoveryPath', () => {
+    for (const [present, total] of [[56, 75], [149, 200], [38, 51], [71, 95]]) {
+      const pct = pctOf(present, total)
+      expect(statusTier(pct)).toBe('critical')
+      // The tier and the advice must tell the same story: a critical record
+      // has classes to make up, so recoveryPath must be non-zero.
+      expect(recoveryPath(present, total)).toBeGreaterThan(0)
+    }
+  })
+
+  it('never reports a percentage above the true value', () => {
+    for (let total = 1; total <= 60; total++) {
+      for (let present = 0; present <= total; present++) {
+        expect(pctOf(present, total)).toBeLessThanOrEqual((present / total) * 100 + 1e-9)
+      }
+    }
+  })
+
+  it('an empty record is still 100%, not 0', () => {
+    expect(computeSubjectStats({}, 'math', TT, new Set()).percentage).toBe(100)
+  })
+})

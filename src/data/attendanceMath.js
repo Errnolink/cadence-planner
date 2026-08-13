@@ -27,7 +27,13 @@ const finalize = (acc, history) => ({
   absent: acc.absent,
   cancelled: acc.cancelled,
   total: acc.total,
-  percentage: acc.total === 0 ? 100 : Math.round((acc.present / acc.total) * 100),
+  // FLOOR, not round. This number is compared against a threshold, so rounding
+  // it up is the one direction that can lie: 56 of 75 is 74.667%, which used to
+  // display as "75%" and — because statusTier is handed this same rounded
+  // figure — tier as WATCH rather than BELOW MIN, telling a student they were
+  // safe while they were short. Flooring can only ever understate, and keeps
+  // the printed percentage and the tier telling the same story.
+  percentage: acc.total === 0 ? 100 : Math.floor((acc.present / acc.total) * 100),
   history,
 })
 

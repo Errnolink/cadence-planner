@@ -62,10 +62,33 @@ export function AttendanceView({ timetable, subjects, attendanceHook, examDates 
             {overallStats.cancelled > 0 && <span style={{ fontSize: 'var(--cad-fs-xs)', fontFamily: 'var(--cad-font-mono)', padding: '2px 6px', background: 'var(--cad-text-lo)', color: '#000', borderRadius: 'var(--cad-radius)' }}>{overallStats.cancelled} CANCELLED</span>}
           </div>
           
-          {/* Safe Margin Strip */}
-          <div style={{ marginTop: '8px', fontSize: 'var(--cad-fs-micro)', fontFamily: 'var(--cad-font-mono)', color: 'var(--cad-success)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span>▸</span> SAFE MARGIN — CAN MISS {getMarginToThreshold(overallStats.present, overallStats.total)} MORE BEFORE {ATTENDANCE_THRESHOLD * 100}%
-          </div>
+          {/* Margin strip.
+
+              This used to be hardcoded green and hardcoded "SAFE MARGIN", so
+              it announced safety to someone already below the threshold — and
+              on a fresh install it read "CAN MISS Infinity MORE", because
+              marginToThreshold returns Infinity for a record of 0 / 0. It now
+              branches the same way the per-subject line below does. */}
+          {(() => {
+            const tier = getStatusTier(overallStats.percentage)
+            const margin = getMarginToThreshold(overallStats.present, overallStats.total)
+            const recovery = getRecoveryPath(overallStats.present, overallStats.total)
+            const color = overallStats.total === 0 ? 'var(--cad-text-lo)'
+              : tier === 'safe' ? 'var(--cad-success)'
+              : tier === 'watch' ? 'var(--cad-accent)' : 'var(--cad-danger)'
+            return (
+              <div style={{ marginTop: '8px', fontSize: 'var(--cad-fs-micro)', fontFamily: 'var(--cad-font-mono)', color, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span aria-hidden="true">{overallStats.total === 0 ? '▸' : tier === 'safe' ? '▸' : tier === 'watch' ? '⚠' : '✕'}</span>
+                {overallStats.total === 0
+                  ? 'NO CLASSES RECORDED YET'
+                  : tier === 'critical'
+                    ? `BELOW MIN — ATTEND NEXT ${recovery} STRAIGHT → ${ATTENDANCE_THRESHOLD * 100}%`
+                    : margin === Infinity
+                      ? 'PERFECT RECORD'
+                      : `SAFE MARGIN — CAN MISS ${margin} MORE BEFORE ${ATTENDANCE_THRESHOLD * 100}%`}
+              </div>
+            )
+          })()}
         </div>
       </div>
 
@@ -79,8 +102,8 @@ export function AttendanceView({ timetable, subjects, attendanceHook, examDates 
             {['ALL', 'AT RISK', 'SAFE'].map(f => {
               const key = f.replace(' ', '_')
               return (
-                <button key={f} onClick={() => setFilter(key)}
-                  className="cad-chip btn-mech"
+                <button key={f} type="button" onClick={() => setFilter(key)}
+                  className="cad-chip btn-mech tap-44"
                   data-active={filter === key || undefined}
                   aria-pressed={filter === key}
                 >{f}</button>
@@ -102,10 +125,12 @@ export function AttendanceView({ timetable, subjects, attendanceHook, examDates 
               return tier === 'safe'
             })
             .map(({ subj, stats, tier, margin, recovery }) => (
-              <div
+              <button
                 key={subj.id}
-                className="p-2 cursor-pointer btn-mech"
-                style={{ ...subjectVars(subj.colorIdx), border: '1px solid var(--cad-border-dim)', borderLeft: '3px solid var(--subj-border)', borderRadius: '0 var(--cad-radius) var(--cad-radius) 0', background: 'var(--cad-bg-elevated)', textAlign: 'left' }}
+                type="button"
+                className="p-2 w-full btn-mech"
+                style={{ ...subjectVars(subj.colorIdx), border: '1px solid var(--cad-border-dim)', borderLeft: '3px solid var(--subj-border)', borderRadius: '0 var(--cad-radius) var(--cad-radius) 0', background: 'var(--cad-bg-elevated)', textAlign: 'left', cursor: 'pointer' }}
+                aria-label={`${subj.name}, ${stats.percentage}% attendance, ${tier === 'safe' ? 'safe' : tier === 'watch' ? 'watch' : 'below minimum'} — open record`}
                 onClick={() => setSelectedSubjectData({ subject: subj })}
               >
                 <div className="flex justify-between items-start mb-2">
@@ -140,7 +165,7 @@ export function AttendanceView({ timetable, subjects, attendanceHook, examDates 
                     : tier === 'watch' ? <span style={{ color: 'var(--cad-accent)' }}>⚠ {margin} MORE ABSENCES → {ATTENDANCE_THRESHOLD * 100}%</span> 
                     : <span style={{ color: 'var(--cad-danger)' }}>✕ ATTEND NEXT {recovery} STRAIGHT → {ATTENDANCE_THRESHOLD * 100}%</span>}
                 </div>
-              </div>
+              </button>
             ))
           }
         </div>
