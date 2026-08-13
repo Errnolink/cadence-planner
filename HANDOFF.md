@@ -1,7 +1,7 @@
 # Cadence Planner — Handoff
 
-**Written:** 2026-08-13. Last updated after the gradebook UI, mobile fix and GPA
-derivation landed.
+**Written:** 2026-08-13. Last updated after the sync-stamp and quick-mark fixes
+in §6c.
 **Repo:** `C:\Users\Chef\Documents\Errnolink\cadence-planner` · `github.com/Errnolink/cadence-planner`
 
 Read this, then `IMPROVEMENT_PLAN.md` for the full audit and the backlog. This
@@ -13,35 +13,27 @@ file covers what changed, what is in flight, and what will bite you.
 
 | Branch | State | Pushed |
 |---|---|---|
-| `main` | `14aae8e` — audit, correctness fixes, docs | **yes**, `origin/main` matches |
-| `exams-gradebook` | 11 commits — gradebook, mobile fix, derived GPA, scheme editor | **no** |
+| `main` | `429d642` — gradebook merged in, plus the awarded-grade and roster work | **yes**, `origin/main` matches |
+| `exams-gradebook` | fully contained in `main`; keep or delete, it carries nothing unique | yes |
 
-`main` is green and deployed-ready. `exams-gradebook` branches off it and is
-feature-complete — see §4.
+The gradebook is **on `main`** — §4 describes shipped code, not a side branch.
+Five older branches (`perf-upgrade`, `improvement-v2`, `fix/review-issues`,
+`mobile-ui-optimisation`, `feature/timetable-fixes-and-substitutes`) predate it
+and are stale.
 
 ```bash
 npm run dev        # vite, :5173
-npm test           # vitest — 175 unit tests, all green
-npm run test:e2e   # playwright — 16 pass, 1 known pre-existing failure (§6)
+npm test           # vitest — 203 unit tests, all green
+npm run test:e2e   # playwright — 17 tests, all green
 npm run lint       # oxlint — 3 pre-existing warnings, no errors
 npm run build      # vite build
 node scripts/check-contrast.mjs   # WCAG gate, 192 pairs, exits 1 on failure
 ```
 
-### Commits on `exams-gradebook`, oldest first
-
-| Commit | What |
-|---|---|
-| `cd5aada` | grading math — weighted marks, targets |
-| `ccce69b` | sittings and per-part splits |
-| `0c60136` | editable grade bands |
-| `bc4bb6e` | migrate exams → assessments in state |
-| `85ff7f2` | this handoff, archive old plan, drop dead files |
-| `c21d8e5` | marks entry UI |
-| `3c23708` | mobile header fix |
-| `991481f` | GPA derived from marks, scale-aware badges |
-| `a1c83b7` `b2ea6d6` | this handoff, updated |
-| `a30808b` | scheme editor — free-form components and bands |
+**Nothing runs these automatically.** A broken unit test and a broken
+interaction both reached `main` described in their own commit messages as
+green — see §6c. CI (`IMPROVEMENT_PLAN.md` §X3) is now the highest-value item
+in §5 for that reason.
 
 **House rule:** commits carry **no** `Co-Authored-By` trailer and PR bodies carry
 no "Generated with" footer. The user asked for this explicitly.
@@ -193,8 +185,29 @@ reason the feature exists.
 - **assessment** — one mark: `{id, subjectId, componentId, partId, attempt,
   score, maxScore, date, blocksClasses, …}`. `score: null` = ungraded.
 
-**The split and the rule are independent knobs.** Two colleges share a split
-while differing on the rule. Do not re-couple them.
+- **rounding** — `'none'` (default) or `'half-up'`. Some universities record
+  each component as a whole number, so internals averaging 19.5 of 25 go down
+  as 20 and that half mark can cross a grade band. Applied per component in
+  `computeSubjectGrade`, *not* to the final total — a college that rounds does
+  so before adding the components up.
+
+**The split, the rule and the rounding are independent knobs.** Two colleges
+share a split while differing on the rule. Do not re-couple them.
+
+`roundMarks` deliberately runs its input through `toFixed(6)` first. Marks come
+from `score / max * weight`, and two mids totalling 29 of 50 weighted to 25 is
+exactly 14.5 but arrives as `14.499999999999998` — a plain `Math.round` returns
+14 and quietly costs the student the mark. There are 21 such triples across the
+realistic range; there is a test naming that one.
+
+Two derived numbers had to learn about rounding, both in the safe direction:
+
+- `targetForGrade` claims the free half mark ("59.5 is recorded as 60") **only**
+  when a single component is outstanding, where the gain is exactly 0.5. With
+  two left the gain is 0 to 1.0 depending on where each lands, and assuming any
+  of it would tell someone they need less than they do.
+- `impliedComponentMarks` shifts its window down by the same half, because the
+  band bounds the mark the university *recorded*, not the paper that was sat.
 
 **Sittings are summed before the rule compares them.** Ranking loose entries
 would let "best of mids" pick the best objective from Mid 1 and the best
@@ -274,15 +287,17 @@ now prefers a derived grade and falls back to the typed one.
 
 ## 5. Next up, in priority order
 
-1. **Push `exams-gradebook`.** Eleven commits sit unpushed; `main` has none of
-   the gradebook. Decide whether it merges or stays a branch.
+1. **CI** (§X3) — nothing runs automatically, and §6c is what that costs. Gate
+   unit + e2e + the contrast script *and* a mobile-width check; the header
+   regression in §9 would have been caught by one assertion.
 2. **Attendance context** (`IMPROVEMENT_PLAN.md` §M2). `attendanceHook` is
-   prop-drilled through eight components as an opaque bag. This also unblocks #4.
+   prop-drilled through eight components as an opaque bag. This also unblocks #3.
 3. **Orphan pruning on delete** — deleting a subject or slot leaves its
    attendance rows until the next boot sweep. Needs #2.
-4. **CI** (§X3) — nothing runs automatically. Include the contrast script *and*
-   a mobile-width check; the header regression in §9 would have been caught by
-   one assertion.
+4. **`DOCUMENTATION.md` predates the gradebook *and* the settings page.** Its data model still shows
+   `Exam` and a hand-typed `subject.gradePoint` as the grade source; `grading.js`
+   (659 lines), assessments, sittings, schemes, bands and `SchemeModal` are
+   absent. The largest feature in the app is undocumented.
 5. **CSP** (§X4) — `index.html` `connect-src` still ships `ws: http:`, a dev
    escape hatch that permits plaintext HTTP to any host in production.
 6. **Semester dates are decorative** (§D1) — `startDate`/`endDate` bound nothing.
@@ -294,14 +309,52 @@ now prefers a derived grade and falls back to the typed one.
 
 ## 6. Known issues
 
-- **`e2e/sync.spec.js › fresh device — full pull` fails.** Pre-existing —
-  verified by stashing all work and running it on `070382f`, where it fails
-  identically. Not a regression. Asserts real merge behaviour, so worth a look.
 - **Deleting a subject/slot orphans attendance rows** until the next boot sweep.
 - **Restoring a backup reloads the page.** Works, but heavy-handed.
-- **kanso** (separate repo, `Documents/Errnolink/kanso`) has **zero commits and
-  no remote** — the whole project exists only on disk. Not this repo's problem
-  but the highest-risk thing in the workspace.
+- **The header runs out of room at 320px.** Measured: at 320 CSS px `EDIT` sits
+  at x=356 while the document only scrolls to 337, so it is genuinely
+  unreachable — the §9 failure mode again, one breakpoint further down. Fine at
+  360, 375, 390 and 412. Affects iPhone SE (1st gen) and Android handsets at the
+  largest display-size setting. The header's floor is ~368px: `px-3` 24 + five
+  `gap-2` 40 + `SemDropdown` `minWidth:110` + three 40px `HudButton`s, and every
+  child is `shrink-0`. Dropping the CADENCE logo below `sm` buys ~74px. Not done
+  — it changes the header's identity, so it wants a decision, not a patch.
+- **Tap targets under 44×44.** Partly addressed — see `.tap-44` in `index.css`.
+  A `min-height:44px` on `.btn-mech` is the obvious fix and the wrong one: the
+  control bar's fixed floor is already ~368px against 375, so widening its three
+  40px buttons would push EDIT back off-screen, and three 44px quick-mark
+  toggles would stand taller than the class block they live in. `.tap-44` grows
+  the hit region with a centred transparent pseudo-element under
+  `@media (pointer: coarse)` — no layout change, desktop untouched.
+
+  **It only suits ISOLATED controls.** The overlay paints above later siblings,
+  so two within 44px of each other fight and the loser stops responding. Applied
+  and measured: modal close ✕ 10×18 → **39×35** (the panel's `overflow-hidden`
+  clips the last few px), calendar month arrows 30×30 → **41×44**, attendance
+  filter chips → **44×44**. Tried and **reverted** on the roster remove ✕: its
+  overlay reached the subject-name input's own centre column and stole taps from
+  it. The dense roster row needs taller rows, not a bigger hit box.
+
+  Still under 44, all in places where growth is constrained by the header floor:
+  `SubjectRow.jsx` colour swatch 12×12 and remove ✕ 16×14 · `SemDropdown.jsx`
+  delete ~10×13 · `Modal.jsx` close ✕ ~12×15 (`.cad-x` sets no padding at all) ·
+  `AttendanceToggle.jsx` `size="sm"` 64×19, three of them 2px apart, which is the
+  main phone path for marking attendance · `ColorPicker.jsx` 28×28 ·
+  `CalendarView.jsx` month arrows ~30×26 · `.cad-chip` 19px tall. One rule on
+  `.btn-mech`/`.cad-x` (`min-height:44px`, visual box kept small with transparent
+  padding) would cover most of them.
+- **`SubjectRoster.jsx:81-87` — the CR / GP column headers sit ~188px right of
+  the values they label on a phone**, because `SubjectRow` is one row at `sm`+
+  and two rows below it. Hide the header row below `sm`.
+- **`SemDropdown.jsx` advertises `aria-haspopup="menu"`** but the popup has no
+  `role="menu"`, focus never enters it, and Escape does not close it. Its delete
+  button's armed state changes the visible text to SURE?/REALLY? while the
+  `aria-label` stays "Delete <sem>", so the confirm step is silent to a reader.
+- **`api.js` swallows `QuotaExceededError`** — the edit is lost with no signal
+  and `lastSaved*Ref` has already advanced. `IMPROVEMENT_PLAN.md` §C4.
+- **`supabase/migrations/` has no RLS policy.** If it was applied by hand in the
+  dashboard it is not in version control, and RLS is the only thing protecting
+  user rows from the public anon key.
 
 ---
 
@@ -334,13 +387,119 @@ Two general lessons worth keeping:
 
 ---
 
+## 6c. Fixed the session after — the "all green" ones
+
+Three things were shipped as passing. They were not. Every command in §1 was run
+and read, which is the only reason these surfaced.
+
+**1. Boot was stamped as an edit, and it clobbered the cloud.** Each of the four
+providers guarded its persistence effect with an `isFirstRender` ref. StrictMode
+mounts twice, so by the second mount the ref was already `false` and the write
+happened anyway — stamped with `Date.now()`. Result: opening the app wrote
+`semesters`, `active_sem_id`, `attendance` and `settings` into
+`cadence_key_stamps` as if the user had just edited all four.
+
+Two consequences, both silent:
+
+- **A fresh device beat the server.** Sign in on a new phone: local stamps say
+  "now", the server says "whenever you last edited", so `localWon` fired and the
+  **demo seed data was pushed over real cloud data**.
+- **Per-key merging never worked.** Whichever device booted last won every key —
+  exactly the clobbering the merge exists to prevent.
+
+The fix: a boot write is still performed (storage stays populated, so the first
+push after sign-up is unchanged) but goes in **unstamped**, via a new
+`skipTimestamp` argument threaded through `API.saveSemesters` and friends into
+the `skipTimestampUpdate` parameter `API.set` already had. Mounting is not an
+edit. Verified: after boot `cadence_key_stamps` is absent; after marking one
+class it holds `attendance` and nothing else.
+
+`e2e/sync.spec.js › fresh device — full pull, never clobbers server` asserts
+exactly this and had been failing since it was written. It was recorded here as
+"pre-existing, not a regression" — true, and beside the point. **A red test that
+asserts real behaviour is a bug report, not a known issue.**
+
+**2. Marking attendance from the timetable silently did nothing.** `.tt-block`
+applies `transform: translateY(-1px)` on hover. A transform creates a stacking
+context, so the block gained one on hover and lost it on leave, relayering the
+quick-mark toggle **mid-gesture**: `mousedown` and `mouseup` resolved to
+different elements, the browser dispatched `click` on their common ancestor, and
+the toggle's handler never ran. No error, no console output, and the block's
+aria-label still read "not marked" afterwards.
+
+Fixed with `isolation: isolate` on `.tt-block` — the stacking context now exists
+in both states, so hover changes paint and never layer structure. Bisected by
+A/B-ing the CSS in a live browser; the transition, the smooth auto-scroll and
+the z-index were each ruled out by measurement first.
+
+**3. `gpa.test.js` asserted a stale shape.** `gradeCoverage` gained an `awarded`
+count; the assertion was never updated. The commit that added it says
+"203 tests" — that is the total, not the pass count.
+
+The lesson is the same shape as §6b: **a number that looks reasonable is the
+hardest kind of bug**, and here the reassuring number was the test count in a
+commit message. Read the summary line, not the total.
+
+## 6d. The sweep after that
+
+**The attendance percentage rounded a shortfall up across its own threshold.**
+`finalize` did `Math.round`, and `statusTier` was then handed that rounded
+figure — so 56 of 75 (74.667%) printed as **75%** and tiered **WATCH**, telling
+a student they were at the line while they were below it. `recoveryPath`
+disagreed with the tier in the same object. Also true of 149/200, 38/51, 71/95.
+Now floors: a displayed percentage can only ever understate. 5 tests, including
+an exhaustive sweep over every present/total up to 60.
+
+**`bootPrune`'s module-level memo ignored its own argument after the first
+call.** Remounting the hook — which `ErrorBoundary`'s ATTEMPT RECOVERY does —
+re-seeded state from the page-load snapshot and then persisted it over
+everything marked since, and the debounced push sent the emptied map to the
+cloud. The memo existed to make StrictMode's double-invoked initialiser
+idempotent, which the `cadence_pruned_at` stamp already does. Deleted.
+
+**`_retryTimer` was cleared but never nulled**, so `scheduleRetry`'s
+`if (_retryTimer) return` guard disabled the bounded retry for the rest of the
+session after the first successful push.
+
+**"CAN MISS Infinity MORE"** — the overall margin strip was hardcoded green and
+hardcoded "SAFE MARGIN", so on a fresh install it printed `Infinity` and to
+anyone below the threshold it announced safety. It branches like the per-subject
+line now.
+
+**Subject cards in the attendance list were `div onClick`** — the whole tab was
+keyboard-inaccessible. Real buttons with composed labels.
+
+**Text that was cut off with nothing to show for it.** Measured at 375px:
+- The roster subject name was an `<input>` even in view mode, and an input can
+  neither wrap nor ellipsise — the box is 320px and "CONSTITUTION OF INDIA AND
+  PROFESSIONAL ETHICS" needs 351px, so four characters vanished silently. View
+  mode is wrapping text now; only edit mode keeps the input.
+- `SubjectGradeCard`'s title ellipsised away up to 89px of a 297px name. Wraps.
+- The calendar chip led with the *time*, so truncation ate the subject code —
+  the only identifying part. The time is desktop-only now (screen readers still
+  get it). And the chip's `text-overflow: ellipsis` was inert because the chip
+  is `display: flex`, so "MATH101" was cut mid-glyph to "MATH10" with no
+  ellipsis at all; the code has its own truncating box now.
+
+---
+
 ## 7. Do not touch
 
 Carried forward and still valid:
 
 - **The persistence write guards** in the four providers. Cheapen them, never
   remove — they prevent pull-write-back loops and `sync.spec.js` depends on the
-  behaviour.
+  behaviour. Two rules now, both load-bearing: the `lastSaved*Ref` comparison
+  (seeded from storage, so an unchanged boot writes nothing) and the
+  `isBootWrite` flag (so the one write a mount *does* make carries no
+  timestamp). Do not collapse them back into an `isFirstRender` skip — that is
+  the shape StrictMode defeated in §6c.
+- **`isolation: isolate` on `.tt-block`.** Reads like a cosmetic line and is not;
+  removing it makes attendance marking fail silently. §6c.
+- **`Modal`'s three variants.** `center`, `sheet` and `page` all share one focus
+  trap, focus restore and scroll lock. `SettingsPage` is a `variant="page"` for
+  exactly that reason — the last component that hand-rolled full-screen chrome
+  (`DayDetailModal`) silently lost all three. Add a variant, never a new shell.
 - **`ThemeContext`'s CSS-injection sanitiser** and the `data-theme-switching`
   transition suppression. Both deliberate and correct.
 - **The sync serialisation queue** (`api.js`) and `_serverHasKeyStamps` feature
