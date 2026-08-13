@@ -62,7 +62,7 @@ export function CalendarView({ timetable, subjects, attendanceHook, examDates = 
         <button
           type="button"
           onClick={prevMonth}
-          className="btn-mech cad-hover-accent"
+          className="btn-mech cad-hover-accent tap-44"
           style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-md)', color: 'var(--cad-text-mid)', background: 'none', border: 'none', padding: '4px 8px', borderRadius: 'var(--cad-radius)' }}
           aria-label="Previous month"
         ><span aria-hidden="true">◀</span></button>
@@ -114,7 +114,7 @@ export function CalendarView({ timetable, subjects, attendanceHook, examDates = 
         <button
           type="button"
           onClick={nextMonth}
-          className="btn-mech cad-hover-accent"
+          className="btn-mech cad-hover-accent tap-44"
           style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-md)', color: 'var(--cad-text-mid)', background: 'none', border: 'none', padding: '4px 8px', borderRadius: 'var(--cad-radius)' }}
           aria-label="Next month"
         ><span aria-hidden="true">▶</span></button>
@@ -230,9 +230,23 @@ export function CalendarView({ timetable, subjects, attendanceHook, examDates = 
                         gap:          '2px',
                       }}
                     >
-                      {entry.startTime}{' '}
+                      {/* The time is desktop-only. A month cell is ~34px wide
+                          at 375px and "09:00 CS100" needs 66px, so the chip
+                          truncated away the subject code and kept the clock —
+                          losing the only part that says which class it is.
+                          Screen readers still get the time; tapping the day
+                          shows it too. */}
+                      <span className="hidden sm:inline">{entry.startTime}{' '}</span>
+                      <span className="sr-only sm:hidden">{entry.startTime} </span>
                       {subId && <><span aria-hidden="true">⇄</span><span className="sr-only">substituted: </span></>}
-                      {displaySubj.code || generateSubjectCode(displaySubj.name)}
+                      {/* The code needs its own truncating box: `text-overflow`
+                          does not apply to a flex container, so the ellipsis
+                          set on the chip never rendered and a 7-character code
+                          was cut mid-glyph ("MATH101" → "MATH10") with nothing
+                          to show that anything was missing. */}
+                      <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {displaySubj.code || generateSubjectCode(displaySubj.name)}
+                      </span>
                       {hasNote && <span aria-hidden="true" style={{ fontSize: 'var(--cad-fs-micro)', opacity: 0.7 }}>📝</span>}
                       {hasNote && <span className="sr-only">has a note</span>}
                     </div>

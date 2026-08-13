@@ -68,26 +68,49 @@ export function SubjectRow({ subject, grade, editMode, onUpdate, onRemove, stagg
             aria-label={editMode ? `Change colour (currently ${colorName})` : colorName}
           />
 
-          {/* Name */}
-          <input
-            value={draft.name}
-            onChange={e => setDraft(d => ({ ...d, name: e.target.value }))}
-            onBlur={commitOnBlur('name')}
-            onKeyDown={commitOnEnter('name')}
-            onFocus={() => setFocused('name')}
-            disabled={!editMode}
-            spellCheck={false}
-            aria-label="Subject name"
-            className="flex-1 min-w-0 bg-transparent cad-underline"
-            style={{
-              fontFamily:  'var(--cad-font-mono)',
-              fontSize:    'var(--cad-fs-sm)',
-              letterSpacing:'0.05em',
-              color:       'var(--subj-text)',
-              borderBottom: editMode ? '1px solid var(--cad-border)' : '1px solid transparent',
-              transition:  'border-color 0.15s',
-            }}
-          />
+          {/* Name — a real input only while editing.
+
+              An <input> can neither wrap nor ellipsise, so as a disabled
+              display element it cut long names off silently. Measured at
+              375px: the box is 320px, "CONSTITUTION OF INDIA AND PROFESSIONAL
+              ETHICS" needs 351px, and `text-overflow` on an input computes to
+              `clip` — four characters gone with nothing to show for them. The
+              subject name is the row's whole identity, so in view mode it is
+              text and wraps. */}
+          {editMode ? (
+            <input
+              value={draft.name}
+              onChange={e => setDraft(d => ({ ...d, name: e.target.value }))}
+              onBlur={commitOnBlur('name')}
+              onKeyDown={commitOnEnter('name')}
+              onFocus={() => setFocused('name')}
+              spellCheck={false}
+              aria-label="Subject name"
+              className="flex-1 min-w-0 bg-transparent cad-underline"
+              style={{
+                fontFamily:   'var(--cad-font-mono)',
+                fontSize:     'var(--cad-fs-sm)',
+                letterSpacing:'0.05em',
+                color:        'var(--subj-text)',
+                borderBottom: '1px solid var(--cad-border)',
+                transition:   'border-color 0.15s',
+                // A field being edited has to stay one line, but it should at
+                // least admit when it is hiding something.
+                textOverflow: 'ellipsis',
+              }}
+            />
+          ) : (
+            <span
+              className="flex-1 min-w-0"
+              style={{
+                fontFamily:   'var(--cad-font-mono)',
+                fontSize:     'var(--cad-fs-sm)',
+                letterSpacing:'0.05em',
+                color:        'var(--subj-text)',
+                overflowWrap: 'anywhere',
+              }}
+            >{subject.name}</span>
+          )}
         </div>
 
         {/* Line 2: Code · Credits · Grade · Remove (right-aligned on mobile) */}

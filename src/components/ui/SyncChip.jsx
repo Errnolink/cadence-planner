@@ -33,6 +33,7 @@ export function SyncChip({ className, style }) {
   return (
     <>
       <button
+        type="button"
         onClick={() => setShowAuth(true)}
         className={`flex items-center justify-center gap-1.5 panel-chamfer-sm btn-mech ${className || 'px-2.5 py-1.5'}`}
         style={{
@@ -40,8 +41,10 @@ export function SyncChip({ className, style }) {
           color:        status === 'error' ? 'var(--cad-danger)' : 'var(--cad-text-mid)',
           background:   status === 'error' ? 'var(--cad-danger-dim)' : 'transparent',
           fontFamily:   'var(--cad-font-mono)',
-          fontSize:     '9px',
-          letterSpacing:'0.15em',
+          // Was a hardcoded 9px — under the 10px floor the type scale sets, on
+          // a real control carrying the sync state.
+          fontSize:     'var(--cad-fs-micro)',
+          letterSpacing:'var(--cad-track-wide)',
           borderRadius: 'var(--cad-radius)',
           transition:   'opacity 0.15s, color 0.15s',
           ...style
