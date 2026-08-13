@@ -1,6 +1,7 @@
 # Cadence Planner — Handoff
 
-**Written:** 2026-08-13, end of session.
+**Written:** 2026-08-13. Last updated after the gradebook UI, mobile fix and GPA
+derivation landed.
 **Repo:** `C:\Users\Chef\Documents\Errnolink\cadence-planner` · `github.com/Errnolink/cadence-planner`
 
 Read this, then `IMPROVEMENT_PLAN.md` for the full audit and the backlog. This
@@ -13,19 +14,32 @@ file covers what changed, what is in flight, and what will bite you.
 | Branch | State | Pushed |
 |---|---|---|
 | `main` | `14aae8e` — audit, correctness fixes, docs | **yes**, `origin/main` matches |
-| `exams-gradebook` | 4 commits + uncommitted UI work | **no** |
+| `exams-gradebook` | 9 commits — gradebook, mobile fix, derived GPA | **no** |
 
 `main` is green and deployed-ready. `exams-gradebook` branches off it and is
-mid-feature — see §4.
+feature-complete apart from the scheme editor — see §4.
 
 ```bash
 npm run dev        # vite, :5173
-npm test           # vitest — 154 unit tests, all green
+npm test           # vitest — 175 unit tests, all green
 npm run test:e2e   # playwright — 16 pass, 1 known pre-existing failure (§6)
 npm run lint       # oxlint — 3 pre-existing warnings, no errors
 npm run build      # vite build
 node scripts/check-contrast.mjs   # WCAG gate, 192 pairs, exits 1 on failure
 ```
+
+### Commits on `exams-gradebook`, oldest first
+
+| Commit | What |
+|---|---|
+| `cd5aada` | grading math — weighted marks, targets |
+| `ccce69b` | sittings and per-part splits |
+| `0c60136` | editable grade bands |
+| `bc4bb6e` | migrate exams → assessments in state |
+| `85ff7f2` | this handoff, archive old plan, drop dead files |
+| `c21d8e5` | marks entry UI |
+| `3c23708` | mobile header fix |
+| `991481f` | GPA derived from marks, scale-aware badges |
 
 **House rule:** commits carry **no** `Co-Authored-By` trailer and PR bodies carry
 no "Generated with" footer. The user asked for this explicitly.
@@ -208,35 +222,65 @@ it in a later schema version.
 `setAssessmentScore(id, score)` (`''` clears) · `removeAssessment` ·
 `removeSitting` · `setGradingScheme` · `setSubjectScheme(id, scheme|null)`.
 
-### UI status at handoff
+### UI status
 
-`SubjectGradeCard.jsx`, `SittingRow.jsx`, `SchemeModal.jsx` written;
-`ExamsView.jsx` being wired. **Verify before trusting**: `npm run build` and
-`npm test` (154), then open the Exams tab. Enter `8/7/4` and `6/9/5` for one
-subject — internals should read **19.5 / 25**. Switch the scheme to BEST — it
-should become **20 / 25** with Mid 1 flagged `DROPPED`.
+Built and **verified in a real browser at 390×844**:
 
-If it is broken, the four committed gradebook commits are safe and `main` is
-untouched. `git checkout -- src/components/exams/` reverts just the UI.
+```
+inputs after 2 sittings: 6
+AVERAGE  ->  internals 19.5 / 25   dropped rows: 0
+BEST     ->  internals 20 / 25     dropped rows: 2
+```
+
+Matches the unit tests. `SubjectGradeCard` collapses per subject and expands to
+per-component sittings; `SittingRow` gives each part its own numeric input,
+commits on blur and Enter, rejects out-of-range rather than clamping, and dims
+a sitting the rule discarded with a `DROPPED` chip and the reason.
+
+**Still outstanding:** `SchemeModal` ships preset pickers plus live validation
+only. Free-form editing of component label/weight/rule/parts and of the band
+floor/label/gp table is the remaining work; the validation it needs is already
+wired. `Modal` is capped at `max-w-sm`, so those editors want a wider variant.
+
+### GPA is now derived from marks
+
+`subject.gradePoint` was hand-typed and fed the GPA/CGPA badges directly — the
+student did the arithmetic. `subjectGradePoint(subject, assessments, scheme)`
+now prefers a derived grade and falls back to the typed one.
+
+- The typed value is **never overwritten**. Clearing marks reverts to it.
+- Partway through a term it grades the **projection**, not banked marks. Only
+  internals in means 19.5 of 100 banked — grading that reports an F for someone
+  heading for an A. Once every component is in, the real total is used.
+- `computeSemesterGPA` / `computeCGPA` weight by credits, honour per-subject
+  scheme overrides, and skip ungraded subjects rather than scoring them zero.
+- The badge takes its scale from the band set instead of hardcoding `/ 10.0`,
+  and its colour/rank thresholds are proportional — they were absolute (`>= 8`,
+  `>= 6`), so a 4.0-scale student needed 8 out of 4 for FIRST CLASS.
+- Roster rows mark a computed grade with a dot, in the tooltip and for screen
+  readers, so a typed grade is never mistaken for a derived one.
 
 ---
 
 ## 5. Next up, in priority order
 
-1. **Finish/verify the gradebook UI** (§4), then feed derived `gradePoint` into
-   the GPA badges — they are hand-typed today, and auto-deriving them is the
-   actual payoff of this feature. The badge also hardcodes `/ 10.0`; use
-   `scaleOf(bands)`, since a 4.0-scale user exists.
-2. **Attendance context** (`IMPROVEMENT_PLAN.md` §M2). `attendanceHook` is
-   prop-drilled through eight components as an opaque bag. This also unblocks
-   the known gap below.
-3. **Orphan pruning on delete** — deleting a subject or slot leaves its
-   attendance rows until the next boot sweep. Needs #2.
-4. **CI** (§X3) — nothing runs automatically. Include the contrast script.
-5. **CSP** (§X4) — `index.html` `connect-src` still ships `ws: http:`, a dev
+1. **Finish the scheme editor** (§4) — free-form components and the band table.
+   The only gradebook piece not built.
+2. **Push `exams-gradebook`.** Nine commits sit unpushed; `main` has none of the
+   gradebook. Decide whether it merges or stays a branch.
+3. **Attendance context** (`IMPROVEMENT_PLAN.md` §M2). `attendanceHook` is
+   prop-drilled through eight components as an opaque bag. This also unblocks #4.
+4. **Orphan pruning on delete** — deleting a subject or slot leaves its
+   attendance rows until the next boot sweep. Needs #3.
+5. **CI** (§X3) — nothing runs automatically. Include the contrast script *and*
+   a mobile-width check; the header regression in §9 would have been caught by
+   one assertion.
+6. **CSP** (§X4) — `index.html` `connect-src` still ships `ws: http:`, a dev
    escape hatch that permits plaintext HTTP to any host in production.
-6. **Semester dates are decorative** (§D1) — `startDate`/`endDate` bound nothing.
+7. **Semester dates are decorative** (§D1) — `startDate`/`endDate` bound nothing.
    Needs a product decision: make them real, or remove them.
+8. **`API.set` has no quota handling** — a `QuotaExceededError` is caught and
+   logged, so the user's edit silently fails to persist. `IMPROVEMENT_PLAN.md` §C4.
 
 ---
 
@@ -250,6 +294,35 @@ untouched. `git checkout -- src/components/exams/` reverts just the UI.
 - **kanso** (separate repo, `Documents/Errnolink/kanso`) has **zero commits and
   no remote** — the whole project exists only on disk. Not this repo's problem
   but the highest-risk thing in the workspace.
+
+---
+
+## 6b. Fixed this session — and why each hid
+
+Recorded because the *shape* of these repeats. None threw, none logged, and
+none would show up in review; they were found by measuring rather than reading.
+
+| Fix | Why it was invisible |
+|---|---|
+| Exam-day credit ignored the weekday | Produced a plausible number. `present 3 / total 3` looks like data, not a bug. |
+| Exam-day credit overrode explicit ABSENT | Only fires on a day the user opted into, so it never appears in casual use. |
+| Substitutes never counted | `===` between a `<select>` string and a numeric id. The UI still drew the `⇄` badge, so it *looked* wired. |
+| 12/12 subject colours failed AA in light theme | The theme was rarely opened, and contrast is not something eyes measure. |
+| kanso-style gate blind spot | Our own gate would have missed it too until it flattened all three cascades and composited tints over real surfaces. |
+| EDIT off-screen on every phone | Inside a clipping container, so no scrollbar and no overflow warning. The app was read-only on mobile with no sign of it. |
+| `nextBandTarget` threw on a band set | Only on a code path the UI had not reached yet. An agent hit it and worked around it locally. |
+| GPA badges hardcoded `/ 10.0` | Correct for the only scale anyone had tested. |
+| Rank thresholds absolute, not proportional | Same — `>= 8` is right on a 10-point scale and nonsense on a 4.0 one. |
+| `+ ADD SITTING` unaddressable by voice | Accessible name read fine to a *reader*; only fails for voice control. |
+
+Two general lessons worth keeping:
+
+- **Test against the surfaces things actually render on**, not the most
+  favourable one. That single change took our contrast audit from "0 failures"
+  to 24 real ones, and the same blind spot exists in kanso's gate.
+- **A number that looks reasonable is the hardest kind of bug.** Every
+  attendance fix above was found by writing a test that asserted a specific
+  expected value, not by reading the code.
 
 ---
 
@@ -282,3 +355,26 @@ Carried forward and still valid:
 - Real `<button>`/`<input>` elements with accessible names. No `div onClick`.
 - New colours must pass `scripts/check-contrast.mjs` in **all three** cascades
   (nerv, minimal-light, minimal-dark).
+
+---
+
+## 9. Mobile
+
+This app is used on a phone. Until `3c23708` the control bar needed **518px**
+and got 375–412, with `EDIT` at x=450 inside a container that *clips* rather
+than scrolls — so edit mode, and with it every add and delete in the app, was
+unreachable on mobile with no visible symptom.
+
+**Check any header or toolbar change at 375, 390 and 412 before shipping.** A
+horizontal-overflow check is not enough on its own: the clipping ancestor means
+`document.scrollWidth === clientWidth` while content sits outside the viewport.
+Measure each child's `getBoundingClientRect().right` against the viewport width.
+
+Current state at 375px: header measures 375/375 with EDIT at 363. Clock is
+desktop-only, SETTINGS and EDIT are icon-only below `sm` with `sr-only` text,
+`HudButton` carries a 40px minimum tap target, and the tab bar drops its wide
+tracking so `ATTENDANCE` fits its ~78px cell.
+
+Still outstanding: roughly **180 interactive targets measure under 44×44**
+across the app — mostly 12×12 colour swatches in the roster and 23×23 week-nav
+arrows in the timetable. Not addressed; the header was the blocking one.
