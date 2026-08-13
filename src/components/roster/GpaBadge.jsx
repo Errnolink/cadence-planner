@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useSettings } from '../../hooks/useSettings.jsx'
 import { useTheme } from '../../themes/ThemeContext.jsx'
 
-export function GpaBadge({ label, hex, value, gradedCount, totalCount, derivedCount, scale = 10 }) {
+export function GpaBadge({ label, hex, value, gradedCount, totalCount, derivedCount, awardedCount, scale = 10 }) {
   const [glitching, setGlitching] = useState(true)
   const [displayValue, setDisplayValue] = useState("---")
   const { settings } = useSettings()
@@ -102,6 +102,9 @@ export function GpaBadge({ label, hex, value, gradedCount, totalCount, derivedCo
                   grades the user typed in — they carry different confidence. */}
               {derivedCount > 0 && (
                 <span style={{ color: 'var(--cad-accent)' }}> · {derivedCount} FROM MARKS</span>
+              )}
+              {awardedCount > 0 && (
+                <span style={{ color: 'var(--cad-accent-text)' }}> · {awardedCount} AWARDED</span>
               )}
             </div>
           )}

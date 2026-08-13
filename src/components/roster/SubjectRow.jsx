@@ -36,8 +36,11 @@ export function SubjectRow({ subject, grade, editMode, onUpdate, onRemove, stagg
 
   // The effective grade: derived from marks when they exist, otherwise the
   // value typed into the dropdown.
-  const derived  = grade?.source === 'derived'
-  const shownGp  = grade?.gp ?? subject.gradePoint
+  const derived    = grade?.source === 'derived'
+  const awarded    = grade?.source === 'awarded'
+  // The manual dropdown is dead data once marks or a published result exist.
+  const overridden = derived || awarded
+  const shownGp    = grade?.gp ?? subject.gradePoint
   const tier     = gradeTier(shownGp)
 
   return (
@@ -130,17 +133,34 @@ export function SubjectRow({ subject, grade, editMode, onUpdate, onRemove, stagg
           />
 
           {/* Grade */}
-          <div className="shrink-0 w-10 text-right">
+          <div className={`shrink-0 text-right flex items-center justify-end gap-1 ${editMode && overridden ? 'w-[4.5rem]' : 'w-10'}`}>
+            {editMode && overridden && (
+              <span
+                title={awarded
+                  ? `${gpToLabel(shownGp)} AWARDED — THIS IS THE GRADE IN USE; THE DROPDOWN BESIDE IT IS IGNORED`
+                  : `${gpToLabel(shownGp)} COMPUTED FROM MARKS — THIS IS THE GRADE IN USE; THE DROPDOWN BESIDE IT IS IGNORED`}
+                style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-xs)', color: 'var(--cad-accent-text)' }}
+              >
+                {gpToLabel(shownGp)}
+                <span aria-hidden="true" style={{ color: 'var(--cad-accent)' }}>•</span>
+                <span className="sr-only">{awarded ? ' awarded, in use' : ' computed from marks, in use'}</span>
+              </span>
+            )}
             {editMode ? (
               <select
                 value={subject.gradePoint ?? ''}
                 onChange={e => onUpdate(subject.id, 'gradePoint', e.target.value === '' ? null : Number(e.target.value))}
-                aria-label={derived ? `Grade point for ${subject.name} — currently computed from marks, this overrides it` : `Grade point for ${subject.name}`}
-                className="w-full text-right bg-transparent cursor-pointer"
+                aria-label={awarded
+                  ? `Manual grade point for ${subject.name}. Not in use — an awarded grade of ${gpToLabel(shownGp)} takes precedence.`
+                  : derived
+                    ? `Manual grade point for ${subject.name}. Not in use — ${gpToLabel(shownGp)} computed from marks takes precedence.`
+                    : `Grade point for ${subject.name}`}
+                className="text-right bg-transparent cursor-pointer"
                 style={{
+                  width:       overridden ? '2rem' : '100%',
                   fontFamily:  'var(--cad-font-mono)',
                   fontSize:    'var(--cad-fs-xs)',
-                  color:       'var(--cad-text-hi)',
+                  color:       overridden ? 'var(--cad-text-xlo)' : 'var(--cad-text-hi)',
                   borderBottom:'1px solid var(--cad-border)',
                 }}
               >

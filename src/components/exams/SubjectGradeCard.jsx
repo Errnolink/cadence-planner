@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import { subjectVars } from '../../data/index.js'
 import {
   computeSubjectGrade, nextBandTarget, pctToGradeLabel, scaleOf, impliedComponentMarks,
+  subjectGradePoint, gradePointToLabel,
   AGGREGATION_LABELS, DEFAULT_GRADE_BANDS,
 } from '../../data/grading.js'
 import { SittingRow } from './SittingRow.jsx'
@@ -86,7 +87,18 @@ export function SubjectGradeCard({
   const bands = bandsArrayOf(scheme)
   const scale = scaleOf(scheme?.bands)
   const projected = grade.current
-  const letter = projected === null ? '—' : pctToGradeLabel(projected, bands)
+  const projectedLetter = projected === null ? '—' : pctToGradeLabel(projected, bands)
+
+  // The headline grade must come from the same place the roster badge does,
+  // or the two views disagree. subjectGradePoint ranks an awarded result above
+  // a projection above a hand-typed grade; reading grade.current alone here
+  // meant setting an awarded grade changed the roster and not this card.
+  const effective = subjectGradePoint(subject, assessments, scheme)
+  const letter = effective.gp === null ? projectedLetter : gradePointToLabel(effective.gp, bands)
+  // Worth surfacing when the published result differs from what the marks
+  // projected — that gap is information, not an error to hide.
+  const showsBoth = effective.source === 'awarded' && projected !== null &&
+    gradePointToLabel(effective.gp, bands) !== projectedLetter
   // With nothing graded the "next band" is the pass mark measured from zero,
   // which is true and useless — say nothing is graded instead.
   const target = grade.gradedWeight > 0 ? targetLine(grade, scheme) : null
@@ -148,13 +160,38 @@ export function SubjectGradeCard({
             <span title="PROJECTED PERCENTAGE ON WHAT HAS BEEN GRADED SO FAR" style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-sm)', color: 'var(--cad-accent-text)' }}>
               {projected === null ? '—' : `${fmt(projected)}%`}
             </span>
+            {/* When a published result contradicts the projection, show the
+                projection struck through beside it rather than silently
+                replacing it — the gap is the interesting part. */}
+            {showsBoth && (
+              <span
+                title={`PROJECTED ${projectedLetter} FROM MARKS, BUT ${letter} WAS AWARDED`}
+                style={{
+                  fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-micro)',
+                  color: 'var(--cad-text-xlo)', textDecoration: 'line-through',
+                }}
+              >{projectedLetter}</span>
+            )}
             <span
-              title={grade.projectedGradePoint === null ? 'NOTHING GRADED YET' : `PROJECTED GRADE POINT ${grade.projectedGradePoint} OF ${scale}`}
+              title={
+                effective.source === 'awarded'
+                  ? `AWARDED GRADE ${letter} (${effective.gp} OF ${scale}) — FROM RESULTS`
+                  : effective.source === 'manual'
+                    ? `GRADE ${letter} (${effective.gp} OF ${scale}) — ENTERED BY HAND`
+                    : grade.projectedGradePoint === null
+                      ? 'NOTHING GRADED YET'
+                      : `PROJECTED GRADE POINT ${grade.projectedGradePoint} OF ${scale}`
+              }
               style={{
                 fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-sm)', minWidth: '22px', textAlign: 'right',
-                color: projected === null ? 'var(--cad-text-xlo)' : 'var(--cad-text-hi)',
+                color: effective.gp === null ? 'var(--cad-text-xlo)'
+                  : effective.source === 'awarded' ? 'var(--cad-accent-text)' : 'var(--cad-text-hi)',
               }}
-            >{letter}</span>
+            >
+              {letter}
+              {effective.source === 'awarded' && <span className="sr-only"> awarded</span>}
+              {effective.source === 'derived' && <span className="sr-only"> projected from marks</span>}
+            </span>
           </div>
         </div>
 

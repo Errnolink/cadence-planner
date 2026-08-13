@@ -646,11 +646,14 @@ export function impliedComponentMarks(assessments, scheme, componentId, awardedG
 export function gradeCoverage(semester) {
   const subjects = semester?.subjects ?? []
   const assessments = semester?.assessments ?? []
-  let derived = 0, manual = 0
+  let derived = 0, manual = 0, awarded = 0
   for (const s of subjects) {
     const { source } = subjectGradePoint(s, assessments, resolveScheme(semester, s))
     if (source === 'derived') derived++
     else if (source === 'manual') manual++
+    else if (source === 'awarded') awarded++
   }
-  return { derived, manual, graded: derived + manual, total: subjects.length }
+  // `awarded` used to be missed here, so a subject with a published result was
+  // counted toward the GPA but not toward "n/m GRADES RECORDED".
+  return { derived, manual, awarded, graded: derived + manual + awarded, total: subjects.length }
 }

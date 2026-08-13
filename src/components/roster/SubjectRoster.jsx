@@ -82,7 +82,7 @@ export function SubjectRoster({ sem, semesters, editMode, onUpdateSem, onAddSubj
         <div className="w-3 shrink-0" />
         <span className="cad-label" style={{ flex: 1, fontSize: 'var(--cad-fs-micro)' }}>SUBJECT</span>
         <span className="cad-label" style={{ fontSize: 'var(--cad-fs-micro)', width: '32px', textAlign: 'right' }}>CR</span>
-        <span className="cad-label" style={{ fontSize: 'var(--cad-fs-micro)', width: '40px', textAlign: 'right' }}>GP</span>
+        <span className="cad-label" style={{ fontSize: 'var(--cad-fs-micro)', width: editMode && coverage.derived + coverage.awarded > 0 ? '4.5rem' : '40px', textAlign: 'right' }}>GP</span>
         {editMode && <span className="w-4" />}
       </div>
       <hr style={{ border: 'none', borderTop: '1px solid var(--cad-border-dim)', margin: '4px 0' }} />
@@ -130,6 +130,7 @@ export function SubjectRoster({ sem, semesters, editMode, onUpdateSem, onAddSubj
         gradedCount={coverage.graded}
         totalCount={coverage.total}
         derivedCount={coverage.derived}
+        awardedCount={coverage.awarded}
       />
     </div>
   )

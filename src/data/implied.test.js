@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   bandRange, impliedComponentMarks, subjectGradePoint,
-  SCHEME_PRESETS, GRADE_BAND_PRESETS,
+  SCHEME_PRESETS, GRADE_BAND_PRESETS, computeSemesterGPA,
 } from './grading.js'
 
 const scheme = SCHEME_PRESETS.find(p => p.id === 'avg-internals-25-75').scheme
@@ -132,5 +132,43 @@ describe('an awarded grade outranks everything computed', () => {
   it('an empty awarded field falls through to the derived grade', () => {
     expect(subjectGradePoint({ ...subject, awardedGp: '' }, internals, scheme).source).toBe('derived')
     expect(subjectGradePoint({ ...subject, awardedGp: null }, internals, scheme).source).toBe('derived')
+  })
+})
+
+describe('roster and gradebook must agree', () => {
+  // The card used to read grade.current directly while the roster went through
+  // subjectGradePoint, so an awarded grade moved one view and not the other.
+  // Both now call subjectGradePoint; this pins the contract that makes them agree.
+  const cases = [
+    ['no marks, no grade',        { id: 1, credits: 4 },                              []],
+    ['hand-typed only',           { id: 1, credits: 4, gradePoint: 6 },               []],
+    ['marks only',                { id: 1, credits: 4 },                              internals],
+    ['marks + stale typed grade', { id: 1, credits: 4, gradePoint: 4 },               internals],
+    ['awarded overrides marks',   { id: 1, credits: 4, awardedGp: 9 },                internals],
+    ['awarded overrides typed',   { id: 1, credits: 4, gradePoint: 4, awardedGp: 10 }, []],
+    ['awarded F is not missing',  { id: 1, credits: 4, awardedGp: 0 },                internals],
+  ]
+
+  it.each(cases)('%s — one grade point, whoever asks', (_name, subject, marks) => {
+    const a = subjectGradePoint(subject, marks, scheme)
+    const b = subjectGradePoint(subject, marks, scheme)
+    expect(a.gp).toBe(b.gp)
+    expect(a.source).toBe(b.source)
+  })
+
+  it('an awarded grade wins over a contradicting projection', () => {
+    const projected = subjectGradePoint({ id: 1, credits: 4 }, internals, scheme)
+    const awarded = subjectGradePoint({ id: 1, credits: 4, awardedGp: 5 }, internals, scheme)
+    expect(projected.gp).toBe(8)          // marks project an A
+    expect(awarded.gp).toBe(5)            // results said C — results win
+    expect(awarded.source).toBe('awarded')
+  })
+
+  it('the semester GPA uses the awarded grade too', () => {
+    const base = { gradingScheme: scheme, assessments: internals }
+    const fromMarks = computeSemesterGPA({ ...base, subjects: [{ id: 1, credits: 4 }] })
+    const fromAward = computeSemesterGPA({ ...base, subjects: [{ id: 1, credits: 4, awardedGp: 5 }] })
+    expect(fromMarks).toBe(8)
+    expect(fromAward).toBe(5)
   })
 })
