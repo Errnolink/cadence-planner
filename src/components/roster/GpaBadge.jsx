@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useSettings } from '../../hooks/useSettings.jsx'
 import { useTheme } from '../../themes/ThemeContext.jsx'
 
-export function GpaBadge({ label, hex, value, gradedCount, totalCount }) {
+export function GpaBadge({ label, hex, value, gradedCount, totalCount, derivedCount, scale = 10 }) {
   const [glitching, setGlitching] = useState(true)
   const [displayValue, setDisplayValue] = useState("---")
   const { settings } = useSettings()
@@ -48,19 +48,19 @@ export function GpaBadge({ label, hex, value, gradedCount, totalCount }) {
 
   const colorStyle = gpaFloat === null
     ? 'var(--cad-text-lo)'
-    : gpaFloat >= 8 ? 'var(--cad-success)'
-    : gpaFloat >= 6 ? 'var(--cad-accent)'
+    : gpaFloat >= scale * 0.8 ? 'var(--cad-success)'
+    : gpaFloat >= scale * 0.6 ? 'var(--cad-accent)'
     : 'var(--cad-danger)'
 
   const glowClass = gpaFloat === null ? ''
-    : gpaFloat >= 8 ? 'glow-success'
-    : gpaFloat >= 6 ? 'glow-accent'
+    : gpaFloat >= scale * 0.8 ? 'glow-success'
+    : gpaFloat >= scale * 0.6 ? 'glow-accent'
     : 'glow-danger'
 
   const rankLabel = gpaFloat === null ? null
-    : gpaFloat >= 9 ? 'DISTINGUISHED'
-    : gpaFloat >= 8 ? 'FIRST CLASS'
-    : gpaFloat >= 6 ? 'SECOND CLASS'
+    : gpaFloat >= scale * 0.9 ? 'DISTINGUISHED'
+    : gpaFloat >= scale * 0.8 ? 'FIRST CLASS'
+    : gpaFloat >= scale * 0.6 ? 'SECOND CLASS'
     : 'PASS'
 
   return (
@@ -84,11 +84,11 @@ export function GpaBadge({ label, hex, value, gradedCount, totalCount }) {
             <span 
               className={`${glowClass} glitch-num ${glitching ? 'transitioning' : ''}`} 
               data-text={displayValue}
-              style={{ fontFamily: 'var(--cad-font-mono)', fontSize: '24px', lineHeight: 1, color: colorStyle }}
+              style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-lg)', lineHeight: 1, color: colorStyle }}
             >
               {displayValue}
             </span>
-            <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-xs)', color: 'var(--cad-text-lo)' }}>/ 10.0</span>
+            <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-xs)', color: 'var(--cad-text-lo)' }}>/ {Number(scale).toFixed(1)}</span>
             {rankLabel && (
               <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-xs)', color: 'var(--cad-text-mid)', marginLeft: 'auto' }}>
                 {rankLabel}
@@ -98,6 +98,11 @@ export function GpaBadge({ label, hex, value, gradedCount, totalCount }) {
           {gradedCount !== undefined && (
             <div style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-micro)', color: 'var(--cad-text-lo)', marginTop: '4px' }}>
               {gradedCount}/{totalCount} GRADES RECORDED
+              {/* Distinguish grades the app worked out from marks against
+                  grades the user typed in — they carry different confidence. */}
+              {derivedCount > 0 && (
+                <span style={{ color: 'var(--cad-accent)' }}> · {derivedCount} FROM MARKS</span>
+              )}
             </div>
           )}
         </>

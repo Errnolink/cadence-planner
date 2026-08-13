@@ -1,4 +1,5 @@
-import { calcGPA, calcCGPA } from '../../data/index.js'
+import { useMemo } from 'react'
+import { computeSemesterGPA, computeCGPA, gradeCoverage, scaleOf, resolveScheme, subjectGradePoint } from '../../data/grading.js'
 
 import { SubjectRow } from './SubjectRow.jsx'
 import { GpaBadge } from './GpaBadge.jsx'
@@ -8,9 +9,28 @@ export function SubjectRoster({ sem, semesters, editMode, onUpdateSem, onAddSubj
   const startDate = sem?.startDate || ''
   const endDate   = sem?.endDate || ''
   const totalCr   = subjects.reduce((a, s) => a + (parseFloat(s.credits) || 0), 0)
-  const semGpa    = calcGPA(subjects)
-  const gradedCnt = subjects.filter(s => s.gradePoint !== null && s.gradePoint !== undefined).length
-  const cgpa      = semesters ? calcCGPA(semesters) : semGpa
+
+  // GPA is derived from entered marks where they exist, falling back to the
+  // hand-typed gradePoint. It used to read the typed value only, so these
+  // badges showed whatever arithmetic the student had done in their head.
+  const semGpa   = useMemo(() => computeSemesterGPA(sem), [sem])
+  const cgpa     = useMemo(() => semesters ? computeCGPA(semesters) : semGpa, [semesters, semGpa])
+  const coverage = useMemo(() => gradeCoverage(sem), [sem])
+  const scale    = scaleOf(resolveScheme(sem, null)?.bands)
+
+  const fmt = (v) => (v === null || v === undefined ? null : v.toFixed(2))
+
+  // Per-subject grade point, so a row can show that its grade came from
+  // entered marks rather than from the dropdown.
+  // Keyed on `sem` alone: `subjects` is `sem?.subjects ?? []`, so the `??`
+  // allocates a new array for a semester with none and would defeat the memo.
+  const gradeBySubject = useMemo(() => {
+    const m = new Map()
+    for (const s of (sem?.subjects ?? [])) {
+      m.set(String(s.id), subjectGradePoint(s, sem?.assessments ?? [], resolveScheme(sem, s)))
+    }
+    return m
+  }, [sem])
 
   return (
     <div className="flex flex-col h-full overflow-hidden gap-2">
@@ -72,7 +92,7 @@ export function SubjectRoster({ sem, semesters, editMode, onUpdateSem, onAddSubj
         {subjects.length === 0
           ? <div style={{ padding: '24px 0', textAlign: 'center', fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-xs)', color: 'var(--cad-text-lo)' }}>// NO SUBJECTS{editMode ? '' : ' — ENABLE EDIT MODE TO ADD ONE'}</div>
           : subjects.map((s, i) => (
-            <SubjectRow key={s.id} subject={s} editMode={editMode} onUpdate={onUpdate} onRemove={onRemove} staggerIndex={i} />
+            <SubjectRow key={s.id} subject={s} grade={gradeBySubject.get(String(s.id))} editMode={editMode} onUpdate={onUpdate} onRemove={onRemove} staggerIndex={i} />
           ))
         }
       </div>
@@ -99,15 +119,17 @@ export function SubjectRoster({ sem, semesters, editMode, onUpdateSem, onAddSubj
       <hr style={{ border: 'none', borderTop: '1px solid var(--cad-border-dim)', margin: '4px 0' }} />
 
       {/* Current CGPA (all semesters) */}
-      <GpaBadge label="CURRENT CGPA" hex="0xD000" value={cgpa} />
+      <GpaBadge label="CURRENT CGPA" hex="0xD000" value={fmt(cgpa)} scale={scale} />
 
       {/* Semester GPA (active semester only) */}
       <GpaBadge
         label="SEMESTER GPA"
         hex="0xD001"
-        value={semGpa}
-        gradedCount={gradedCnt}
-        totalCount={subjects.length}
+        value={fmt(semGpa)}
+        scale={scale}
+        gradedCount={coverage.graded}
+        totalCount={coverage.total}
+        derivedCount={coverage.derived}
       />
     </div>
   )

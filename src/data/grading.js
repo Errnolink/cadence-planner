@@ -484,3 +484,89 @@ export function normalizeSemester(sem) {
 
 export const normalizeSemesters = (list) =>
   Array.isArray(list) ? list.map(normalizeSemester) : list
+
+// ── GPA from real marks ──────────────────────────────────────────
+//
+// `subject.gradePoint` is hand-typed: the student works their grade out
+// themselves and enters a number, which then drives the GPA and CGPA badges.
+// Once marks exist the app can derive it, so these helpers prefer a derived
+// grade point and fall back to the typed one.
+//
+// The manual value is never overwritten. A subject with no marks yet still
+// shows what was typed, and clearing marks reverts to it rather than to
+// nothing — losing a grade the user entered by hand would be worse than
+// showing a slightly stale one.
+
+/**
+ * One subject's grade point.
+ * @returns {{gp: number|null, source: 'derived'|'manual'|null, pct: number|null, isComplete: boolean}}
+ */
+export function subjectGradePoint(subject, assessments = [], scheme = DEFAULT_SCHEME) {
+  const mine = assessments.filter(a => String(a.subjectId) === String(subject?.id))
+  const grade = computeSubjectGrade(mine, scheme)
+
+  if (grade.gradedWeight > 0) {
+    // Partway through a term, banked marks understate the outcome — a student
+    // who has only sat internals holds 19.5 of 100. Grade the projection while
+    // work is outstanding, and the real total once everything is in.
+    const pct = grade.isComplete ? grade.locked : grade.current
+    return {
+      gp: pctToGradePoint(pct, scheme?.bands),
+      source: 'derived',
+      pct,
+      isComplete: grade.isComplete,
+    }
+  }
+
+  const manual = subject?.gradePoint
+  return {
+    gp: manual === null || manual === undefined ? null : manual,
+    source: manual === null || manual === undefined ? null : 'manual',
+    pct: null,
+    isComplete: false,
+  }
+}
+
+/** Credit-weighted GPA for one semester, using derived marks where they exist. */
+export function computeSemesterGPA(semester) {
+  const subjects = semester?.subjects ?? []
+  const assessments = semester?.assessments ?? []
+  let points = 0, credits = 0
+  for (const s of subjects) {
+    const { gp } = subjectGradePoint(s, assessments, resolveScheme(semester, s))
+    if (gp === null) continue
+    const c = parseFloat(s.credits) || 0
+    points += gp * c
+    credits += c
+  }
+  return credits ? points / credits : null
+}
+
+/** Cumulative GPA across semesters, credit-weighted over every graded subject. */
+export function computeCGPA(semesters = []) {
+  let points = 0, credits = 0
+  for (const sem of semesters) {
+    const assessments = sem?.assessments ?? []
+    for (const s of (sem?.subjects ?? [])) {
+      const { gp } = subjectGradePoint(s, assessments, resolveScheme(sem, s))
+      if (gp === null) continue
+      const c = parseFloat(s.credits) || 0
+      points += gp * c
+      credits += c
+    }
+  }
+  return credits ? points / credits : null
+}
+
+/** How many of a semester's subjects have a grade at all, and how they got it. */
+export function gradeCoverage(semester) {
+  const subjects = semester?.subjects ?? []
+  const assessments = semester?.assessments ?? []
+  let derived = 0, manual = 0
+  for (const s of subjects) {
+    const { source } = subjectGradePoint(s, assessments, resolveScheme(semester, s))
+    if (source === 'derived') derived++
+    else if (source === 'manual') manual++
+  }
+  return { derived, manual, graded: derived + manual, total: subjects.length }
+}

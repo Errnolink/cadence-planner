@@ -189,6 +189,7 @@ export function SittingRow({
               onConfirm={() => onRemoveSitting?.(attempt)}
               label="DEL"
               confirmLabel="SURE?"
+              ariaLabel={`DEL — delete ${label} of ${component.label} for ${subjectName}`}
               style={{ padding: '1px 6px', fontSize: 'var(--cad-fs-micro)', letterSpacing: 'var(--cad-track-mid)' }}
             />
           )}

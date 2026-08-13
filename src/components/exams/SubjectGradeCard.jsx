@@ -223,7 +223,7 @@ export function SubjectGradeCard({
                     onClick={() => onAddSitting?.(component, subject.id, nextAttempt(entries))}
                     className="cad-chip btn-mech"
                     style={{ marginTop: '6px' }}
-                    aria-label={`Add a sitting of ${component.label} for ${subject.name}`}
+                    aria-label={`ADD SITTING — ${component.label}, ${subject.name}`}
                   >＋ ADD SITTING</button>
                 )}
 
@@ -270,7 +270,7 @@ export function SubjectGradeCard({
               type="button"
               onClick={() => onEditScheme?.(subject)}
               className="cad-chip btn-mech"
-              aria-label={`Change the grading scheme used by ${subject.name}`}
+              aria-label={`EDIT SCHEME — ${subject.name}`}
             >EDIT SCHEME</button>
           </div>
         </div>

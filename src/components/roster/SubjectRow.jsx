@@ -9,7 +9,7 @@ const gradeTier = (gp) =>
   : gp >= 6 ? { color: 'var(--cad-accent)',  mark: '■', label: 'mid'  }
   : { color: 'var(--cad-danger)', mark: '▼', label: 'low' }
 
-export function SubjectRow({ subject, editMode, onUpdate, onRemove, staggerIndex = 0 }) {
+export function SubjectRow({ subject, grade, editMode, onUpdate, onRemove, staggerIndex = 0 }) {
   const colorName = SUBJECT_COLORS.find(c => c.id === subjectIdx(subject.colorIdx))?.name
   const [showColors, setShowColors] = useState(false)
   // Local draft so keystrokes don't re-render the whole app + write storage per keypress
@@ -34,7 +34,11 @@ export function SubjectRow({ subject, editMode, onUpdate, onRemove, staggerIndex
     if (e.key === 'Enter') { commitField(key, e.target.value); e.currentTarget.blur() }
   }
 
-  const tier = gradeTier(subject.gradePoint)
+  // The effective grade: derived from marks when they exist, otherwise the
+  // value typed into the dropdown.
+  const derived  = grade?.source === 'derived'
+  const shownGp  = grade?.gp ?? subject.gradePoint
+  const tier     = gradeTier(shownGp)
 
   return (
     <div
@@ -131,7 +135,7 @@ export function SubjectRow({ subject, editMode, onUpdate, onRemove, staggerIndex
               <select
                 value={subject.gradePoint ?? ''}
                 onChange={e => onUpdate(subject.id, 'gradePoint', e.target.value === '' ? null : Number(e.target.value))}
-                aria-label="Grade point"
+                aria-label={derived ? `Grade point for ${subject.name} — currently computed from marks, this overrides it` : `Grade point for ${subject.name}`}
                 className="w-full text-right bg-transparent cursor-pointer"
                 style={{
                   fontFamily:  'var(--cad-font-mono)',
@@ -145,11 +149,17 @@ export function SubjectRow({ subject, editMode, onUpdate, onRemove, staggerIndex
               </select>
             ) : (
               <span
-                title={`Grade ${gpToLabel(subject.gradePoint)} (${tier.label})`}
+                title={derived
+                  ? `Grade ${gpToLabel(shownGp)} (${tier.label}) — computed from ${grade.pct.toFixed(1)}% of entered marks`
+                  : `Grade ${gpToLabel(shownGp)} (${tier.label}) — entered by hand`}
                 style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-xs)', color: tier.color }}
               >
                 {tier.mark && <span aria-hidden="true" style={{ marginRight: '2px' }}>{tier.mark}</span>}
-                {gpToLabel(subject.gradePoint)}
+                {gpToLabel(shownGp)}
+                {/* A dot marks a grade the app worked out from marks, so a
+                    typed value is never mistaken for a computed one. */}
+                {derived && <span aria-hidden="true" style={{ color: 'var(--cad-accent)', marginLeft: '2px' }}>•</span>}
+                {derived && <span className="sr-only"> computed from marks</span>}
               </span>
             )}
           </div>
