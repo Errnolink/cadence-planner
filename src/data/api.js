@@ -268,7 +268,11 @@ export const API = {
         return false;
       }
       _syncFailed = false;
+      // Null it, don't just clear it. scheduleRetry() guards on `if (_retryTimer)
+      // return`, so leaving a spent handle in place silently disabled the bounded
+      // retry for the rest of the session — every later failure skipped it.
       clearTimeout(_retryTimer);
+      _retryTimer = null;
       window.dispatchEvent(new CustomEvent('cadence-sync', { detail: 'success' }));
       return true;
     } catch (e) {
@@ -321,17 +325,22 @@ export const API = {
 
   // --- Domain Specific Getters/Setters ---
   
+  // `skipTimestamp` marks a write that is not a user edit — persisting the
+  // state a provider booted with, or a shape migration. Stamping those made
+  // every page load look like the newest edit to the per-key merge below, so a
+  // device that had never been touched won every key and pushed its seed data
+  // over real cloud data. Mounting is not an edit.
   getSemesters: (fallback) => API.get(KEYS.DATA, fallback),
-  saveSemesters: (data) => API.set(KEYS.DATA, data),
+  saveSemesters: (data, skipTimestamp) => API.set(KEYS.DATA, data, skipTimestamp),
 
   getActiveSemId: (fallback) => API.get(KEYS.ACTIVE_SEM, fallback),
-  saveActiveSemId: (id) => API.set(KEYS.ACTIVE_SEM, id),
+  saveActiveSemId: (id, skipTimestamp) => API.set(KEYS.ACTIVE_SEM, id, skipTimestamp),
 
   getSettings: (fallback) => API.get(KEYS.SETTINGS, fallback),
-  saveSettings: (settings) => API.set(KEYS.SETTINGS, settings),
+  saveSettings: (settings, skipTimestamp) => API.set(KEYS.SETTINGS, settings, skipTimestamp),
 
   getAttendance: (fallback) => API.get(KEYS.ATTENDANCE, fallback),
-  saveAttendance: (data) => API.set(KEYS.ATTENDANCE, data),
+  saveAttendance: (data, skipTimestamp) => API.set(KEYS.ATTENDANCE, data, skipTimestamp),
 
   getCustomThemes: (fallback) => API.get(KEYS.CUSTOM_THEMES, fallback),
   saveCustomThemes: (themes) => API.set(KEYS.CUSTOM_THEMES, themes),
