@@ -22,7 +22,12 @@ export function SubjectRow({ subject, grade, editMode, onUpdate, onRemove, stagg
   }, [subject.name, subject.code, subject.credits, focused])
 
   const commitField = (key, value) => {
-    const parsed = key === 'credits' ? (parseFloat(value) || 0) : value
+    // An emptied name never commits — every row needs one. The draft resyncs
+    // from `subject` on blur, so the previous name snaps back into the input.
+    if (key === 'name' && !String(value).trim()) return
+    // Credits weight the GPA; a negative value is never meaningful, so it
+    // lands as 0 rather than persisting.
+    const parsed = key === 'credits' ? Math.max(0, parseFloat(value) || 0) : value
     const current = key === 'credits' ? (parseFloat(subject.credits) || 0) : (subject[key] ?? '')
     if (parsed !== current) onUpdate(subject.id, key, parsed)
   }
