@@ -33,7 +33,12 @@ const finalize = (acc, history) => ({
   // figure — tier as WATCH rather than BELOW MIN, telling a student they were
   // safe while they were short. Flooring can only ever understate, and keeps
   // the printed percentage and the tier telling the same story.
-  percentage: acc.total === 0 ? 100 : Math.floor((acc.present / acc.total) * 100),
+  //
+  // The numerator stays an integer on purpose. (57/100)*100 is
+  // 56.99999999999999 in IEEE doubles, so flooring the float quotient printed
+  // 56 for a true 57 — multiplying first keeps the division exact and the
+  // floor honest at every total (verified for every present/total <= 5000).
+  percentage: acc.total === 0 ? 100 : Math.floor((acc.present * 100) / acc.total),
   history,
 })
 

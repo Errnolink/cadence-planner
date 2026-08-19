@@ -286,6 +286,25 @@ describe('percentage never rounds up across the threshold', () => {
     expect(pctOf(45, 60)).toBe(75)
   })
 
+  it('never drops a point from an exact-integer percentage', () => {
+    // (57/100)*100 === 56.99999999999999 in IEEE doubles — flooring the float
+    // quotient showed 56 for a true 57. Multiplying first keeps the division
+    // exact; every triple here displayed one point low before the fix.
+    expect(pctOf(57, 100)).toBe(57)
+    expect(pctOf(29, 50)).toBe(58)
+    expect(pctOf(58, 100)).toBe(58)
+    expect(pctOf(87, 150)).toBe(58)
+    expect(pctOf(114, 200)).toBe(57)
+    expect(pctOf(145, 250)).toBe(58)
+    // and exhaustively: every exact-integer percentage up to 400 classes
+    for (let total = 1; total <= 400; total++) {
+      for (let present = 0; present <= total; present++) {
+        if ((present * 100) % total !== 0) continue
+        expect(pctOf(present, total)).toBe((present * 100) / total)
+      }
+    }
+  })
+
   it('tiers a shortfall as critical, and agrees with recoveryPath', () => {
     for (const [present, total] of [[56, 75], [149, 200], [38, 51], [71, 95]]) {
       const pct = pctOf(present, total)
