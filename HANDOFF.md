@@ -1,6 +1,6 @@
 # Cadence Planner — Handoff
 
-**Written:** 2026-08-13. Last updated at the end of the `improvement-v3` round.
+**Written:** 2026-08-13. Last updated 2026-08-19, after the independent QA round (§6e).
 **Start with §5** — it is the implementation plan for what is left.
 **Repo:** `C:\Users\Chef\Documents\Errnolink\cadence-planner` · `github.com/Errnolink/cadence-planner`
 
@@ -13,7 +13,7 @@ file covers what changed, what is in flight, and what will bite you.
 
 | Branch | State | Pushed |
 |---|---|---|
-| `improvement-v3` | 10 commits — sync clobber, attendance tier, gradebook rounding, settings page, mobile, real semester dates | **yes**; awaiting a test pass, then merge to `main` |
+| `improvement-v3` | 14 commits — the ten below plus the QA round's four fixes (§6e) | gate green; **last 4 commits unpushed**, then merge to `main` |
 | `main` | `429d642` — gradebook, awarded grades, roster work | yes, `origin/main` matches |
 | `exams-gradebook` | fully contained in `main`; keep or delete, it carries nothing unique | yes |
 
@@ -24,7 +24,7 @@ and are stale.
 
 ```bash
 npm run dev        # vite, :5173
-npm test           # vitest — 231 unit tests, all green
+npm test           # vitest — 232 unit tests, all green
 npm run test:e2e   # playwright — 17 tests, all green
 npm run lint       # oxlint — 3 pre-existing warnings, no errors
 npm run build      # vite build
@@ -680,6 +680,44 @@ keyboard-inaccessible. Real buttons with composed labels.
   get it). And the chip's `text-overflow: ellipsis` was inert because the chip
   is `display: flex`, so "MATH101" was cut mid-glyph to "MATH10" with no
   ellipsis at all; the code has its own truncating box now.
+
+---
+
+## 6e. The independent QA round (2026-08-19)
+
+Two agents with no prior context — one black-box, driving the app for an hour
+at 1280×800 / 390×844 / 375×667 and recomputing every number the app displays;
+one reviewing the `main..improvement-v3` diff hunk by hunk — plus owner probes
+against the live dev bundle. Every math surface they recomputed by hand came
+out exact: CGPA/SGPA aggregation across semesters, every grade boundary, marks
+pooling, attendance margins and projections, clash detection, backup
+round-trip, corrupted-import rejection. Zero console errors, zero page errors
+across ~30 scenarios. Four fixes landed (§1); the gate after them: 232 unit /
+17 e2e / 3 lint warnings / 192 contrast pairs / build clean, and all four
+repros re-run live to confirm the fix.
+
+| Fix | Why it was invisible |
+|---|---|
+| The floor fix floored the float quotient — 57 of 100 printed **56%** | The sweep test only asserted "never above the true value", and an artifact that understates passes a one-sided upper bound. 200 exact-integer triples understated by one (totals ≤ 5000). The numerator multiplies first now; the new test sweeps every exact-integer percentage up to 400 classes. |
+| Empty subject name and negative credits committed on blur | Nothing validated them, and every number downstream stayed self-consistent with the nonsense, so nothing ever *looked* wrong. |
+| All three end-time suggestions could produce `24:00` | The browser swallows the invalid value and only warns in its own console — the form state and the input silently disagreed. Clamped to 23:59 at all three sites. |
+| Inverted semester dates persisted verbatim | No consumer broke: the dates only bound counting, and an empty range counts nothing. Refused now, with a visible warning. |
+
+Not fixed, deliberately:
+
+- **Absurdly large credits are still accepted.** Silently rewriting a
+  legitimate value is worse than storing a self-inflicted one; negatives land
+  at 0, the upper bound stays the input's business.
+- **Calendar day cells list exam-suspended classes while the timetable hides
+  them.** The QA agent flagged the inconsistency; the calendar shows what is
+  *scheduled*, which is defensible. Revisit only if it confuses someone real.
+- **The legacy `exams[]` array still diverges** — deleted exams stay in it,
+  new ones never land in it. Documented downgrade safety, §4.
+
+One lesson for §6b's ledger: **a one-sided assertion cannot catch a lie in the
+other direction.** "Never above the true value" was exactly right for the
+rounding bug it was written for and exactly blind to the floor bug that
+replaced it.
 
 ---
 
