@@ -108,7 +108,9 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
 
     // Snap to nearest 30 mins
     const snappedMins = Math.floor(mins / 30) * 30
-    const endMins = Math.min(GRID_END_HOUR * 60, snappedMins + 60)
+    // 23:59 is the latest a native time input can hold — 24:00 is rejected
+    // by the browser with a console warning.
+    const endMins = Math.min(GRID_END_HOUR * 60 - 1, snappedMins + 60)
 
     onCellClick(day,
       `${pad2(Math.floor(snappedMins / 60))}:${pad2(snappedMins % 60)}`,
@@ -118,7 +120,8 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
   // Keyboard-reachable equivalent of the click-position-to-time affordance.
   const addHour = Math.min(Math.max(gridStart, 9), gridEnd - 1)
   const handleHeaderAdd = useCallback((day) => {
-    onCellClick?.(day, `${pad2(addHour)}:00`, `${pad2(addHour + 1)}:00`)
+    const end = addHour + 1 >= GRID_END_HOUR ? `${pad2(GRID_END_HOUR - 1)}:59` : `${pad2(addHour + 1)}:00`
+    onCellClick?.(day, `${pad2(addHour)}:00`, end)
   }, [onCellClick, addHour])
 
   const scrollRef = useRef(null)

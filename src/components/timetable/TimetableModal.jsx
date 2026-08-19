@@ -25,7 +25,9 @@ export function TimetableModal({ mode, initialData, subjects, timetable, onSave,
     const startMins = parseTimeToMins(v)
     const endMins   = parseTimeToMins(form.endTime)
     if (endMins <= startMins) {
-      const newEndMins = Math.min(startMins + 60, GRID_END_HOUR * 60)
+      // A native time input cannot hold 24:00, so the suggestion tops out at
+      // 23:59 — the browser silently rejects "24:00" and warns in the console.
+      const newEndMins = Math.min(startMins + 60, GRID_END_HOUR * 60 - 1)
       upd('startTime', v)
       upd('endTime', `${pad2(Math.floor(newEndMins / 60))}:${pad2(newEndMins % 60)}`)
     } else {
