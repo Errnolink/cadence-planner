@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Lint (at most 3 warnings, 0 errors)
+        run: |
+          out=$(npx oxlint 2>&1); code=$?
+          echo "$out"
+          warns=$(echo "$out" | grep -c 'warning' || true)
+          errs=$(echo "$out" | grep -c ' error' || true)
+          echo "warnings=$warns errors=$errs"
+          [ "$warns" -le 3 ] && [ "$errs" -eq 0 ] && [ "$code" -eq 0 ]
+
+      - run: npm test
+
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+
+      - run: node scripts/check-contrast.mjs
+
+      - run: npm run build
+
+      # A stray NUL byte makes ripgrep treat a file as binary and silently
+      # drop it from every code search; SchemeModal.jsx carried one for
+      # weeks before anyone noticed (HANDOFF §6d).
+      - name: No NUL bytes in src/
+        run: |
+          if grep -rPa '\x00' src/ ; then
+            echo "::error::NUL byte found in src/ — grep tools will treat the file as binary"
+            exit 1
+          fi
