@@ -67,7 +67,7 @@ export function SubjectRow({ subject, grade, editMode, onUpdate, onRemove, stagg
             onClick={() => editMode && setShowColors(v => !v)}
             disabled={!editMode}
             aria-expanded={editMode ? showColors : undefined}
-            className={`w-3 h-3 shrink-0 transition-transform ${editMode ? 'cursor-pointer hover:scale-125' : 'cursor-default'}`}
+            className={`w-3 h-3 shrink-0 transition-transform ${editMode ? 'cursor-pointer hover:scale-125' : 'cursor-default'} ${editMode ? 'tap-44' : ''}`}
             style={{ background: 'var(--subj-border)', boxShadow: '0 0 4px var(--subj-border)', borderRadius: '1px' }}
             title={editMode ? 'CHANGE COLOR' : colorName}
             aria-label={editMode ? `Change colour (currently ${colorName})` : colorName}
@@ -119,7 +119,7 @@ export function SubjectRow({ subject, grade, editMode, onUpdate, onRemove, stagg
         </div>
 
         {/* Line 2: Code · Credits · Grade · Remove (right-aligned on mobile) */}
-        <div className="flex items-center gap-1.5 sm:gap-1.5 pl-5 sm:pl-0 shrink-0">
+        <div className={`flex items-center gap-1.5 sm:gap-1.5 pl-5 sm:pl-0 shrink-0 ${editMode ? 'min-h-[44px]' : ''}`}>
           {/* Code */}
           <input
             value={draft.code}
@@ -188,7 +188,7 @@ export function SubjectRow({ subject, grade, editMode, onUpdate, onRemove, stagg
                 value={subject.gradePoint ?? ''}
                 onChange={e => onUpdate(subject.id, 'gradePoint', e.target.value === '' ? null : Number(e.target.value))}
                 aria-label={`Grade point for ${subject.name}`}
-                className="w-full text-right bg-transparent cursor-pointer"
+                className="w-full text-right bg-transparent cursor-pointer min-h-[44px]"
                 style={{
                   fontFamily:  'var(--cad-font-mono)',
                   fontSize:    'var(--cad-fs-xs)',
@@ -216,7 +216,7 @@ export function SubjectRow({ subject, grade, editMode, onUpdate, onRemove, stagg
               type="button"
               onClick={() => onRemove(subject.id)}
               aria-label={`Remove ${subject.name}`}
-              className="w-4 text-center shrink-0 cad-x btn-mech"
+              className="px-2.5 self-stretch text-center shrink-0 cad-x btn-mech"
               style={{ fontSize: 'var(--cad-fs-xs)' }}
             >✕</button>
           )}

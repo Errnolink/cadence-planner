@@ -97,15 +97,17 @@ export function SubjectRoster({ sem, semesters, editMode, onUpdateSem, onAddSubj
         ) : null}
       </div>
 
-      {/* Column headers */}
-      <div className="flex items-center gap-1.5 px-2 shrink-0">
+      {/* Column headers — hidden below `sm`, where SubjectRow collapses to
+          two lines and the CR / GP labels sit ~188px right of the values
+          they name. */}
+      <div className="hidden sm:flex items-center gap-1.5 px-2 shrink-0">
         <div className="w-3 shrink-0" />
         <span className="cad-label" style={{ flex: 1, fontSize: 'var(--cad-fs-micro)' }}>SUBJECT</span>
         <span className="cad-label" style={{ fontSize: 'var(--cad-fs-micro)', width: '32px', textAlign: 'right' }}>CR</span>
         <span className="cad-label" style={{ fontSize: 'var(--cad-fs-micro)', width: editMode && coverage.derived + coverage.awarded > 0 ? '4.5rem' : '40px', textAlign: 'right' }}>GP</span>
         {editMode && <span className="w-4" />}
       </div>
-      <hr style={{ border: 'none', borderTop: '1px solid var(--cad-border-dim)', margin: '4px 0' }} />
+      <hr className="hidden sm:block" style={{ border: 'none', borderTop: '1px solid var(--cad-border-dim)', margin: '4px 0' }} />
 
       {/* Subject list */}
       <div className="flex-1 overflow-y-auto min-h-0">

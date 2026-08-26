@@ -72,10 +72,13 @@ export function ControlBar({ semesters, activeSemId, onSemChange, onRemoveSem, e
         zIndex:       50,
       }}
     >
-      {/* Logo — also the mobile easter-egg target (tap 5×) */}
+      {/* Logo — also the mobile easter-egg target (tap 5×). Hidden below
+          360px: the header's floor is ~368px with it, which pushed EDIT
+          off-screen at 320. At 360+ it fits, so the logo (and the easter
+          egg) stay. */}
       <div
         onClick={onSecretTap}
-        className="flex items-center gap-1.5 px-2 py-1 panel-chamfer-sm shrink-0"
+        className="flex items-center gap-1.5 px-2 py-1 panel-chamfer-sm shrink-0 max-[359px]:hidden"
         style={{
           border:    '1px solid var(--cad-accent)',
           background:'var(--cad-accent-dim)',
