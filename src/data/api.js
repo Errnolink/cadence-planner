@@ -164,7 +164,7 @@ export const API = {
             // Server is stale for at least one key — push the merged state.
             // Server-adopted stamps were written into the local map above,
             // so the local map IS the merged stamp map.
-            await API._push();
+            await API._push(userId);
             return; // _push dispatched success/error
           }
         } else {
@@ -206,7 +206,7 @@ export const API = {
 
           if (shouldPushToServer) {
             // Inline push — we already hold the serialization slot
-            await API._push();
+            await API._push(userId);
             return; // _push dispatched success/error
           }
         }
@@ -214,7 +214,7 @@ export const API = {
         // No rows returned — new user or new device with local data only.
         // Push their local data up to the server.
         localStorage.setItem(KEYS.USER_ID, userId);
-        await API._push();
+        await API._push(userId);
         return; // _push dispatched success/error
       } else if (error) {
         throw error;
@@ -234,8 +234,12 @@ export const API = {
 
   // Raw push body — callers must already hold the serialization slot.
   // Returns true on success, false on failure (never throws).
-  _push: async () => {
-    if (!API.userId) return true;
+  // `userId` defaults to the live value but can be pinned by syncFromServer:
+  // an auth state flip (e.g. INITIAL_SESSION(null) during boot) nulls
+  // API.userId mid-sync, and this push would silently no-op while the
+  // surrounding sync resolved success — dropping a local-newer push.
+  _push: async (userId = API.userId) => {
+    if (!userId) return true
 
     // Cancel any pending debounced sync so we don't double-push
     clearTimeout(_syncTimer);
@@ -244,7 +248,7 @@ export const API = {
 
     try {
       const payload = {
-        user_id: API.userId,
+        user_id: userId,
         semesters: API.getSemesters([]),
         active_sem_id: API.getActiveSemId(null),
         settings: API.getSettings({}),
