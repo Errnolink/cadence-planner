@@ -5,7 +5,7 @@ import { useAttendance, useAttendanceStats } from '../../hooks/useAttendanceCont
 import { SubjectAttendanceModal } from './SubjectAttendanceModal.jsx'
 
 export function AttendanceView({ subjects }) {
-  const { attendance, getMarginToThreshold, getRecoveryPath, getStatusTier } = useAttendance()
+  const { getMarginToThreshold, getRecoveryPath, getStatusTier } = useAttendance()
   const stats = useAttendanceStats()
   const [selectedSubjectData, setSelectedSubjectData] = useState(null)
   const [filter, setFilter] = useState('ALL')

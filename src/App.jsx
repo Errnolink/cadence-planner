@@ -146,6 +146,7 @@ export default function App() {
       <ControlBar
         semesters={semesters}
         activeSemId={activeSemId}
+        onSemChange={handleSemChange}
         onRemoveSem={handleRemoveSemester}
         editMode={editMode}
         onToggleEdit={toggleEdit}
