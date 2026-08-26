@@ -1,6 +1,6 @@
 # Cadence Planner — Handoff
 
-**Written:** 2026-08-13. Last updated 2026-08-19, after the independent QA round (§6e).
+**Written:** 2026-08-13. Last updated 2026-08-26, after the §5 sweep (§6f).
 **Start with §5** — it is the implementation plan for what is left.
 **Repo:** `C:\Users\Chef\Documents\Errnolink\cadence-planner` · `github.com/Errnolink/cadence-planner`
 
@@ -13,28 +13,29 @@ file covers what changed, what is in flight, and what will bite you.
 
 | Branch | State | Pushed |
 |---|---|---|
-| `improvement-v3` | 14 commits — the ten below plus the QA round's four fixes (§6e) | gate green; **last 4 commits unpushed**, then merge to `main` |
-| `main` | `429d642` — gradebook, awarded grades, roster work | yes, `origin/main` matches |
-| `exams-gradebook` | fully contained in `main`; keep or delete, it carries nothing unique | yes |
+| `improvement-v3` | 30 commits — §5 items 1–9 and the smaller ones all landed (§6f) | yes, in sync with origin |
+| `main` | `429d642` — gradebook, awarded grades, roster work | yes; merging is the user's call |
+| `exams-gradebook` | fully contained in `main`; keep or delete | yes |
 
-The gradebook is **on `main`** — §4 describes shipped code, not a side branch.
 Five older branches (`perf-upgrade`, `improvement-v2`, `fix/review-issues`,
 `mobile-ui-optimisation`, `feature/timetable-fixes-and-substitutes`) predate it
 and are stale.
 
 ```bash
 npm run dev        # vite, :5173
-npm test           # vitest — 232 unit tests, all green
-npm run test:e2e   # playwright — 17 tests, all green
+npm test           # vitest — 237 unit tests, all green
+npm run test:e2e   # playwright — 23 tests, all green
 npm run lint       # oxlint — 3 pre-existing warnings, no errors
 npm run build      # vite build
 node scripts/check-contrast.mjs   # WCAG gate, 192 pairs, exits 1 on failure
 ```
 
-**Nothing runs these automatically.** A broken unit test and a broken
-interaction both reached `main` described in their own commit messages as
-green — see §6c. CI (`IMPROVEMENT_PLAN.md` §X3) is now the highest-value item
-in §5 for that reason.
+**CI now runs all of this on every push and PR** (`.github/workflows/ci.yml`),
+including the mobile-header width assertions and the NUL-byte check from item 1.
+
+The line above was the whole reason item 1 existed: two of the bugs in §6c
+shipped described as green in their own commit messages, and a third had been
+red since the day it was written.
 
 **House rule:** commits carry **no** `Co-Authored-By` trailer and PR bodies carry
 no "Generated with" footer. The user asked for this explicitly.
@@ -303,15 +304,27 @@ now prefers a derived grade and falls back to the typed one.
 
 ---
 
-## 5. Implementation plan
+## 5. Implementation plan — COMPLETED 2026-08-26
 
-Written 2026-08-13, at the end of the `improvement-v3` round. Ordered by value
-per unit of risk. Each item names the files, the approach, and how you know it
-worked — the last part is the one that keeps getting skipped, and §6c is what
-that costs.
+Written 2026-08-13, at the end of the `improvement-v3` round; executed
+2026-08-26. Status per item, including the two decisions:
 
-Items 1–6 need no decisions. Items 7–9 do; they are parked at the bottom with
-the question stated.
+| # | Item | Status |
+|---|---|---|
+| 1 | CI | Done — `.github/workflows/ci.yml`, incl. mobile-width spec (`e2e/mobile-header.spec.js`, 320–412) and NUL check |
+| 2 | DOCUMENTATION.md | Done — rewritten against source; every grading.js export documented or explicitly aliased |
+| 3 | CSP | Done — shipped tag has no `ws:`/`http:`; a `serve`-only `transformIndexHtml` plugin injects them in dev |
+| 4 | `API.set` failures | Done — boolean return, `storage-full`/`storage-error` events, providers advance refs only on success, 5 unit tests |
+| 5 | Attendance context | Done — `AttendanceProvider` + `useAttendance()`/`useAttendanceStats()`; zero `attendanceHook` props; e2e untouched and green. **Deviation:** the provider mounts inside App, not `main.jsx` — it needs activeSem-derived values, and a `main.jsx` mount would need a second `useSemesters` instance. App owns the hook and passes it in. |
+| 6 | Prune on delete | Done — `pruneToEntries` wired into subject/slot/semester deletes; `e2e/prune.spec.js` asserts `_note`/`_sub` die and a control row survives |
+| 7 | 320px control bar | Done — decision: keep the logo where it fits. It hides only below 360px (`max-[359px]:hidden`), fixing 320–359 while preserving the logo and the 5-tap easter egg at 360+. EDIT measured at 308/356/363/378/400 across 320–412. |
+| 8 | Roster tap targets | Done — decision: taller rows. Edit rows `min-h-[44px]`, remove ✕ grows by padding (not a `.tap-44` overlay — that measurably steals taps), swatch gets `.tap-44` only in edit mode, SemDropdown delete padded. |
+| 9 | SemDropdown semantics | Done — real `role="menu"`, focus enters, arrows cycle, Escape refocuses the toggle, `menuitemradio`, confirm stage in the accessible name |
+| — | Roster CR/GP headers below sm | Done — `hidden sm:flex` |
+| — | RLS migration | Done — `supabase/migrations/20260801_enable_rls.sql`, idempotent; README points at it |
+| — | Timetable room label clip | Still open — ellipsises honestly, lowest priority unchanged |
+
+The original item text follows, for the reasoning behind each approach.
 
 ---
 
@@ -510,9 +523,10 @@ and stop claiming it. Move the stage word into the accessible name either way.
 
 ## 6. Known issues
 
-Everything here is scheduled in §5 unless marked otherwise — that is the plan,
-this is the evidence behind it. Measurements are from a real browser at the
-stated width, not estimated from source.
+Everything here was scheduled in §5 and is now fixed (2026-08-26) unless
+marked otherwise — §5 is the plan, this is the evidence behind it.
+Measurements are from a real browser at the stated width, not estimated
+from source.
 
 - **Deleting a subject/slot orphans attendance rows** until the next boot sweep,
   and that sweep is gated behind `cadence_pruned_at`. §5 item 6.
@@ -720,6 +734,33 @@ rounding bug it was written for and exactly blind to the floor bug that
 replaced it.
 
 ---
+## 6f. The §5 sweep (2026-08-26)
+
+Items 1–9 plus the smaller ones, executed in one pass. One unscheduled bug
+found on the way, before any of them:
+
+**`sync.spec.js › local newer` failed ~20 % of cold runs — a real sync bug,
+not test flake.** `useAuth`'s `onAuthStateChange` fires `INITIAL_SESSION(null)`
+during boot and `setUserId(null)`s the shared `API.userId`. A `syncFromServer`
+that had already started then hit `_push`'s `if (!userId) return true` and
+silently no-op'd: the awaited sync resolved *success* while the local-newer
+push was never issued. Proven by trace (zero POSTs in the whole network log)
+and instrumented reruns (`userId=null` in every failure). Fix: `syncFromServer`
+pins its owning userId through `_push`. 25/25 repeats green after.
+
+Why it was invisible: the failure looked like infrastructure (flaky e2e), the
+success path resolved normally, and the guard line reads like prudent
+defensive code. The lesson for §6b's ledger: **a mutable shared flag checked
+across an await is a cancellation you didn't write.**
+
+Also fixed this pass, all covered by the table in §5: storage-failure
+signaling, orphan pruning on delete, the menu semantics, the 320px header,
+roster tap targets. One regression caught by the new lint gate before push:
+the tap-target commit dropped `onSemChange` from ControlBar — semester
+switching went dead while every suite that didn't switch semesters stayed
+green.
+
+---
 
 ## 7. Do not touch
 
@@ -774,12 +815,19 @@ unreachable on mobile with no visible symptom.
 horizontal-overflow check is not enough on its own: the clipping ancestor means
 `document.scrollWidth === clientWidth` while content sits outside the viewport.
 Measure each child's `getBoundingClientRect().right` against the viewport width.
+`e2e/mobile-header.spec.js` does exactly this at 320/360/375/390/412 on every
+CI run.
 
-Current state at 375px: header measures 375/375 with EDIT at 363. Clock is
-desktop-only, SETTINGS and EDIT are icon-only below `sm` with `sr-only` text,
-`HudButton` carries a 40px minimum tap target, and the tab bar drops its wide
-tracking so `ATTENDANCE` fits its ~78px cell.
+Current state: the CADENCE logo hides below 360px only — the header floor was
+~368px with it, which pushed EDIT off-screen at 320. Measured after the fix,
+EDIT's right edge: **308** (320px), **356** (360), **363** (375), **378**
+(390), **400** (412). Clock is desktop-only, SETTINGS and EDIT are icon-only
+below `sm` with `sr-only` text, `HudButton` carries a 40px minimum tap target,
+and the tab bar drops its wide tracking so `ATTENDANCE` fits its ~78px cell.
 
 Still outstanding: roughly **180 interactive targets measure under 44×44**
-across the app — mostly 12×12 colour swatches in the roster and 23×23 week-nav
-arrows in the timetable. Not addressed; the header was the blocking one.
+across the app — mostly view-mode controls like the 12×12 colour swatches and
+23×23 week-nav arrows. The edit-mode roster rows and the SemDropdown delete
+carry real targets now (§5 item 8); the remaining ones are isolated enough for
+`.tap-44` where spacing allows, one at a time with measurement — the roster
+overlay lesson in §6 still applies.
