@@ -52,12 +52,15 @@ export function useSemesters() {
   }, [activeSemId])
 
   useEffect(() => {
-    const isBootWrite = isBootWriteSem.current
-    isBootWriteSem.current = false
     const serialized = JSON.stringify(semesters)
     if (serialized === lastSavedSemestersRef.current) return
-    lastSavedSemestersRef.current = serialized
-    API.saveSemesters(semesters, isBootWrite)
+    // Advance the ref (and consume the boot flag) only when the write landed,
+    // so a rejected write — quota, private mode — is retried on the next
+    // change instead of being silently dropped.
+    if (API.saveSemesters(semesters, isBootWriteSem.current)) {
+      isBootWriteSem.current = false
+      lastSavedSemestersRef.current = serialized
+    }
   }, [semesters])
 
   const activeSem = useMemo(

@@ -97,12 +97,14 @@ export function useAttendance() {
   const isBootWrite = useRef(true)
 
   useEffect(() => {
-    const bootWrite = isBootWrite.current
-    isBootWrite.current = false
     const serialized = JSON.stringify(attendance)
     if (serialized === lastSavedAttendanceRef.current) return
-    lastSavedAttendanceRef.current = serialized
-    API.saveAttendance(attendance, bootWrite)
+    // Advance the ref (and consume the boot flag) only when the write landed —
+    // same contract as useSemesters' save effect.
+    if (API.saveAttendance(attendance, isBootWrite.current)) {
+      isBootWrite.current = false
+      lastSavedAttendanceRef.current = serialized
+    }
   }, [attendance])
 
   // ── Mutations ──────────────────────────────────────────────────

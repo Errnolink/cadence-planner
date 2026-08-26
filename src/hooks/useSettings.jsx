@@ -37,12 +37,14 @@ export function SettingsProvider({ children }) {
   }, [])
 
   useEffect(() => {
-    const bootWrite = isBootWrite.current
-    isBootWrite.current = false
     const serialized = JSON.stringify(settings)
     if (serialized !== lastSavedSettingsRef.current) {
-      lastSavedSettingsRef.current = serialized
-      API.saveSettings(settings, bootWrite)
+      // Advance the ref (and consume the boot flag) only when the write
+      // landed — same contract as useSemesters' save effect.
+      if (API.saveSettings(settings, isBootWrite.current)) {
+        isBootWrite.current = false
+        lastSavedSettingsRef.current = serialized
+      }
     }
     // Also apply data-mode to documentElement here so CSS can react
     document.documentElement.setAttribute('data-mode', settings.themeMode)

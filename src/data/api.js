@@ -306,10 +306,13 @@ export const API = {
     return defaultValue
   },
   
+  // Returns true when the write (and its stamps) landed, false when
+  // localStorage rejected it. Callers that cache "already saved" state must
+  // advance that cache only on success, or a failed write is never retried.
   set: (key, value, skipTimestampUpdate = false) => {
     try {
       localStorage.setItem(key, key === KEYS.THEME ? value : JSON.stringify(value))
-      
+
       if (!skipTimestampUpdate && key !== KEYS.UPDATED_AT) {
         const ts = new Date().toISOString()
         localStorage.setItem(KEYS.UPDATED_AT, ts)
@@ -322,8 +325,14 @@ export const API = {
         clearTimeout(_syncTimer)
         _syncTimer = setTimeout(() => API.syncToServer().catch(console.error), SYNC_DEBOUNCE_MS)
       }
+      return true
     } catch (e) {
       console.error(`Failed to save ${key}`, e)
+      // Quota (or Safari private mode) loses the edit — the user needs a
+      // different message than a generic failure: export a backup now.
+      const quota = e && (e.name === 'QuotaExceededError' || e.code === 22 || e.code === 1014)
+      window.dispatchEvent(new CustomEvent('cadence-sync', { detail: quota ? 'storage-full' : 'storage-error' }))
+      return false
     }
   },
 
