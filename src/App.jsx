@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { useSemesters } from './hooks/useSemesters.js'
-import { useAttendance } from './hooks/useAttendance.js'
+import { AttendanceProvider } from './hooks/AttendanceContext.jsx'
 import { PANEL_TABS } from './data/index.js'
 import { classBlockingDates } from './data/grading.js'
 import { Dot } from './components/ui/Dot.jsx'
@@ -33,7 +33,7 @@ export default function App() {
   } = useSemesters()
 
 
-  const attendanceHook = useAttendance()
+
 
   const [editMode,  setEditMode]  = useState(false)
   const [ttModal,   setTtModal]   = useState(null)
@@ -112,6 +112,7 @@ export default function App() {
     [assessments])
 
   return (
+    <AttendanceProvider timetable={activeSem?.timetable ?? []} examDates={examDates} semester={activeSem}>
     <div
       className="theme-bg flex flex-col h-[100dvh] overflow-hidden"
       style={{ background: 'var(--cad-bg-primary)' }}
@@ -227,9 +228,9 @@ export default function App() {
             className="anim-tab-enter flex flex-col flex-1 overflow-hidden min-h-0"
           >
             {activeTab === 'calendar' ? (
-              <CalendarView timetable={activeSem?.timetable ?? []} subjects={activeSem?.subjects ?? []} attendanceHook={attendanceHook} examDates={examDates} semester={activeSem} />
+              <CalendarView timetable={activeSem?.timetable ?? []} subjects={activeSem?.subjects ?? []} />
             ) : activeTab === 'attendance' ? (
-              <AttendanceView timetable={activeSem?.timetable ?? []} subjects={activeSem?.subjects ?? []} attendanceHook={attendanceHook} examDates={examDates} semester={activeSem} />
+              <AttendanceView subjects={activeSem?.subjects ?? []} />
             ) : activeTab === 'exams' ? (
               <ExamsView
                 subjects={activeSem?.subjects ?? []}
@@ -251,9 +252,6 @@ export default function App() {
                 timetable={activeSem?.timetable ?? []}
                 exams={scheduledExams}
                 editMode={editMode}
-                attendanceHook={attendanceHook}
-                examDates={examDates}
-                semester={activeSem}
                 onCellClick={(day, startTime, endTime) => setTtModal({ mode: 'add', initialData: { day, startTime, endTime } })}
                 onBlockClick={(entry) => setTtModal({ mode: 'edit', initialData: entry })}
                 onInstanceClick={(entry, dateStr) => setInstanceModal({ entry, dateStr })}
@@ -285,7 +283,6 @@ export default function App() {
           entry={instanceModal.entry}
           dateStr={instanceModal.dateStr}
           subjects={activeSem?.subjects ?? []}
-          attendanceHook={attendanceHook}
           onClose={() => setInstanceModal(null)}
         />
       )}
@@ -306,5 +303,6 @@ export default function App() {
         />
       )}
     </div>
+    </AttendanceProvider>
   )
 }

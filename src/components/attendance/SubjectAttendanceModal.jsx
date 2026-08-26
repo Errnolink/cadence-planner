@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { Modal } from '../ui/Modal.jsx'
+import { useAttendance, useAttendanceStats } from '../../hooks/useAttendanceContext.jsx'
 
 /**
  * The history list used to be a naive scan of the attendance map, which
@@ -9,20 +10,22 @@ import { Modal } from '../ui/Modal.jsx'
  * The engine now emits the rows it actually counted, so the two halves of the
  * modal can no longer contradict each other.
  */
-export function SubjectAttendanceModal({ subject, timetable, attendanceHook, examDates, semester, onClose }) {
-  const { getSubjectStats } = attendanceHook
+export function SubjectAttendanceModal({ subject, onClose }) {
+  const { semester } = useAttendance()
+  const stats = useAttendanceStats()
 
   // `semester` matters for the same reason as everything else in this comment:
   // scope the history to the term but not the percentage (or the reverse) and
   // the two halves of the modal contradict each other again.
-  const stats = useMemo(
-    () => getSubjectStats(subject.id, timetable, examDates, { withHistory: true, semester }),
-    [getSubjectStats, subject.id, timetable, examDates, semester])
+  const subjectStats = useMemo(
+    () => stats.subject(subject.id, { withHistory: true, semester }),
+    [stats, subject.id, semester])
 
-  const history = stats.history || []
+
+  const history = subjectStats.history || []
 
   return (
-    <Modal title={`${subject.name} :: ATTENDANCE`} hex={`${stats.percentage}%`} onClose={onClose}>
+    <Modal title={`${subject.name} :: ATTENDANCE`} hex={`${subjectStats.percentage}%`} onClose={onClose}>
       <div className="flex flex-col gap-2">
         {history.length === 0 ? (
           <div className="text-center py-6" style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-micro)', color: 'var(--cad-text-lo)' }}>

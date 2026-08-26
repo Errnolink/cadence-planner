@@ -3,11 +3,13 @@ import { MONTH_NAMES, DAYS, generateSubjectCode, subjectVars } from '../../data/
 import { dateStrFromParts, getDayMeta } from '../../data/calendar.js'
 import { DayDetailModal } from './DayDetailModal.jsx'
 import { useSettings } from '../../hooks/useSettings.jsx'
+import { useAttendance } from '../../hooks/useAttendanceContext.jsx'
 
 
 const DAYS_SET = new Set(DAYS)
 
-export function CalendarView({ timetable, subjects, attendanceHook, examDates = new Set(), semester }) {
+export function CalendarView({ timetable, subjects }) {
+  const { attendance, examDates, semester } = useAttendance()
   const { settings } = useSettings()
   const today      = new Date()
   const [year, setYear]   = useState(today.getFullYear())
@@ -147,7 +149,7 @@ export function CalendarView({ timetable, subjects, attendanceHook, examDates = 
             if (!day) return <div key={`empty-${idx}`} style={{ borderRight: '1px solid var(--cad-border-dim)', borderBottom: '1px solid var(--cad-border-dim)' }} />
 
             const dateStr = dateStrFromParts(year, month, day)
-            const meta    = getDayMeta(dateStr, { settings, attendance: attendanceHook?.attendance, examDates, semester })
+            const meta    = getDayMeta(dateStr, { settings, attendance, examDates, semester })
             const todayCell = isToday(day)
             const isWeekend = !DAYS_SET.has(meta.weekday)
             // Outside the semester's dates there are no classes to show. The
@@ -156,7 +158,7 @@ export function CalendarView({ timetable, subjects, attendanceHook, examDates = 
             // December — and now that the stats honour the bounds, drawing
             // them would promise a class that cannot count.
             const entries = meta.isHoliday || isWeekend || !meta.inTerm ? [] : (eventsByWeekday[meta.weekday] ?? [])
-            const dayAtt  = attendanceHook?.attendance?.[dateStr] ?? {}
+            const dayAtt  = attendance[dateStr] ?? {}
 
             return (
               <div
@@ -298,9 +300,6 @@ export function CalendarView({ timetable, subjects, attendanceHook, examDates = 
           dateStr={detailDate}
           timetable={timetable}
           subjects={subjects}
-          attendanceHook={attendanceHook}
-          examDates={examDates}
-          semester={semester}
           onClose={() => setDetailDate(null)}
         />
       )}

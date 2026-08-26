@@ -4,6 +4,7 @@ import { dateStrFromParts, getDayMeta } from '../../data/calendar.js'
 import { DayDetailModal } from '../calendar/DayDetailModal.jsx'
 import { useSettings } from '../../hooks/useSettings.jsx'
 import { useNow } from '../../hooks/useNow.js'
+import { useAttendance } from '../../hooks/useAttendanceContext.jsx'
 import { AttendanceToggle } from '../ui/AttendanceToggle.jsx'
 
 
@@ -21,9 +22,9 @@ function visibleWindow(timetable, exams) {
   return [start, Math.max(end, start + 1)]
 }
 
-export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBlockClick, onInstanceClick, attendanceHook, examDates, exams = [], semester }) {
+export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBlockClick, onInstanceClick, exams = [] }) {
   const { settings } = useSettings()
-  // Ticks once a minute (plus on tab focus) so "today", the now-line and the
+  const { attendance, examDates, semester, markAttendance } = useAttendance()
   // today column stop freezing at mount — leaving the tab open past midnight
   // used to leave all three a day stale.
   const now = useNow()
@@ -149,8 +150,8 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
     const d = new Date(baseDate.getTime())
     d.setDate(d.getDate() + (DAYS.indexOf(day) - todayIdx))
     const dateStr = dateStrFromParts(d.getFullYear(), d.getMonth(), d.getDate())
-    return { d, dateStr, meta: getDayMeta(dateStr, { settings, attendance: attendanceHook?.attendance, examDates, semester }) }
-  }, [baseDate, todayIdx, settings, attendanceHook?.attendance, examDates, semester])
+    return { d, dateStr, meta: getDayMeta(dateStr, { settings, attendance, examDates, semester }) }
+  }, [baseDate, todayIdx, settings, attendance, examDates, semester])
 
   // A week nobody's term covers. The grid happily paints the weekly pattern
   // for any week you navigate to, so without saying so it would show a full
@@ -392,7 +393,7 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                 const isToday    = weekOffset === 0 && DAYS.indexOf(day) === todayIdx
                 const dayEntries = byDay[day] ?? []
                 const { dateStr, meta } = dayMetaFor(day)
-                const dayData    = attendanceHook?.attendance?.[dateStr] ?? {}
+                const dayData    = attendance[dateStr] ?? {}
                 const isHoliday  = meta.isHoliday
                 const dayExams   = exams.filter(e => e.date === dateStr)
                 const isExamDay  = dayExams.length > 0
@@ -461,7 +462,7 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                         e.stopPropagation()
                         if (isHoliday) return
                         if (editMode) onBlockClick(entry)
-                        else if (attendanceHook && onInstanceClick) onInstanceClick(entry, dateStr)
+                        else if (onInstanceClick) onInstanceClick(entry, dateStr)
                       }
 
                       const label = [
@@ -534,9 +535,9 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                           {editMode && (
                             <span aria-hidden="true" style={{ position: 'absolute', bottom: '3px', left: '6px', pointerEvents: 'none', fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-micro)', color: 'var(--cad-accent)' }}>✎</span>
                           )}
-                          {!editMode && attendanceHook && showTodayOnly && !isHoliday && (
+                          {!editMode && showTodayOnly && !isHoliday && (
                             <div style={{ position: 'absolute', top: '4px', right: '4px', zIndex: 10 }}>
-                              <AttendanceToggle dateStr={dateStr} entryId={entry.id} activeStatus={status} onMark={attendanceHook.markAttendance} />
+                              <AttendanceToggle dateStr={dateStr} entryId={entry.id} activeStatus={status} onMark={markAttendance} />
                             </div>
                           )}
                           {(editMode || (!showTodayOnly && status)) && (
@@ -646,9 +647,6 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
           dateStr={activeDayDetail}
           timetable={timetable}
           subjects={subjects}
-          attendanceHook={attendanceHook}
-          examDates={examDates}
-          semester={semester}
           onClose={() => setActiveDayDetail(null)}
         />
       )}
