@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { useSemesters } from './hooks/useSemesters.js'
 import { AttendanceProvider } from './hooks/AttendanceContext.jsx'
+import { useAttendance } from './hooks/useAttendance.js'
 import { PANEL_TABS } from './data/index.js'
 import { classBlockingDates } from './data/grading.js'
 import { Dot } from './components/ui/Dot.jsx'
@@ -33,7 +34,31 @@ export default function App() {
   } = useSemesters()
 
 
+  const attendance = useAttendance()
 
+  // Live timetable-entry ids after excluding a subject / an entry / a whole
+  // semester — the delete paths below prune attendance rows for entries that
+  // just died, instead of waiting for the gated boot sweep.
+  const liveEntryIdsExcluding = useCallback((excluded) => {
+    const dead = excluded instanceof Set ? excluded : new Set(Array.from(excluded, String))
+    return semesters.flatMap(s => s.timetable).map(t => String(t.id)).filter(id => !dead.has(id))
+  }, [semesters])
+
+  const handleRemoveSubject = useCallback(id => {
+    const dead = new Set(
+      semesters.flatMap(s => s.timetable)
+        .filter(t => String(t.subjectId) === String(id))
+        .map(t => String(t.id)))
+    removeSubject(id)
+    attendance.pruneToEntries(liveEntryIdsExcluding(dead))
+  }, [semesters, removeSubject, attendance, liveEntryIdsExcluding])
+
+  const handleRemoveSemester = useCallback(id => {
+    const sem = semesters.find(s => String(s.id) === String(id))
+    const dead = new Set((sem?.timetable ?? []).map(t => String(t.id)))
+    removeSemester(id)
+    attendance.pruneToEntries(liveEntryIdsExcluding(dead))
+  }, [semesters, removeSemester, attendance, liveEntryIdsExcluding])
 
   const [editMode,  setEditMode]  = useState(false)
   const [ttModal,   setTtModal]   = useState(null)
@@ -90,9 +115,10 @@ export default function App() {
   }, [saveTimetableEntry])
 
   const handleDelete = useCallback(id => {
-    deleteTimetableEntry(id)
     setTtModal(null)
-  }, [deleteTimetableEntry])
+    deleteTimetableEntry(id)
+    attendance.pruneToEntries(liveEntryIdsExcluding([id]))
+  }, [deleteTimetableEntry, attendance, liveEntryIdsExcluding])
 
   const totalCr = activeSem?.subjects.reduce((a, s) => a + (parseFloat(s.credits) || 0), 0).toFixed(1) ?? '0.0'
 
@@ -112,7 +138,7 @@ export default function App() {
     [assessments])
 
   return (
-    <AttendanceProvider timetable={activeSem?.timetable ?? []} examDates={examDates} semester={activeSem}>
+    <AttendanceProvider attendance={attendance} timetable={activeSem?.timetable ?? []} examDates={examDates} semester={activeSem}>
     <div
       className="theme-bg flex flex-col h-[100dvh] overflow-hidden"
       style={{ background: 'var(--cad-bg-primary)' }}
@@ -120,8 +146,7 @@ export default function App() {
       <ControlBar
         semesters={semesters}
         activeSemId={activeSemId}
-        onSemChange={handleSemChange}
-        onRemoveSem={removeSemester}
+        onRemoveSem={handleRemoveSemester}
         editMode={editMode}
         onToggleEdit={toggleEdit}
         onAddSem={addSemester}
@@ -183,8 +208,7 @@ export default function App() {
             editMode={editMode}
             onUpdateSem={updateSem}
             onAddSubject={addSubject}
-            onUpdate={updateSubject}
-            onRemove={removeSubject}
+            onRemove={handleRemoveSubject}
           />
         </aside>
 

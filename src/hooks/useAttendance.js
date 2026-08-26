@@ -169,6 +169,15 @@ export function useAttendance() {
     })
   }, [])
 
+  // Immediate prune after a timetable entry dies (subject deleted, slot
+  // deleted, semester deleted). The boot sweep would catch these eventually,
+  // but it is gated behind cadence_pruned_at and until then the dead rows sit
+  // in storage and in every sync payload. pruneOrphans returns the same
+  // object when nothing changed, so the write guard no-ops the common case.
+  const pruneToEntries = useCallback((liveEntryIds) => {
+    setAttendance(prev => pruneOrphans(prev, liveEntryIds))
+  }, [])
+
   // ── Derived stats — thin wrappers over src/data/attendanceMath.js ──
 
   // `semester` scopes the traversal to that term's dates. Omit it and the
@@ -191,12 +200,12 @@ export function useAttendance() {
     [attendance])
 
   return useMemo(() => ({
-    attendance, markAttendance, markDayAttendance, toggleHoliday, setNote, setSubstitute, setExamDayPresent,
+    attendance, markAttendance, markDayAttendance, toggleHoliday, setNote, setSubstitute, setExamDayPresent, pruneToEntries,
     getSubjectStats, getOverallStats, getAllStats,
     // Already stable module-level functions — no wrapper needed.
     getMarginToThreshold: marginToThreshold,
     getRecoveryPath: recoveryPath,
     getStatusTier: statusTier,
-  }), [attendance, markAttendance, markDayAttendance, toggleHoliday, setNote, setSubstitute, setExamDayPresent,
+  }), [attendance, markAttendance, markDayAttendance, toggleHoliday, setNote, setSubstitute, setExamDayPresent, pruneToEntries,
     getSubjectStats, getOverallStats, getAllStats])
 }
