@@ -30,8 +30,14 @@ npm run build      # vite build
 node scripts/check-contrast.mjs   # WCAG gate, 192 pairs, exits 1 on failure
 ```
 
-**CI now runs all of this on every push and PR** (`.github/workflows/ci.yml`),
+**CI runs all of this on every push and PR** (`.github/workflows/ci.yml`),
 including the mobile-header width assertions and the NUL-byte check from item 1.
+One cold-start caveat, verified 2026-08-26: this repo had never run Actions
+when the workflow landed, and GitHub refused to register it from a
+non-default branch — three trigger attempts (the adding push, PR #1, an
+empty follow-up push) all produced zero runs while the file sat verified on
+the remote and Actions was enabled. The first run will come from the merge
+to `main` (or a push after it); from then on, every push and PR runs.
 
 The line above was the whole reason item 1 existed: two of the bugs in §6c
 shipped described as green in their own commit messages, and a third had been
