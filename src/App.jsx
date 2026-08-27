@@ -209,6 +209,7 @@ export default function App() {
             editMode={editMode}
             onUpdateSem={updateSem}
             onAddSubject={addSubject}
+            onUpdate={updateSubject}
             onRemove={handleRemoveSubject}
           />
         </aside>
