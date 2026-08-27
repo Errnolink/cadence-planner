@@ -177,6 +177,33 @@
   }
 }
 
+/* The companion to .tap-44, for controls that sit shoulder to shoulder.
+
+   .tap-44 is unusable in a row: its 44px overlay reaches a neighbour 4px away
+   and the loser stops responding, exactly as the note above warns. So for
+   grouped controls — the view-mode and filter chips, the exam sub-tabs, the
+   week arrows — grow the BOX rather than an invisible overlay. There is no
+   overlap to fight over once the box itself is finger-sized.
+
+   Still gated on `pointer: coarse`, so the desktop HUD keeps the density it
+   was drawn for. Chips live in rows that wrap or scroll, so the extra height
+   costs layout room, never reachability. */
+@media (pointer: coarse) {
+  .cad-chip,
+  .tap-grow {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  /* A <select> renders its own control box; forcing inline-flex on it is
+     ignored in some engines and distorts it in others. min-height is enough. */
+  .cad-chip:not(select),
+  .tap-grow:not(select) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
 /* Ghost row / menu item that tints on hover. */
 .cad-hover-row { transition: background 0.12s; }
 @media (hover: hover) and (pointer: fine) {

@@ -214,7 +214,7 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
             type="button"
             onClick={() => setWeekOffset(w => w - 1)}
             aria-label="Previous week"
-            className="px-1.5 py-0.5 btn-mech panel-chamfer-sm"
+            className="px-1.5 py-0.5 btn-mech panel-chamfer-sm tap-grow"
             style={{
               fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-xs)',
               border: '1px solid var(--cad-border)', color: 'var(--cad-text-lo)',
@@ -256,7 +256,7 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
             type="button"
             onClick={() => setWeekOffset(w => w + 1)}
             aria-label="Next week"
-            className="px-1.5 py-0.5 btn-mech panel-chamfer-sm"
+            className="px-1.5 py-0.5 btn-mech panel-chamfer-sm tap-grow"
             style={{
               fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-xs)',
               border: '1px solid var(--cad-border)', color: 'var(--cad-text-lo)',

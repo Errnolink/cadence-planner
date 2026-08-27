@@ -47,7 +47,7 @@ export function SyncChip({ className, style }) {
               ? 'The last edit could not be saved to local storage.'
               : 'Cloud sync'
         }
-        className={`flex items-center justify-center gap-1.5 panel-chamfer-sm btn-mech ${className || 'px-2.5 py-1.5'}`}
+        className={`flex items-center justify-center gap-1.5 panel-chamfer-sm btn-mech tap-grow ${className || 'px-2.5 py-1.5'}`}
         style={{
           border:       (status === 'error' || storageFailed) ? '1px solid var(--cad-danger)' : '1px solid var(--cad-border)',
           color:        (status === 'error' || storageFailed) ? 'var(--cad-danger)' : 'var(--cad-text-mid)',

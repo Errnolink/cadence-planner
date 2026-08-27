@@ -65,7 +65,7 @@ export function SemDropdown({ semesters, activeSemId, onChange, onRemove, onAdd,
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={`Semester: ${active?.label ?? 'none'}`}
-        className="flex items-center gap-2 px-2.5 py-1.5 panel-chamfer-sm btn-mech"
+        className="flex items-center gap-2 px-2.5 py-1.5 panel-chamfer-sm btn-mech tap-grow"
         style={btnStyle}
       >
         <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-sm)', color: 'var(--cad-accent-text)', letterSpacing: 'var(--cad-track-mid)', flex: 1, textAlign: 'left' }}>

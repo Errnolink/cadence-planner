@@ -74,6 +74,7 @@ export function CalendarView({ timetable, subjects }) {
             value={month}
             onChange={e => setMonth(Number(e.target.value))}
             aria-label="Month"
+            className="tap-grow"
             style={{
               fontFamily:   'var(--cad-font-mono)',
               fontSize:     'var(--cad-fs-sm)',
@@ -94,6 +95,7 @@ export function CalendarView({ timetable, subjects }) {
             value={year}
             onChange={e => setYear(Number(e.target.value))}
             aria-label="Year"
+            className="tap-grow"
             style={{
               fontFamily:   'var(--cad-font-mono)',
               fontSize:     'var(--cad-fs-sm)',
