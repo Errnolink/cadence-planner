@@ -1,4 +1,5 @@
 import { useEffect, useRef, useId } from 'react'
+import { createPortal } from 'react-dom'
 import { Dot } from './Dot.jsx'
 import { useModalDismiss } from '../../hooks/useModalDismiss.js'
 
@@ -79,7 +80,16 @@ export function Modal({ title, subtitle, hex, onClose, variant = 'center', size 
   const backdropAnimClass = closing ? 'anim-modal-backdrop-exit' : 'anim-modal-backdrop-enter'
   const panelAnimClass = closing ? 'anim-modal-panel-exit' : 'anim-modal-panel-enter'
 
-  return (
+  // Portalled to <body>. `.anim-tab-enter` animates with `both`, so the tab
+  // panel keeps a transform after the animation ends — and a transformed
+  // ancestor becomes the containing block for `position: fixed`. Rendered in
+  // place, this backdrop sized itself to the tab panel rather than the
+  // viewport and was then clipped by that panel's `overflow-hidden`: on a
+  // phone the sheet's header (close button included) was cut off above the
+  // visible area and a long class list had nowhere to go. A portal puts the
+  // modal outside every transformed ancestor, which is the only way `fixed`
+  // can be trusted to mean the viewport.
+  return createPortal(
     <div
       className={`fixed inset-0 z-50 flex justify-center ${
         page  ? 'items-stretch p-0 sm:items-center sm:p-4' :
@@ -97,7 +107,7 @@ export function Modal({ title, subtitle, hex, onClose, variant = 'center', size 
         aria-labelledby={ariaLabel ? undefined : titleId}
         onKeyDown={handlePanelKeyDown}
         className={`w-full panel-chamfer overflow-hidden flex flex-col ${
-          page  ? `${MAX_W_PAGE} h-full sm:h-[92vh]` :
+          page  ? `${MAX_W_PAGE} h-full sm:h-[92dvh]` :
           sheet ? (MAX_W_SHEET[size] ?? MAX_W_SHEET.sm) : (MAX_W[size] ?? MAX_W.sm)
         } ${panelAnimClass}`}
         style={{
@@ -108,7 +118,7 @@ export function Modal({ title, subtitle, hex, onClose, variant = 'center', size 
           outline: 'none',
           // `page` sets its height in classes so it can differ per breakpoint;
           // capping it here as well would fight that.
-          maxHeight: sheet ? '85vh' : undefined,
+          maxHeight: sheet ? '85dvh' : undefined,
         }}
       >
         {/* Header */}
@@ -155,11 +165,12 @@ export function Modal({ title, subtitle, hex, onClose, variant = 'center', size 
         {/* Body */}
         <div
           className={fills ? 'overflow-y-auto flex-1 min-h-0' : 'p-4 overflow-y-auto'}
-          style={fills ? undefined : { maxHeight: '82vh' }}
+          style={fills ? undefined : { maxHeight: '82dvh' }}
         >
           {children}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
