@@ -54,8 +54,13 @@ export default function App() {
   }, [semesters, removeSubject, attendance, liveEntryIdsExcluding])
 
   const handleRemoveSemester = useCallback(id => {
+    // removeSemester refuses to delete the last one; pruning regardless would
+    // strip the attendance of a semester that is still there. SemDropdown only
+    // offers delete above one semester, but the prune must not depend on a
+    // button in another file staying that way.
     const sem = semesters.find(s => String(s.id) === String(id))
-    const dead = new Set((sem?.timetable ?? []).map(t => String(t.id)))
+    if (!sem || semesters.length <= 1) return
+    const dead = new Set((sem.timetable ?? []).map(t => String(t.id)))
     removeSemester(id)
     attendance.pruneToEntries(liveEntryIdsExcluding(dead))
   }, [semesters, removeSemester, attendance, liveEntryIdsExcluding])
