@@ -25,8 +25,12 @@ jobs:
       # being papered over by a registry fetch. oxlint exits non-zero above
       # the threshold on its own; hand-counting its output matched the
       # "Found N warnings and 0 errors." summary line and could never pass.
-      - name: Lint (at most 3 warnings, 0 errors)
-        run: npx --no-install oxlint --max-warnings 3
+      # Zero, not three. The three that used to be tolerated were all
+      # `react/only-export-components` on files that mixed a provider component
+      # with its hook; splitting them removed the last of them, so the
+      # allowance has nothing left to allow and a new warning should fail.
+      - name: Lint (zero warnings, zero errors)
+        run: npx --no-install oxlint --max-warnings 0
 
       - run: npm test
 

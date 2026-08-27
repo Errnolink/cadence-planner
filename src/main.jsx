@@ -4,9 +4,9 @@ import { Analytics } from '@vercel/analytics/react'
 import { SpeedInsights } from '@vercel/speed-insights/react'
 import App from './App.jsx'
 import { ErrorBoundary } from './components/ErrorBoundary.jsx'
-import { AuthProvider } from './hooks/useAuth.jsx'
-import { ThemeProvider } from './themes/ThemeContext.jsx'
-import { SettingsProvider } from './hooks/useSettings.jsx'
+import { AuthProvider } from './providers/AuthProvider.jsx'
+import { SettingsProvider } from './providers/SettingsProvider.jsx'
+import { ThemeProvider } from './providers/ThemeProvider.jsx'
 import './index.css'
 
 // PWA offline shell — production only (dev serves un-hashed modules)
