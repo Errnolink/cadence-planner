@@ -15,14 +15,18 @@ jobs:
           node-version: 22
           cache: npm
 
+      # Without this every later step runs against an empty node_modules, and
+      # `npx oxlint` silently downloads whatever the registry calls latest
+      # instead of the version package.json pins — which is how CI came to
+      # report 8 warnings against a local 3.
+      - run: npm ci
+
+      # --no-install so a missing dependency fails loudly here rather than
+      # being papered over by a registry fetch. oxlint exits non-zero above
+      # the threshold on its own; hand-counting its output matched the
+      # "Found N warnings and 0 errors." summary line and could never pass.
       - name: Lint (at most 3 warnings, 0 errors)
-        run: |
-          out=$(npx oxlint 2>&1); code=$?
-          echo "$out"
-          warns=$(echo "$out" | grep -c 'warning' || true)
-          errs=$(echo "$out" | grep -c ' error' || true)
-          echo "warnings=$warns errors=$errs"
-          [ "$warns" -le 3 ] && [ "$errs" -eq 0 ] && [ "$code" -eq 0 ]
+        run: npx --no-install oxlint --max-warnings 3
 
       - run: npm test
 
