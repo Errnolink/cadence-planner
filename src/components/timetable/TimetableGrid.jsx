@@ -18,8 +18,8 @@ const TIME_COL_W = 44  // px
 // characters under an opaque badge. It shows up in ALL WEEK, where a column is
 // only DAY_MIN_W wide and the badge covers the last ~14px of every label.
 // The text lines reserve the gutter instead. e2e/week-label.spec.js asserts no
-// overlay overlaps any painted text, which is what keeps these numbers honest
-// if an overlay changes size.
+// overlay overlaps any text line, which is what keeps these numbers honest if
+// an overlay changes size.
 const BADGE_GUTTER  = 20  // px — status badge (P/A/C) plus its 3px inset
 const NOTE_GUTTER   = 18  // px — note marker plus its 3px inset
 const TOGGLE_GUTTER = 80  // px — the compact PRESENT/ABSENT/CANCELLED column, measured at 73px + its 4px inset
@@ -177,9 +177,16 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Top Bar: Edit Hint + View Filters */}
-      <div className="flex items-center justify-between shrink-0 mb-1 gap-2">
+      {/* Wraps rather than overflowing. The control group needs ~460px; below
+          that it used to run off the right edge of a container with
+          `overflow-hidden` and no scrollable ancestor, which put ALL WEEK /
+          SINGLE DAY / FULL DAY out of reach of a finger on every phone —
+          SINGLE DAY, the view meant for exactly that screen, included.
+          (Scripted clicks still reached them, so the e2e suite never noticed.)
+          The edit hint gives up its row first: it is advisory, the chips are not. */}
+      <div className="flex items-center justify-between shrink-0 mb-1 gap-2 flex-wrap">
         <div
-          className={editMode ? 'blink' : undefined}
+          className={`hidden sm:block ${editMode ? 'blink' : ''}`}
           style={{
             fontFamily: 'var(--cad-font-mono)',
             fontSize: 'var(--cad-fs-micro)',
@@ -192,7 +199,7 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
             : <><span aria-hidden="true">▸ </span>CLICK BLOCK TO MARK ATTENDANCE</>}
         </div>
 
-        <div className="flex gap-1 shrink-0 items-center">
+        <div className="flex gap-1 items-center flex-wrap justify-end ml-auto">
           {/* TODAY button — active on the current week, outline elsewhere */}
           <button
             type="button"
