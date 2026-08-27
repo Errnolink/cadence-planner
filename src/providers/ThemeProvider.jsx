@@ -1,0 +1,195 @@
+import { useState, useEffect, useRef } from 'react'
+import { THEMES } from '../themes/index.js'
+import { API, KEYS } from '../data/api.js'
+import { ALLOWED_EFFECTS } from '../themes/effects.js'
+import { useSettings } from '../hooks/useSettings.jsx'
+
+import { ThemeContext } from '../themes/ThemeContext.jsx'
+
+const DEFAULT_ID  = 'nerv'
+
+// ── CSS Injection Protection ─────────────────────────────────────────
+const SAFE_ID_RE        = /^[a-zA-Z][a-zA-Z0-9_-]{0,63}$/
+const SAFE_KEY_RE       = /^-{0,2}[a-zA-Z][a-zA-Z0-9-]*$/
+const DANGEROUS_VALUE_RE = /url\s*\(|@import|expression\s*\(|javascript:|behavior\s*:|binding\s*:|<|>/i
+const MAX_TOKENS        = 50
+const MAX_VALUE_LEN     = 200
+const MAX_CUSTOM_THEMES = 5
+
+/** Sanitize a custom theme object before injecting its tokens into CSS */
+function sanitizeThemeForCSS(ct) {
+  if (!ct.id || !SAFE_ID_RE.test(ct.id)) return null
+  const safeTokens = {}
+  let count = 0
+  for (const [k, v] of Object.entries(ct.tokens || {})) {
+    if (count >= MAX_TOKENS) break
+    // Normalize: strip any existing '--' prefix — we always add it at injection time
+    const normalizedKey = k.replace(/^--/, '')
+    if (!SAFE_KEY_RE.test(normalizedKey)) continue
+    if (typeof v !== 'string' || v.length > MAX_VALUE_LEN) continue
+    if (DANGEROUS_VALUE_RE.test(v)) continue
+    safeTokens[normalizedKey] = v
+    count++
+  }
+  return { id: ct.id, tokens: safeTokens }
+}
+
+/** Validate a theme object before accepting it as a custom theme */
+function validateThemeImport(themeObj) {
+  if (!themeObj || typeof themeObj !== 'object') throw new Error('INVALID THEME OBJECT')
+  if (!themeObj.id || !SAFE_ID_RE.test(themeObj.id)) throw new Error('INVALID THEME ID — USE ALPHANUMERIC/HYPHENS ONLY')
+  if (typeof themeObj.label !== 'string' || themeObj.label.length === 0 || themeObj.label.length > 50) throw new Error('INVALID THEME LABEL')
+  if (!themeObj.tokens || typeof themeObj.tokens !== 'object' || Array.isArray(themeObj.tokens)) throw new Error('INVALID TOKENS OBJECT')
+
+  const entries = Object.entries(themeObj.tokens)
+  if (entries.length === 0 || entries.length > MAX_TOKENS) throw new Error(`TOKENS COUNT MUST BE 1-${MAX_TOKENS}`)
+
+  for (const [k, v] of entries) {
+    // Strip '--' prefix before validating — both 'cad-foo' and '--cad-foo' are accepted
+    const normalizedKey = k.replace(/^--/, '')
+    if (!SAFE_KEY_RE.test(normalizedKey)) throw new Error(`INVALID TOKEN KEY: ${k}`)
+    if (typeof v !== 'string' || v.length > MAX_VALUE_LEN) throw new Error(`INVALID VALUE FOR ${k}`)
+    if (DANGEROUS_VALUE_RE.test(v)) throw new Error(`UNSAFE CSS VALUE FOR ${k}`)
+  }
+
+  const BUILTIN_IDS = THEMES.map(t => t.id)
+  if (BUILTIN_IDS.includes(themeObj.id)) throw new Error(`CANNOT REUSE BUILT-IN THEME ID: ${themeObj.id}`)
+
+  if (themeObj.effects !== undefined) {
+    if (!Array.isArray(themeObj.effects)) throw new Error('EFFECTS MUST BE AN ARRAY')
+    for (const fx of themeObj.effects) {
+      if (!ALLOWED_EFFECTS.includes(fx)) throw new Error(`UNKNOWN EFFECT: ${fx}`)
+    }
+  }
+}
+
+export function ThemeProvider({ children }) {
+  const { settings } = useSettings()
+
+  const [themeId, setThemeId] = useState(() => {
+    return API.get(KEYS.THEME, DEFAULT_ID)
+  })
+
+  const [customThemes, setCustomThemes] = useState(() => {
+    return API.getCustomThemes([])
+  })
+
+  const isFirstRenderTheme = useRef(true)
+
+  useEffect(() => {
+    const handleSync = () => {
+      setThemeId(API.get(KEYS.THEME, DEFAULT_ID))
+      setCustomThemes(API.getCustomThemes([]))
+    }
+    window.addEventListener('cadence-data-updated', handleSync)
+    return () => window.removeEventListener('cadence-data-updated', handleSync)
+  }, [])
+
+  useEffect(() => {
+    // Only persist when the value actually changed from what's stored —
+    // sync-driven updates (cadence-data-updated) already wrote storage,
+    // so they must not re-arm the debounced push / bump updated_at.
+    if (JSON.stringify(customThemes) === JSON.stringify(API.getCustomThemes([]))) return
+    API.saveCustomThemes(customThemes)
+  }, [customThemes])
+
+  // Keep mobile browser chrome color in sync with the active theme
+  useEffect(() => {
+    const meta = document.querySelector('meta[name="theme-color"]')
+    const light = themeId === 'minimal' && settings.themeMode === 'light'
+    meta?.setAttribute('content', light ? '#f8fafc' : '#0a0a0a')
+  }, [themeId, settings.themeMode])
+
+  const allThemes = [...THEMES, ...customThemes.map(ct => ({ id: ct.id, label: ct.label }))]
+  const currentTheme = allThemes.find(t => t.id === themeId) ?? THEMES[0]
+
+  // Apply theme attribute to <html> so CSS vars take effect immediately
+  useEffect(() => {
+    const html = document.documentElement
+    // Suppress transition ripple during theme switch
+    html.setAttribute('data-theme-switching', '')
+    html.setAttribute('data-theme', themeId)
+    
+    if (isFirstRenderTheme.current) {
+      isFirstRenderTheme.current = false
+    } else if (themeId !== API.get(KEYS.THEME, DEFAULT_ID)) {
+      API.set(KEYS.THEME, themeId)
+    }
+    
+    // Re-enable transitions after the browser has painted the new theme
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        html.removeAttribute('data-theme-switching')
+      })
+    })
+  }, [themeId])
+
+  // Apply theme effects as data-fx-* attributes on <html>
+  useEffect(() => {
+    const html = document.documentElement
+    // Clear all existing fx attributes
+    ALLOWED_EFFECTS.forEach(fx => html.removeAttribute(`data-fx-${fx}`))
+    // Find the active theme's effects array
+    const builtIn = THEMES.find(t => t.id === themeId)
+    const custom = customThemes.find(t => t.id === themeId)
+    const effects = builtIn?.effects ?? custom?.effects ?? []
+    // Apply only allowed effects
+    effects.forEach(fx => {
+      if (ALLOWED_EFFECTS.includes(fx)) {
+        html.setAttribute(`data-fx-${fx}`, '')
+      }
+    })
+  }, [themeId, customThemes])
+
+  // Inject custom styles
+  useEffect(() => {
+    const styleId = 'cadence-custom-themes'
+    let styleEl = document.getElementById(styleId)
+    if (!styleEl) {
+      styleEl = document.createElement('style')
+      styleEl.id = styleId
+      document.head.appendChild(styleEl)
+    }
+    
+    let css = ''
+    customThemes.forEach(ct => {
+      const safe = sanitizeThemeForCSS(ct)
+      if (!safe) return // Skip themes that fail sanitization
+      css += `:root[data-theme="${safe.id}"] {\n`
+      Object.entries(safe.tokens).forEach(([k, v]) => {
+        css += `  --${k}: ${v};\n`  // always inject with '--' prefix for CSS custom properties
+      })
+      css += `}\n`
+    })
+    
+    styleEl.textContent = css
+  }, [customThemes])
+
+  const cycleTheme = () => {
+    const idx  = allThemes.findIndex(t => t.id === themeId)
+    const next = allThemes[(idx + 1) % allThemes.length]
+    setThemeId(next.id)
+  }
+
+  const addCustomTheme = (themeObj) => {
+    validateThemeImport(themeObj) // throws on invalid input
+    const isReplacing = customThemes.some(t => t.id === themeObj.id)
+    if (!isReplacing && customThemes.length >= MAX_CUSTOM_THEMES) {
+      throw new Error(`MAX ${MAX_CUSTOM_THEMES} CUSTOM THEMES REACHED. DELETE ONE FIRST.`)
+    }
+    setCustomThemes(prev => [...prev.filter(t => t.id !== themeObj.id), themeObj])
+    setThemeId(themeObj.id)
+  }
+
+  const removeCustomTheme = (id) => {
+    setCustomThemes(prev => prev.filter(t => t.id !== id))
+    // If the deleted theme was active, fall back to the first built-in theme
+    if (themeId === id) setThemeId(THEMES[0].id)
+  }
+
+  return (
+    <ThemeContext.Provider value={{ themeId, setTheme: setThemeId, cycleTheme, themes: allThemes, customThemes, currentTheme, addCustomTheme, removeCustomTheme }}>
+      {children}
+    </ThemeContext.Provider>
+  )
+}
