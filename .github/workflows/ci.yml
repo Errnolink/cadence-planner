@@ -31,7 +31,18 @@ jobs:
       - run: npm test
 
       - run: npx playwright install --with-deps chromium
+
+      # .env.local is gitignored, so the runner has no Supabase vars and
+      # getSupabase() throws "supabaseUrl is required" the moment anything
+      # touches sync — which took out all eight sync specs the first time CI
+      # ever got this far. These are deliberately fake: every sync spec stubs
+      # the network and never reaches Supabase, so all createClient needs is a
+      # well-formed URL. Real credentials would buy CI nothing and cost it a
+      # production secret.
       - run: npm run test:e2e
+        env:
+          VITE_SUPABASE_URL: https://stub.supabase.co
+          VITE_SUPABASE_ANON_KEY: stub-anon-key
 
       - run: node scripts/check-contrast.mjs
 
