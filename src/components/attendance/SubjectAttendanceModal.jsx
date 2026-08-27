@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Modal } from '../ui/Modal.jsx'
-import { useAttendance, useAttendanceStats } from '../../hooks/useAttendanceContext.jsx'
+import { useAttendanceStats } from '../../hooks/useAttendanceContext.jsx'
 
 /**
  * The history list used to be a naive scan of the attendance map, which
@@ -11,15 +11,13 @@ import { useAttendance, useAttendanceStats } from '../../hooks/useAttendanceCont
  * modal can no longer contradict each other.
  */
 export function SubjectAttendanceModal({ subject, onClose }) {
-  const { semester } = useAttendance()
   const stats = useAttendanceStats()
 
-  // `semester` matters for the same reason as everything else in this comment:
-  // scope the history to the term but not the percentage (or the reverse) and
-  // the two halves of the modal contradict each other again.
+  // The term scoping that keeps the history and the percentage telling the
+  // same story now comes from the provider — see useAttendanceStats.
   const subjectStats = useMemo(
-    () => stats.subject(subject.id, { withHistory: true, semester }),
-    [stats, subject.id, semester])
+    () => stats.subject(subject.id, { withHistory: true }),
+    [stats, subject.id])
 
 
   const history = subjectStats.history || []

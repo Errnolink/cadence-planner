@@ -2,10 +2,10 @@ import { useState } from 'react'
 import { subjectVars, generateSubjectCode } from '../../data/index.js'
 import { Modal } from '../ui/Modal.jsx'
 import { AttendanceToggle } from '../ui/AttendanceToggle.jsx'
-import { useAttendance } from '../../hooks/useAttendanceContext.jsx'
+import { useAttendanceContext } from '../../hooks/useAttendanceContext.jsx'
 
 export function ClassInstanceModal({ entry, dateStr, subjects, onClose }) {
-  const { attendance, markAttendance, setNote, setSubstitute } = useAttendance()
+  const { attendance, markAttendance, setNote, setSubstitute } = useAttendanceContext()
   const subj = subjects.find(s => String(s.id) === String(entry.subjectId))
   const accent = subjectVars(subj?.colorIdx ?? 0)
   const code = subj ? (subj.code || generateSubjectCode(subj.name)) : '???'

@@ -4,7 +4,7 @@ import { getDayMeta, dateFromStr } from '../../data/calendar.js'
 import { AttendanceToggle } from '../ui/AttendanceToggle.jsx'
 import { Modal } from '../ui/Modal.jsx'
 import { useSettings } from '../../hooks/useSettings.jsx'
-import { useAttendance } from '../../hooks/useAttendanceContext.jsx'
+import { useAttendanceContext } from '../../hooks/useAttendanceContext.jsx'
 
 /**
  * DayDetailModal — opens when a calendar date or a grid day header is clicked.
@@ -17,7 +17,7 @@ import { useAttendance } from '../../hooks/useAttendanceContext.jsx'
  */
 export function DayDetailModal({ dateStr, timetable, subjects, onClose }) {
   const { settings } = useSettings()
-  const { attendance, examDates, semester, markAttendance, markDayAttendance, setExamDayPresent, toggleHoliday } = useAttendance()
+  const { attendance, examDates, semester, markAttendance, markDayAttendance, setExamDayPresent, toggleHoliday } = useAttendanceContext()
 
   const meta = useMemo(
     () => getDayMeta(dateStr, { settings, attendance, examDates, semester }),

@@ -1,11 +1,11 @@
 import { useState, useEffect, useMemo } from 'react'
 import { subjectVars } from '../../data/index.js'
 import { ATTENDANCE_THRESHOLD } from '../../data/constants.js'
-import { useAttendance, useAttendanceStats } from '../../hooks/useAttendanceContext.jsx'
+import { useAttendanceContext, useAttendanceStats } from '../../hooks/useAttendanceContext.jsx'
 import { SubjectAttendanceModal } from './SubjectAttendanceModal.jsx'
 
 export function AttendanceView({ subjects }) {
-  const { getMarginToThreshold, getRecoveryPath, getStatusTier } = useAttendance()
+  const { getMarginToThreshold, getRecoveryPath, getStatusTier } = useAttendanceContext()
   const stats = useAttendanceStats()
   const [selectedSubjectData, setSelectedSubjectData] = useState(null)
   const [filter, setFilter] = useState('ALL')

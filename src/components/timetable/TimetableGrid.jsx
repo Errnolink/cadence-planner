@@ -4,7 +4,7 @@ import { dateStrFromParts, getDayMeta } from '../../data/calendar.js'
 import { DayDetailModal } from '../calendar/DayDetailModal.jsx'
 import { useSettings } from '../../hooks/useSettings.jsx'
 import { useNow } from '../../hooks/useNow.js'
-import { useAttendance } from '../../hooks/useAttendanceContext.jsx'
+import { useAttendanceContext } from '../../hooks/useAttendanceContext.jsx'
 import { AttendanceToggle } from '../ui/AttendanceToggle.jsx'
 
 
@@ -24,7 +24,7 @@ function visibleWindow(timetable, exams) {
 
 export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBlockClick, onInstanceClick, exams = [] }) {
   const { settings } = useSettings()
-  const { attendance, examDates, semester, markAttendance } = useAttendance()
+  const { attendance, examDates, semester, markAttendance } = useAttendanceContext()
   // today column stop freezing at mount — leaving the tab open past midnight
   // used to leave all three a day stale.
   const now = useNow()

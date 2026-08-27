@@ -3,13 +3,13 @@ import { MONTH_NAMES, DAYS, generateSubjectCode, subjectVars } from '../../data/
 import { dateStrFromParts, getDayMeta } from '../../data/calendar.js'
 import { DayDetailModal } from './DayDetailModal.jsx'
 import { useSettings } from '../../hooks/useSettings.jsx'
-import { useAttendance } from '../../hooks/useAttendanceContext.jsx'
+import { useAttendanceContext } from '../../hooks/useAttendanceContext.jsx'
 
 
 const DAYS_SET = new Set(DAYS)
 
 export function CalendarView({ timetable, subjects }) {
-  const { attendance, examDates, semester } = useAttendance()
+  const { attendance, examDates, semester } = useAttendanceContext()
   const { settings } = useSettings()
   const today      = new Date()
   const [year, setYear]   = useState(today.getFullYear())
