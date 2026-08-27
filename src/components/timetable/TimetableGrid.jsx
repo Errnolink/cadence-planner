@@ -12,6 +12,18 @@ const DAY_MIN_W = 80   // px — min width per day column on mobile
 const HOUR_PX   = 60   // px — vertical scale, so the scroller is only as tall as the window shown
 const TIME_COL_W = 44  // px
 
+// A block's status badge, note marker and quick-mark toggle are absolutely
+// positioned on top of its text. `text-overflow: ellipsis` cannot see them:
+// the label measures as fitting, renders no ellipsis, and then loses its last
+// characters under an opaque badge. It shows up in ALL WEEK, where a column is
+// only DAY_MIN_W wide and the badge covers the last ~14px of every label.
+// The text lines reserve the gutter instead. e2e/week-label.spec.js asserts no
+// overlay overlaps any painted text, which is what keeps these numbers honest
+// if an overlay changes size.
+const BADGE_GUTTER  = 20  // px — status badge (P/A/C) plus its 3px inset
+const NOTE_GUTTER   = 18  // px — note marker plus its 3px inset
+const TOGGLE_GUTTER = 80  // px — the compact PRESENT/ABSENT/CANCELLED column, measured at 73px + its 4px inset
+
 /** Visible hour window derived from the data, clamped to the hard grid bounds. */
 function visibleWindow(timetable, exams) {
   const times = [...timetable, ...exams].flatMap(x => [parseTimeToMins(x.startTime), parseTimeToMins(x.endTime)])
@@ -458,6 +470,14 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                       const hasNote = !!dayData[`${entry.id}_note`]
                       const code    = displaySubj.code || generateSubjectCode(displaySubj.name)
 
+                      // Must mirror the render conditions of the two top-right
+                      // overlays below; they are mutually exclusive (the toggle
+                      // needs showTodayOnly && !editMode, which excludes both
+                      // arms of the badge).
+                      const hasToggle = !editMode && showTodayOnly && !isHoliday
+                      const hasBadge  = editMode || (!showTodayOnly && status)
+                      const topRightGutter = hasToggle ? TOGGLE_GUTTER : hasBadge ? BADGE_GUTTER : 0
+
                       const handleBlockAction = (e) => {
                         e.stopPropagation()
                         if (isHoliday) return
@@ -518,14 +538,15 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                                 overflow:   'hidden',
                                 textOverflow: 'ellipsis',
                                 whiteSpace: 'nowrap',
+                                paddingRight: `${topRightGutter}px`,
                               }}
                             >{isSubstitute && <span aria-hidden="true">⇄ </span>}{code}</span>
                             {!isShort && (
                               <>
-                                <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-micro)', color: 'var(--subj-text)', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-micro)', color: 'var(--subj-text)', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: `${topRightGutter}px` }}>
                                   {entry.room}
                                 </span>
-                                <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-micro)', color: 'var(--subj-text)', marginTop: 'auto', paddingTop: '4px' }}>
+                                <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-micro)', color: 'var(--subj-text)', marginTop: 'auto', paddingTop: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: `${Math.max(hasNote ? NOTE_GUTTER : 0, hasToggle ? TOGGLE_GUTTER : 0)}px` }}>
                                   {entry.startTime}–{entry.endTime}
                                 </span>
                               </>
