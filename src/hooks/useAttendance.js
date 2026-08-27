@@ -18,18 +18,22 @@ const EMPTY_EXAM_DATES = new Set()
 const PRUNE_STAMP_KEY = 'cadence_pruned_at'
 const PRUNE_SCHEMA = '2'
 
-// Memoized per page load so React StrictMode's double-invoked initialiser
-// cannot half-apply the sweep.
-let _bootPruneResult = null
-
 /**
  * Sweep orphaned attendance keys once per schema version.
  * Deliberately conservative: if the semester list can't be read or has no
  * entries at all, nothing is pruned — losing real history to a bad read would
  * be far worse than leaving dead keys in place.
+ *
+ * There is deliberately NO module-level memo here. One used to cache the first
+ * call's result to make StrictMode's double-invoked initialiser idempotent, but
+ * it also made every LATER call ignore its argument — so remounting this hook
+ * (ErrorBoundary's ATTEMPT RECOVERY does exactly that) re-seeded state from the
+ * page-load snapshot and then persisted it over everything marked since,
+ * pushing the emptied map to the cloud behind it. The `cadence_pruned_at` stamp
+ * below already provides the idempotence the memo was there for: a second call
+ * sees the stamp, skips the sweep, and returns its argument untouched.
  */
 function bootPrune(attendance) {
-  if (_bootPruneResult) return _bootPruneResult.value
   let value = attendance
   try {
     if (localStorage.getItem(PRUNE_STAMP_KEY) !== PRUNE_SCHEMA) {
@@ -50,7 +54,6 @@ function bootPrune(attendance) {
   } catch (e) {
     console.error('Attendance prune sweep failed', e)
   }
-  _bootPruneResult = { value }
   return value
 }
 
@@ -72,7 +75,12 @@ function writeDay(prev, dateStr, day) {
 export function useAttendance() {
   const [attendance, setAttendance] = useState(() => bootPrune(API.getAttendance({})))
 
-  const lastSavedAttendanceRef = useRef('')
+  // Seeded from storage rather than '', so a boot that changes nothing writes
+  // nothing at all.
+  const lastSavedAttendanceRef = useRef(null)
+  if (lastSavedAttendanceRef.current === null) {
+    lastSavedAttendanceRef.current = JSON.stringify(API.getAttendance(null))
+  }
 
   useEffect(() => {
     const handleSync = () => {
@@ -84,17 +92,19 @@ export function useAttendance() {
     return () => window.removeEventListener('cadence-data-updated', handleSync)
   }, [])
 
-  const isFirstRender = useRef(true)
+  // First run persists the state we booted with (post-prune), which is not a
+  // user edit — see the note on API.saveSemesters.
+  const isBootWrite = useRef(true)
 
   useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false
-      return
-    }
     const serialized = JSON.stringify(attendance)
     if (serialized === lastSavedAttendanceRef.current) return
-    lastSavedAttendanceRef.current = serialized
-    API.saveAttendance(attendance)
+    // Advance the ref (and consume the boot flag) only when the write landed —
+    // same contract as useSemesters' save effect.
+    if (API.saveAttendance(attendance, isBootWrite.current)) {
+      isBootWrite.current = false
+      lastSavedAttendanceRef.current = serialized
+    }
   }, [attendance])
 
   // ── Mutations ──────────────────────────────────────────────────
@@ -159,7 +169,19 @@ export function useAttendance() {
     })
   }, [])
 
+  // Immediate prune after a timetable entry dies (subject deleted, slot
+  // deleted, semester deleted). The boot sweep would catch these eventually,
+  // but it is gated behind cadence_pruned_at and until then the dead rows sit
+  // in storage and in every sync payload. pruneOrphans returns the same
+  // object when nothing changed, so the write guard no-ops the common case.
+  const pruneToEntries = useCallback((liveEntryIds) => {
+    setAttendance(prev => pruneOrphans(prev, liveEntryIds))
+  }, [])
+
   // ── Derived stats — thin wrappers over src/data/attendanceMath.js ──
+
+  // `semester` scopes the traversal to that term's dates. Omit it and the
+  // whole map counts, which is what an unbounded semester wants anyway.
 
   const getSubjectStats = useCallback(
     (subjectId, timetable, examDates = EMPTY_EXAM_DATES, options) =>
@@ -167,23 +189,23 @@ export function useAttendance() {
     [attendance])
 
   const getOverallStats = useCallback(
-    (subjects, timetable, examDates = EMPTY_EXAM_DATES) =>
-      computeOverallStats(attendance, subjects, timetable, examDates),
+    (subjects, timetable, examDates = EMPTY_EXAM_DATES, semester) =>
+      computeOverallStats(attendance, subjects, timetable, examDates, semester),
     [attendance])
 
   /** One traversal for every subject at once — prefer this in list views. */
   const getAllStats = useCallback(
-    (subjects, timetable, examDates = EMPTY_EXAM_DATES) =>
-      computeAllStats(attendance, subjects, timetable, examDates),
+    (subjects, timetable, examDates = EMPTY_EXAM_DATES, semester) =>
+      computeAllStats(attendance, subjects, timetable, examDates, semester),
     [attendance])
 
   return useMemo(() => ({
-    attendance, markAttendance, markDayAttendance, toggleHoliday, setNote, setSubstitute, setExamDayPresent,
+    attendance, markAttendance, markDayAttendance, toggleHoliday, setNote, setSubstitute, setExamDayPresent, pruneToEntries,
     getSubjectStats, getOverallStats, getAllStats,
     // Already stable module-level functions — no wrapper needed.
     getMarginToThreshold: marginToThreshold,
     getRecoveryPath: recoveryPath,
     getStatusTier: statusTier,
-  }), [attendance, markAttendance, markDayAttendance, toggleHoliday, setNote, setSubstitute, setExamDayPresent,
+  }), [attendance, markAttendance, markDayAttendance, toggleHoliday, setNote, setSubstitute, setExamDayPresent, pruneToEntries,
     getSubjectStats, getOverallStats, getAllStats])
 }

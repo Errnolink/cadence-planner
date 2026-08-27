@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { useSemesters } from './hooks/useSemesters.js'
+import { AttendanceProvider } from './hooks/AttendanceContext.jsx'
 import { useAttendance } from './hooks/useAttendance.js'
 import { PANEL_TABS } from './data/index.js'
 import { classBlockingDates } from './data/grading.js'
@@ -11,7 +12,7 @@ import { SubjectRoster } from './components/roster/SubjectRoster.jsx'
 import { TimetableGrid } from './components/timetable/TimetableGrid.jsx'
 import { TimetableModal } from './components/timetable/TimetableModal.jsx'
 import { ClassInstanceModal } from './components/timetable/ClassInstanceModal.jsx'
-import { SettingsModal } from './components/layout/SettingsModal.jsx'
+import { SettingsPage } from './components/layout/SettingsPage.jsx'
 import { CalendarView }  from './components/calendar/CalendarView.jsx'
 import { AttendanceView } from './components/attendance/AttendanceView.jsx'
 import { ExamsView } from './components/exams/ExamsView.jsx'
@@ -33,7 +34,36 @@ export default function App() {
   } = useSemesters()
 
 
-  const attendanceHook = useAttendance()
+  const attendance = useAttendance()
+
+  // Live timetable-entry ids after excluding a subject / an entry / a whole
+  // semester — the delete paths below prune attendance rows for entries that
+  // just died, instead of waiting for the gated boot sweep.
+  const liveEntryIdsExcluding = useCallback((excluded) => {
+    const dead = excluded instanceof Set ? excluded : new Set(Array.from(excluded, String))
+    return semesters.flatMap(s => s.timetable).map(t => String(t.id)).filter(id => !dead.has(id))
+  }, [semesters])
+
+  const handleRemoveSubject = useCallback(id => {
+    const dead = new Set(
+      semesters.flatMap(s => s.timetable)
+        .filter(t => String(t.subjectId) === String(id))
+        .map(t => String(t.id)))
+    removeSubject(id)
+    attendance.pruneToEntries(liveEntryIdsExcluding(dead))
+  }, [semesters, removeSubject, attendance, liveEntryIdsExcluding])
+
+  const handleRemoveSemester = useCallback(id => {
+    // removeSemester refuses to delete the last one; pruning regardless would
+    // strip the attendance of a semester that is still there. SemDropdown only
+    // offers delete above one semester, but the prune must not depend on a
+    // button in another file staying that way.
+    const sem = semesters.find(s => String(s.id) === String(id))
+    if (!sem || semesters.length <= 1) return
+    const dead = new Set((sem.timetable ?? []).map(t => String(t.id)))
+    removeSemester(id)
+    attendance.pruneToEntries(liveEntryIdsExcluding(dead))
+  }, [semesters, removeSemester, attendance, liveEntryIdsExcluding])
 
   const [editMode,  setEditMode]  = useState(false)
   const [ttModal,   setTtModal]   = useState(null)
@@ -90,9 +120,10 @@ export default function App() {
   }, [saveTimetableEntry])
 
   const handleDelete = useCallback(id => {
-    deleteTimetableEntry(id)
     setTtModal(null)
-  }, [deleteTimetableEntry])
+    deleteTimetableEntry(id)
+    attendance.pruneToEntries(liveEntryIdsExcluding([id]))
+  }, [deleteTimetableEntry, attendance, liveEntryIdsExcluding])
 
   const totalCr = activeSem?.subjects.reduce((a, s) => a + (parseFloat(s.credits) || 0), 0).toFixed(1) ?? '0.0'
 
@@ -112,6 +143,7 @@ export default function App() {
     [assessments])
 
   return (
+    <AttendanceProvider attendance={attendance} timetable={activeSem?.timetable ?? []} examDates={examDates} semester={activeSem}>
     <div
       className="theme-bg flex flex-col h-[100dvh] overflow-hidden"
       style={{ background: 'var(--cad-bg-primary)' }}
@@ -120,7 +152,7 @@ export default function App() {
         semesters={semesters}
         activeSemId={activeSemId}
         onSemChange={handleSemChange}
-        onRemoveSem={removeSemester}
+        onRemoveSem={handleRemoveSemester}
         editMode={editMode}
         onToggleEdit={toggleEdit}
         onAddSem={addSemester}
@@ -183,7 +215,7 @@ export default function App() {
             onUpdateSem={updateSem}
             onAddSubject={addSubject}
             onUpdate={updateSubject}
-            onRemove={removeSubject}
+            onRemove={handleRemoveSubject}
           />
         </aside>
 
@@ -227,9 +259,9 @@ export default function App() {
             className="anim-tab-enter flex flex-col flex-1 overflow-hidden min-h-0"
           >
             {activeTab === 'calendar' ? (
-              <CalendarView timetable={activeSem?.timetable ?? []} subjects={activeSem?.subjects ?? []} attendanceHook={attendanceHook} examDates={examDates} />
+              <CalendarView timetable={activeSem?.timetable ?? []} subjects={activeSem?.subjects ?? []} />
             ) : activeTab === 'attendance' ? (
-              <AttendanceView timetable={activeSem?.timetable ?? []} subjects={activeSem?.subjects ?? []} attendanceHook={attendanceHook} examDates={examDates} />
+              <AttendanceView subjects={activeSem?.subjects ?? []} />
             ) : activeTab === 'exams' ? (
               <ExamsView
                 subjects={activeSem?.subjects ?? []}
@@ -251,8 +283,6 @@ export default function App() {
                 timetable={activeSem?.timetable ?? []}
                 exams={scheduledExams}
                 editMode={editMode}
-                attendanceHook={attendanceHook}
-                examDates={examDates}
                 onCellClick={(day, startTime, endTime) => setTtModal({ mode: 'add', initialData: { day, startTime, endTime } })}
                 onBlockClick={(entry) => setTtModal({ mode: 'edit', initialData: entry })}
                 onInstanceClick={(entry, dateStr) => setInstanceModal({ entry, dateStr })}
@@ -284,14 +314,15 @@ export default function App() {
           entry={instanceModal.entry}
           dateStr={instanceModal.dateStr}
           subjects={activeSem?.subjects ?? []}
-          attendanceHook={attendanceHook}
           onClose={() => setInstanceModal(null)}
         />
       )}
 
       {showSettings && (
-        <SettingsModal 
-          onClose={() => setShowSettings(false)} 
+        <SettingsPage
+          semester={activeSem}
+          onSetScheme={setGradingScheme}
+          onClose={() => setShowSettings(false)}
         />
       )}
 
@@ -303,5 +334,6 @@ export default function App() {
         />
       )}
     </div>
+    </AttendanceProvider>
   )
 }

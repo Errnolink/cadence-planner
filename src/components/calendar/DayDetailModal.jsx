@@ -4,6 +4,7 @@ import { getDayMeta, dateFromStr } from '../../data/calendar.js'
 import { AttendanceToggle } from '../ui/AttendanceToggle.jsx'
 import { Modal } from '../ui/Modal.jsx'
 import { useSettings } from '../../hooks/useSettings.jsx'
+import { useAttendanceContext } from '../../hooks/useAttendanceContext.jsx'
 
 /**
  * DayDetailModal — opens when a calendar date or a grid day header is clicked.
@@ -14,16 +15,16 @@ import { useSettings } from '../../hooks/useSettings.jsx'
  * 2nd-Saturday showed live attendance toggles from the grid and "// HOLIDAY"
  * from the calendar. Everything is now derived from `getDayMeta(dateStr)`.
  */
-export function DayDetailModal({ dateStr, timetable, subjects, attendanceHook, examDates = new Set(), onClose }) {
+export function DayDetailModal({ dateStr, timetable, subjects, onClose }) {
   const { settings } = useSettings()
-  const { attendance, markAttendance, markDayAttendance, setExamDayPresent } = attendanceHook || {}
+  const { attendance, examDates, semester, markAttendance, markDayAttendance, setExamDayPresent, toggleHoliday } = useAttendanceContext()
 
   const meta = useMemo(
-    () => getDayMeta(dateStr, { settings, attendance, examDates }),
-    [dateStr, settings, attendance, examDates]
+    () => getDayMeta(dateStr, { settings, attendance, examDates, semester }),
+    [dateStr, settings, attendance, examDates, semester]
   )
 
-  const dayData = attendance?.[dateStr] ?? {}
+  const dayData = attendance[dateStr] ?? {}
   const countAsPresent = meta.examCountAsPresent
   // On an exam day, classes are suspended (skipped in stats) UNLESS the user opted in
   const examSuspended = meta.isExamDay && !countAsPresent
@@ -47,10 +48,10 @@ export function DayDetailModal({ dateStr, timetable, subjects, attendanceHook, e
   const dayName = date.toLocaleDateString('en-US', { weekday: 'long' })
   const dateFull = date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
 
-  const holidayButton = attendanceHook && !(meta.isAutoHoliday && !meta.isManualHoliday) ? (
+  const holidayButton = !(meta.isAutoHoliday && !meta.isManualHoliday) ? (
     <button
       type="button"
-      onClick={() => attendanceHook.toggleHoliday(dateStr)}
+      onClick={() => toggleHoliday(dateStr)}
       aria-pressed={meta.isManualHoliday}
       className="cad-chip btn-mech"
       data-active={meta.isManualHoliday || undefined}
@@ -68,6 +69,20 @@ export function DayDetailModal({ dateStr, timetable, subjects, attendanceHook, e
       onClose={onClose}
       headerExtra={holidayButton}
     >
+      {/* Out-of-term banner. Marking is still allowed — the dates are the
+          user's to get wrong, and silently discarding a mark would be worse
+          than one that plainly says it does not count. */}
+      {!meta.inTerm && (
+        <div
+          className="px-4 py-2 shrink-0"
+          style={{ borderBottom: '1px solid var(--cad-border-dim)', background: 'var(--cad-bg-primary)' }}
+        >
+          <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-xs)', color: 'var(--cad-text-lo)', letterSpacing: 'var(--cad-track-mid)' }}>
+            <span aria-hidden="true">▸ </span>OUTSIDE {semester?.label || 'THE SEMESTER'} — MARKS HERE ARE NOT COUNTED
+          </span>
+        </div>
+      )}
+
       {/* Exam day banner */}
       {meta.isExamDay && (
         <div
@@ -200,7 +215,7 @@ export function DayDetailModal({ dateStr, timetable, subjects, attendanceHook, e
                         {parseTimeToMins(entry.endTime) - parseTimeToMins(entry.startTime)}m
                       </span>
 
-                      {attendanceHook && !meta.isHoliday && !examSuspended && (
+                      {!meta.isHoliday && !examSuspended && (
                         <div className="flex flex-col gap-1 ml-2 border-l pl-2" style={{ borderColor: 'var(--cad-border-dim)' }}>
                           <AttendanceToggle dateStr={dateStr} entryId={entry.id} activeStatus={dayData[entry.id]} onMark={markAttendance} />
                         </div>

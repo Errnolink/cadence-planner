@@ -3,11 +3,13 @@ import { MONTH_NAMES, DAYS, generateSubjectCode, subjectVars } from '../../data/
 import { dateStrFromParts, getDayMeta } from '../../data/calendar.js'
 import { DayDetailModal } from './DayDetailModal.jsx'
 import { useSettings } from '../../hooks/useSettings.jsx'
+import { useAttendanceContext } from '../../hooks/useAttendanceContext.jsx'
 
 
 const DAYS_SET = new Set(DAYS)
 
-export function CalendarView({ timetable, subjects, attendanceHook, examDates = new Set() }) {
+export function CalendarView({ timetable, subjects }) {
+  const { attendance, examDates, semester } = useAttendanceContext()
   const { settings } = useSettings()
   const today      = new Date()
   const [year, setYear]   = useState(today.getFullYear())
@@ -62,7 +64,7 @@ export function CalendarView({ timetable, subjects, attendanceHook, examDates = 
         <button
           type="button"
           onClick={prevMonth}
-          className="btn-mech cad-hover-accent"
+          className="btn-mech cad-hover-accent tap-44"
           style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-md)', color: 'var(--cad-text-mid)', background: 'none', border: 'none', padding: '4px 8px', borderRadius: 'var(--cad-radius)' }}
           aria-label="Previous month"
         ><span aria-hidden="true">◀</span></button>
@@ -72,6 +74,7 @@ export function CalendarView({ timetable, subjects, attendanceHook, examDates = 
             value={month}
             onChange={e => setMonth(Number(e.target.value))}
             aria-label="Month"
+            className="tap-grow"
             style={{
               fontFamily:   'var(--cad-font-mono)',
               fontSize:     'var(--cad-fs-sm)',
@@ -92,6 +95,7 @@ export function CalendarView({ timetable, subjects, attendanceHook, examDates = 
             value={year}
             onChange={e => setYear(Number(e.target.value))}
             aria-label="Year"
+            className="tap-grow"
             style={{
               fontFamily:   'var(--cad-font-mono)',
               fontSize:     'var(--cad-fs-sm)',
@@ -114,7 +118,7 @@ export function CalendarView({ timetable, subjects, attendanceHook, examDates = 
         <button
           type="button"
           onClick={nextMonth}
-          className="btn-mech cad-hover-accent"
+          className="btn-mech cad-hover-accent tap-44"
           style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-md)', color: 'var(--cad-text-mid)', background: 'none', border: 'none', padding: '4px 8px', borderRadius: 'var(--cad-radius)' }}
           aria-label="Next month"
         ><span aria-hidden="true">▶</span></button>
@@ -147,18 +151,23 @@ export function CalendarView({ timetable, subjects, attendanceHook, examDates = 
             if (!day) return <div key={`empty-${idx}`} style={{ borderRight: '1px solid var(--cad-border-dim)', borderBottom: '1px solid var(--cad-border-dim)' }} />
 
             const dateStr = dateStrFromParts(year, month, day)
-            const meta    = getDayMeta(dateStr, { settings, attendance: attendanceHook?.attendance, examDates })
+            const meta    = getDayMeta(dateStr, { settings, attendance, examDates, semester })
             const todayCell = isToday(day)
             const isWeekend = !DAYS_SET.has(meta.weekday)
-            const entries = meta.isHoliday || isWeekend ? [] : (eventsByWeekday[meta.weekday] ?? [])
-            const dayAtt  = attendanceHook?.attendance?.[dateStr] ?? {}
+            // Outside the semester's dates there are no classes to show. The
+            // weekly pattern used to repeat forever in both directions, so a
+            // term running Jan–May still drew its classes the previous
+            // December — and now that the stats honour the bounds, drawing
+            // them would promise a class that cannot count.
+            const entries = meta.isHoliday || isWeekend || !meta.inTerm ? [] : (eventsByWeekday[meta.weekday] ?? [])
+            const dayAtt  = attendance[dateStr] ?? {}
 
             return (
               <div
                 key={day}
                 role="button"
                 tabIndex={0}
-                aria-label={`${MONTH_NAMES[month]} ${day}, ${year}${meta.isHoliday ? ', holiday' : ''}${meta.isExamDay ? ', exam day' : ''}${entries.length ? `, ${entries.length} classes` : ''}`}
+                aria-label={`${MONTH_NAMES[month]} ${day}, ${year}${todayCell ? ', today' : ''}${!meta.inTerm ? ', outside the semester' : ''}${meta.isHoliday ? ', holiday' : ''}${meta.isExamDay ? ', exam day' : ''}${entries.length ? `, ${entries.length} classes` : ''}`}
                 onClick={() => setDetailDate(dateStr)}
                 onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setDetailDate(dateStr) } }}
                 className="cad-hover-cell"
@@ -168,7 +177,10 @@ export function CalendarView({ timetable, subjects, attendanceHook, examDates = 
                   borderBottom: '1px solid var(--cad-border-dim)',
                   padding:      '4px',
                   cursor:       'pointer',
-                  background:   'transparent',
+                  // Dimmed, not hidden: the day is still markable and still
+                  // opens, it just does not belong to this term.
+                  background:   meta.inTerm ? 'transparent' : 'var(--cad-bg-primary)',
+                  opacity:      meta.inTerm ? 1 : 0.45,
                   outline:      todayCell ? '1px solid var(--cad-accent)' : 'none',
                   outlineOffset:'-1px',
                   overflow:     'hidden',
@@ -230,9 +242,23 @@ export function CalendarView({ timetable, subjects, attendanceHook, examDates = 
                         gap:          '2px',
                       }}
                     >
-                      {entry.startTime}{' '}
+                      {/* The time is desktop-only. A month cell is ~34px wide
+                          at 375px and "09:00 CS100" needs 66px, so the chip
+                          truncated away the subject code and kept the clock —
+                          losing the only part that says which class it is.
+                          Screen readers still get the time; tapping the day
+                          shows it too. */}
+                      <span className="hidden sm:inline">{entry.startTime}{' '}</span>
+                      <span className="sr-only sm:hidden">{entry.startTime} </span>
                       {subId && <><span aria-hidden="true">⇄</span><span className="sr-only">substituted: </span></>}
-                      {displaySubj.code || generateSubjectCode(displaySubj.name)}
+                      {/* The code needs its own truncating box: `text-overflow`
+                          does not apply to a flex container, so the ellipsis
+                          set on the chip never rendered and a 7-character code
+                          was cut mid-glyph ("MATH101" → "MATH10") with nothing
+                          to show that anything was missing. */}
+                      <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {displaySubj.code || generateSubjectCode(displaySubj.name)}
+                      </span>
                       {hasNote && <span aria-hidden="true" style={{ fontSize: 'var(--cad-fs-micro)', opacity: 0.7 }}>📝</span>}
                       {hasNote && <span className="sr-only">has a note</span>}
                     </div>
@@ -276,8 +302,6 @@ export function CalendarView({ timetable, subjects, attendanceHook, examDates = 
           dateStr={detailDate}
           timetable={timetable}
           subjects={subjects}
-          attendanceHook={attendanceHook}
-          examDates={examDates}
           onClose={() => setDetailDate(null)}
         />
       )}

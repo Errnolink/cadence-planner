@@ -250,3 +250,138 @@ describe('pruneOrphans', () => {
     expect(pruneOrphans(att, [7])).toEqual({ '2026-08-10': { 7: 'PRESENT' } })
   })
 })
+
+// ─────────────────────────────────────────────────────────────────
+// The reported percentage is compared against a threshold, so it must
+// never round UP across it. 56 of 75 is 74.667%: it used to print as
+// "75%" and tier as WATCH, telling a student they were at the line
+// when they were below it.
+// ─────────────────────────────────────────────────────────────────
+
+describe('percentage never rounds up across the threshold', () => {
+  /** n Mondays, the first `present` of them attended. */
+  const record = (present, total) => {
+    const attendance = {}
+    const d = new Date(2026, 0, 5) // a Monday
+    for (let i = 0; i < total; i++) {
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+      attendance[key] = { 'e-mon': i < present ? 'PRESENT' : 'ABSENT' }
+      d.setDate(d.getDate() + 7)
+    }
+    return attendance
+  }
+  const pctOf = (present, total) =>
+    computeSubjectStats(record(present, total), 'math', TT, new Set()).percentage
+
+  it('floors a shortfall instead of rounding it up to the threshold', () => {
+    expect(pctOf(56, 75)).toBe(74)     // 74.667% — was 75
+    expect(pctOf(149, 200)).toBe(74)   // 74.5%
+    expect(pctOf(38, 51)).toBe(74)     // 74.51%
+    expect(pctOf(71, 95)).toBe(74)     // 74.74%
+  })
+
+  it('still reports exactly 75 when the record really is 75%', () => {
+    expect(pctOf(3, 4)).toBe(75)
+    expect(pctOf(75, 100)).toBe(75)
+    expect(pctOf(45, 60)).toBe(75)
+  })
+
+  it('never drops a point from an exact-integer percentage', () => {
+    // (57/100)*100 === 56.99999999999999 in IEEE doubles — flooring the float
+    // quotient showed 56 for a true 57. Multiplying first keeps the division
+    // exact; every triple here displayed one point low before the fix.
+    expect(pctOf(57, 100)).toBe(57)
+    expect(pctOf(29, 50)).toBe(58)
+    expect(pctOf(58, 100)).toBe(58)
+    expect(pctOf(87, 150)).toBe(58)
+    expect(pctOf(114, 200)).toBe(57)
+    expect(pctOf(145, 250)).toBe(58)
+    // and exhaustively: every exact-integer percentage up to 400 classes
+    for (let total = 1; total <= 400; total++) {
+      for (let present = 0; present <= total; present++) {
+        if ((present * 100) % total !== 0) continue
+        expect(pctOf(present, total)).toBe((present * 100) / total)
+      }
+    }
+  })
+
+  it('tiers a shortfall as critical, and agrees with recoveryPath', () => {
+    for (const [present, total] of [[56, 75], [149, 200], [38, 51], [71, 95]]) {
+      const pct = pctOf(present, total)
+      expect(statusTier(pct)).toBe('critical')
+      // The tier and the advice must tell the same story: a critical record
+      // has classes to make up, so recoveryPath must be non-zero.
+      expect(recoveryPath(present, total)).toBeGreaterThan(0)
+    }
+  })
+
+  it('never reports a percentage above the true value', () => {
+    for (let total = 1; total <= 60; total++) {
+      for (let present = 0; present <= total; present++) {
+        expect(pctOf(present, total)).toBeLessThanOrEqual((present / total) * 100 + 1e-9)
+      }
+    }
+  })
+
+  it('an empty record is still 100%, not 0', () => {
+    expect(computeSubjectStats({}, 'math', TT, new Set()).percentage).toBe(100)
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────
+// Semester dates used to bound nothing: attendance counted every date in
+// the map regardless of term, so a mark from last term still moved this
+// term's percentage. A semester with no dates set stays unbounded.
+// ─────────────────────────────────────────────────────────────────
+
+describe('semester dates scope the count', () => {
+  const TERM = { startDate: '2026-08-03', endDate: '2026-08-31' }
+  // 2026-07-27, 08-03, 08-10 and 09-07 are all Mondays.
+  const BEFORE = '2026-07-27'
+  const FIRST  = '2026-08-03'
+  const INSIDE = '2026-08-10'
+  const LAST   = '2026-08-31'
+  const AFTER  = '2026-09-07'
+
+  const att = {
+    [BEFORE]: { 'e-mon': 'ABSENT' },
+    [FIRST]:  { 'e-mon': 'PRESENT' },
+    [INSIDE]: { 'e-mon': 'PRESENT' },
+    [LAST]:   { 'e-mon': 'PRESENT' },
+    [AFTER]:  { 'e-mon': 'ABSENT' },
+  }
+
+  it('counts only the dates inside the term', () => {
+    const s = computeSubjectStats(att, 'math', TT, new Set(), { semester: TERM })
+    expect(s).toMatchObject({ present: 3, absent: 0, total: 3, percentage: 100 })
+  })
+
+  it('treats both bounds as inclusive', () => {
+    const only = { [FIRST]: att[FIRST], [LAST]: att[LAST] }
+    expect(computeSubjectStats(only, 'math', TT, new Set(), { semester: TERM }).total).toBe(2)
+  })
+
+  it('counts everything when the semester has no dates', () => {
+    const s = computeSubjectStats(att, 'math', TT, new Set(), { semester: { startDate: '', endDate: '' } })
+    expect(s).toMatchObject({ present: 3, absent: 2, total: 5 })
+    // and identically when no semester is passed at all
+    expect(computeSubjectStats(att, 'math', TT, new Set())).toMatchObject({ total: 5 })
+  })
+
+  it('honours a half-open term — one bound set, the other blank', () => {
+    expect(computeSubjectStats(att, 'math', TT, new Set(), { semester: { startDate: '2026-08-03', endDate: '' } }).total).toBe(4)
+    expect(computeSubjectStats(att, 'math', TT, new Set(), { semester: { endDate: '2026-08-31', startDate: '' } }).total).toBe(4)
+  })
+
+  it('scopes the history to the term as well, so it cannot contradict the percentage', () => {
+    const s = computeSubjectStats(att, 'math', TT, new Set(), { semester: TERM, withHistory: true })
+    expect(s.history).toHaveLength(s.total)
+    expect(s.history.every(r => r.date >= TERM.startDate && r.date <= TERM.endDate)).toBe(true)
+  })
+
+  it('scopes computeAllStats and its roll-up too', () => {
+    const { overall, bySubject } = computeAllStats(att, SUBJECTS, TT, new Set(), TERM)
+    expect(overall).toMatchObject({ present: 3, total: 3 })
+    expect(bySubject.get('math')).toMatchObject({ present: 3, total: 3 })
+  })
+})

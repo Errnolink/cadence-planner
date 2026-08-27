@@ -4,6 +4,25 @@ import { API } from '../data/api';
 import { useAuth } from '../hooks/useAuth.jsx';
 import { ConfirmDeleteButton } from './ui/ConfirmDeleteButton.jsx';
 
+/**
+ * A dead network reaches here as `Failed to fetch` — the raw TypeError text,
+ * which supabase-js repackages as AuthRetryableFetchError without rewording.
+ * Printed verbatim it reads like a fault in the app, when in fact the request
+ * never left the browser: offline, DNS, a blocked request, or a project that no
+ * longer answers. None of that is the user's password, and none of it puts
+ * their work at risk — this app is local-first — so say both.
+ */
+const NETWORK_ERROR = 'CANNOT REACH THE SYNC SERVER. CHECK YOUR CONNECTION — YOUR LOCAL DATA IS SAFE.';
+
+function authErrorMessage(err) {
+  const raw = String(err?.message ?? '');
+  const networkish =
+    err?.name === 'AuthRetryableFetchError' ||
+    err?.name === 'TypeError' ||
+    /failed to fetch|networkerror|network error|load failed|fetch failed/i.test(raw);
+  return networkish ? NETWORK_ERROR : (raw || 'SYNC FAILED. PLEASE RETRY.');
+}
+
 export function Auth() {
   const { session } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -27,7 +46,7 @@ export function Auth() {
       const supabase = await getSupabase();
       const { data, error } = await supabase.auth.signUp({ email, password });
       if (error) {
-        setError(error.message);
+        setError(authErrorMessage(error));
       } else if (data?.user?.identities?.length === 0) {
         setError('USER ALREADY REGISTERED. PLEASE AUTHENTICATE INSTEAD.');
       } else if (data?.user && !data?.session) {
@@ -36,7 +55,7 @@ export function Auth() {
         await API.syncFromServer(data.session.user.id);
       }
     } catch (err) {
-      setError(err?.message || 'SYNC FAILED. PLEASE RETRY.');
+      setError(authErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -54,13 +73,13 @@ export function Auth() {
         if (error.message === 'Invalid login credentials') {
           setError('THERE EXISTS NO ACCOUNT WITH THAT EMAIL (OR INVALID PASSWORD). PLEASE INITIALIZE FIRST.');
         } else {
-          setError(error.message);
+          setError(authErrorMessage(error));
         }
       } else if (data?.session) {
         await API.syncFromServer(data.session.user.id);
       }
     } catch (err) {
-      setError(err?.message || 'SYNC FAILED. PLEASE RETRY.');
+      setError(authErrorMessage(err));
     } finally {
       setLoading(false);
     }

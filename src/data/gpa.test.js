@@ -167,6 +167,6 @@ describe('gradeCoverage', () => {
       subjects: [subj(1, 'D', 4), subj(2, 'M', 4, 7), subj(3, 'NONE', 4)],
       assessments: [...sitting(1, 1, 8, 7, 4)],
     }
-    expect(gradeCoverage(semester)).toEqual({ derived: 1, manual: 1, graded: 2, total: 3 })
+    expect(gradeCoverage(semester)).toEqual({ derived: 1, manual: 1, awarded: 0, graded: 2, total: 3 })
   })
 })

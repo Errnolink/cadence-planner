@@ -4,12 +4,25 @@ import { dateStrFromParts, getDayMeta } from '../../data/calendar.js'
 import { DayDetailModal } from '../calendar/DayDetailModal.jsx'
 import { useSettings } from '../../hooks/useSettings.jsx'
 import { useNow } from '../../hooks/useNow.js'
+import { useAttendanceContext } from '../../hooks/useAttendanceContext.jsx'
 import { AttendanceToggle } from '../ui/AttendanceToggle.jsx'
 
 
 const DAY_MIN_W = 80   // px — min width per day column on mobile
 const HOUR_PX   = 60   // px — vertical scale, so the scroller is only as tall as the window shown
 const TIME_COL_W = 44  // px
+
+// A block's status badge, note marker and quick-mark toggle are absolutely
+// positioned on top of its text. `text-overflow: ellipsis` cannot see them:
+// the label measures as fitting, renders no ellipsis, and then loses its last
+// characters under an opaque badge. It shows up in ALL WEEK, where a column is
+// only DAY_MIN_W wide and the badge covers the last ~14px of every label.
+// The text lines reserve the gutter instead. e2e/week-label.spec.js asserts no
+// overlay overlaps any text line, which is what keeps these numbers honest if
+// an overlay changes size.
+const BADGE_GUTTER  = 20  // px — status badge (P/A/C) plus its 3px inset
+const NOTE_GUTTER   = 18  // px — note marker plus its 3px inset
+const TOGGLE_GUTTER = 80  // px — the compact PRESENT/ABSENT/CANCELLED column, measured at 73px + its 4px inset
 
 /** Visible hour window derived from the data, clamped to the hard grid bounds. */
 function visibleWindow(timetable, exams) {
@@ -21,9 +34,9 @@ function visibleWindow(timetable, exams) {
   return [start, Math.max(end, start + 1)]
 }
 
-export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBlockClick, onInstanceClick, attendanceHook, examDates, exams = [] }) {
+export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBlockClick, onInstanceClick, exams = [] }) {
   const { settings } = useSettings()
-  // Ticks once a minute (plus on tab focus) so "today", the now-line and the
+  const { attendance, examDates, semester, markAttendance } = useAttendanceContext()
   // today column stop freezing at mount — leaving the tab open past midnight
   // used to leave all three a day stale.
   const now = useNow()
@@ -108,7 +121,9 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
 
     // Snap to nearest 30 mins
     const snappedMins = Math.floor(mins / 30) * 30
-    const endMins = Math.min(GRID_END_HOUR * 60, snappedMins + 60)
+    // 23:59 is the latest a native time input can hold — 24:00 is rejected
+    // by the browser with a console warning.
+    const endMins = Math.min(GRID_END_HOUR * 60 - 1, snappedMins + 60)
 
     onCellClick(day,
       `${pad2(Math.floor(snappedMins / 60))}:${pad2(snappedMins % 60)}`,
@@ -118,7 +133,8 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
   // Keyboard-reachable equivalent of the click-position-to-time affordance.
   const addHour = Math.min(Math.max(gridStart, 9), gridEnd - 1)
   const handleHeaderAdd = useCallback((day) => {
-    onCellClick?.(day, `${pad2(addHour)}:00`, `${pad2(addHour + 1)}:00`)
+    const end = addHour + 1 >= GRID_END_HOUR ? `${pad2(GRID_END_HOUR - 1)}:59` : `${pad2(addHour + 1)}:00`
+    onCellClick?.(day, `${pad2(addHour)}:00`, end)
   }, [onCellClick, addHour])
 
   const scrollRef = useRef(null)
@@ -137,24 +153,40 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
     el.scrollTo({ top: Math.max(0, scrollTarget), behavior: 'smooth' })
   }, [weekOffset, gridStart, totalMins])
 
-  const displayDays = showTodayOnly && weekOffset === 0 ? [DAYS[todayIdx]] : DAYS
+  const displayDays = useMemo(
+    () => (showTodayOnly && weekOffset === 0 ? [DAYS[todayIdx]] : DAYS),
+    [showTodayOnly, weekOffset, todayIdx])
 
   /** Date + holiday/exam facts for a column, from the one shared source. */
   const dayMetaFor = useCallback((day) => {
     const d = new Date(baseDate.getTime())
     d.setDate(d.getDate() + (DAYS.indexOf(day) - todayIdx))
     const dateStr = dateStrFromParts(d.getFullYear(), d.getMonth(), d.getDate())
-    return { d, dateStr, meta: getDayMeta(dateStr, { settings, attendance: attendanceHook?.attendance, examDates }) }
-  }, [baseDate, todayIdx, settings, attendanceHook?.attendance, examDates])
+    return { d, dateStr, meta: getDayMeta(dateStr, { settings, attendance, examDates, semester }) }
+  }, [baseDate, todayIdx, settings, attendance, examDates, semester])
+
+  // A week nobody's term covers. The grid happily paints the weekly pattern
+  // for any week you navigate to, so without saying so it would show a full
+  // timetable for a week whose marks the stats now ignore.
+  const weekOutOfTerm = useMemo(
+    () => displayDays.every(day => !dayMetaFor(day).meta.inTerm),
+    [displayDays, dayMetaFor])
 
   const isEmpty = timetable.length === 0 && exams.length === 0
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Top Bar: Edit Hint + View Filters */}
-      <div className="flex items-center justify-between shrink-0 mb-1 gap-2">
+      {/* Wraps rather than overflowing. The control group needs ~460px; below
+          that it used to run off the right edge of a container with
+          `overflow-hidden` and no scrollable ancestor, which put ALL WEEK /
+          SINGLE DAY / FULL DAY out of reach of a finger on every phone —
+          SINGLE DAY, the view meant for exactly that screen, included.
+          (Scripted clicks still reached them, so the e2e suite never noticed.)
+          The edit hint gives up its row first: it is advisory, the chips are not. */}
+      <div className="flex items-center justify-between shrink-0 mb-1 gap-2 flex-wrap">
         <div
-          className={editMode ? 'blink' : undefined}
+          className={`hidden sm:block ${editMode ? 'blink' : ''}`}
           style={{
             fontFamily: 'var(--cad-font-mono)',
             fontSize: 'var(--cad-fs-micro)',
@@ -167,7 +199,7 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
             : <><span aria-hidden="true">▸ </span>CLICK BLOCK TO MARK ATTENDANCE</>}
         </div>
 
-        <div className="flex gap-1 shrink-0 items-center">
+        <div className="flex gap-1 items-center flex-wrap justify-end ml-auto">
           {/* TODAY button — active on the current week, outline elsewhere */}
           <button
             type="button"
@@ -182,7 +214,7 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
             type="button"
             onClick={() => setWeekOffset(w => w - 1)}
             aria-label="Previous week"
-            className="px-1.5 py-0.5 btn-mech panel-chamfer-sm"
+            className="px-1.5 py-0.5 btn-mech panel-chamfer-sm tap-grow"
             style={{
               fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-xs)',
               border: '1px solid var(--cad-border)', color: 'var(--cad-text-lo)',
@@ -197,20 +229,34 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
               fontSize: 'var(--cad-fs-micro)',
               letterSpacing: '0.08em',
               border: '1px solid var(--cad-border)',
-              color: 'var(--cad-accent)',
+              color: weekOutOfTerm ? 'var(--cad-text-lo)' : 'var(--cad-accent)',
               background: 'var(--cad-bg-input)',
               borderRadius: 'var(--cad-radius)',
               whiteSpace: 'nowrap',
             }}
+            title={weekOutOfTerm ? `Outside ${semester?.label || 'the semester'} — attendance here is not counted` : undefined}
           >
             {weekRangeStr}
+            {weekOutOfTerm && <span className="sr-only">, outside the semester</span>}
           </div>
+          {weekOutOfTerm && (
+            <span
+              aria-hidden="true"
+              className="px-1.5 py-0.5 panel-chamfer-sm"
+              style={{
+                fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-micro)',
+                letterSpacing: 'var(--cad-track-mid)', color: 'var(--cad-text-lo)',
+                border: '1px dashed var(--cad-border)', borderRadius: 'var(--cad-radius)',
+                whiteSpace: 'nowrap',
+              }}
+            >OFF-TERM</span>
+          )}
 
           <button
             type="button"
             onClick={() => setWeekOffset(w => w + 1)}
             aria-label="Next week"
-            className="px-1.5 py-0.5 btn-mech panel-chamfer-sm"
+            className="px-1.5 py-0.5 btn-mech panel-chamfer-sm tap-grow"
             style={{
               fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-xs)',
               border: '1px solid var(--cad-border)', color: 'var(--cad-text-lo)',
@@ -366,7 +412,7 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                 const isToday    = weekOffset === 0 && DAYS.indexOf(day) === todayIdx
                 const dayEntries = byDay[day] ?? []
                 const { dateStr, meta } = dayMetaFor(day)
-                const dayData    = attendanceHook?.attendance?.[dateStr] ?? {}
+                const dayData    = attendance[dateStr] ?? {}
                 const isHoliday  = meta.isHoliday
                 const dayExams   = exams.filter(e => e.date === dateStr)
                 const isExamDay  = dayExams.length > 0
@@ -431,11 +477,19 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                       const hasNote = !!dayData[`${entry.id}_note`]
                       const code    = displaySubj.code || generateSubjectCode(displaySubj.name)
 
+                      // Must mirror the render conditions of the two top-right
+                      // overlays below; they are mutually exclusive (the toggle
+                      // needs showTodayOnly && !editMode, which excludes both
+                      // arms of the badge).
+                      const hasToggle = !editMode && showTodayOnly && !isHoliday
+                      const hasBadge  = editMode || (!showTodayOnly && status)
+                      const topRightGutter = hasToggle ? TOGGLE_GUTTER : hasBadge ? BADGE_GUTTER : 0
+
                       const handleBlockAction = (e) => {
                         e.stopPropagation()
                         if (isHoliday) return
                         if (editMode) onBlockClick(entry)
-                        else if (attendanceHook && onInstanceClick) onInstanceClick(entry, dateStr)
+                        else if (onInstanceClick) onInstanceClick(entry, dateStr)
                       }
 
                       const label = [
@@ -491,14 +545,15 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                                 overflow:   'hidden',
                                 textOverflow: 'ellipsis',
                                 whiteSpace: 'nowrap',
+                                paddingRight: `${topRightGutter}px`,
                               }}
                             >{isSubstitute && <span aria-hidden="true">⇄ </span>}{code}</span>
                             {!isShort && (
                               <>
-                                <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-micro)', color: 'var(--subj-text)', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-micro)', color: 'var(--subj-text)', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: `${topRightGutter}px` }}>
                                   {entry.room}
                                 </span>
-                                <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-micro)', color: 'var(--subj-text)', marginTop: 'auto', paddingTop: '4px' }}>
+                                <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-micro)', color: 'var(--subj-text)', marginTop: 'auto', paddingTop: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: `${Math.max(hasNote ? NOTE_GUTTER : 0, hasToggle ? TOGGLE_GUTTER : 0)}px` }}>
                                   {entry.startTime}–{entry.endTime}
                                 </span>
                               </>
@@ -508,9 +563,9 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
                           {editMode && (
                             <span aria-hidden="true" style={{ position: 'absolute', bottom: '3px', left: '6px', pointerEvents: 'none', fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-micro)', color: 'var(--cad-accent)' }}>✎</span>
                           )}
-                          {!editMode && attendanceHook && showTodayOnly && !isHoliday && (
+                          {!editMode && showTodayOnly && !isHoliday && (
                             <div style={{ position: 'absolute', top: '4px', right: '4px', zIndex: 10 }}>
-                              <AttendanceToggle dateStr={dateStr} entryId={entry.id} activeStatus={status} onMark={attendanceHook.markAttendance} />
+                              <AttendanceToggle dateStr={dateStr} entryId={entry.id} activeStatus={status} onMark={markAttendance} />
                             </div>
                           )}
                           {(editMode || (!showTodayOnly && status)) && (
@@ -620,8 +675,6 @@ export function TimetableGrid({ subjects, timetable, editMode, onCellClick, onBl
           dateStr={activeDayDetail}
           timetable={timetable}
           subjects={subjects}
-          attendanceHook={attendanceHook}
-          examDates={examDates}
           onClose={() => setActiveDayDetail(null)}
         />
       )}

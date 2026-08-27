@@ -111,6 +111,14 @@
   --tt-edge: color-mix(in srgb, var(--subj-border, currentColor) 14%, transparent);
   --tt-glow: color-mix(in srgb, var(--subj-border, currentColor) 25%, transparent);
   transition: transform 0.18s ease-out, box-shadow 0.18s ease-out, opacity 0.3s;
+  /* Load-bearing, not cosmetic. The hover rule below applies a transform, which
+     creates a stacking context — so without this the block gained one on hover
+     and lost it again on leave, relayering the quick-mark toggle mid-gesture.
+     mousedown and mouseup then resolved to different elements, the browser
+     dispatched `click` on their common ancestor, and the toggle's handler never
+     ran: marking attendance from the timetable silently did nothing. Isolating
+     unconditionally means hover changes paint, never layer structure. */
+  isolation: isolate;
 }
 .tt-block-action {
   background: none;
@@ -138,6 +146,62 @@
 }
 @media (hover: hover) and (pointer: fine) {
   .cad-x:hover { color: var(--cad-danger); }
+}
+
+/* Finger-sized hit area for a control that must stay visually small.
+
+   The obvious fix — a min-height/min-width on .btn-mech — is the wrong one
+   here. This is a dense HUD: the control bar's fixed floor is already ~368px
+   against a 375px screen, so widening its three 40px buttons to 44 would push
+   it to ~380 and put EDIT back off-screen, and three 44px quick-mark toggles
+   would stand taller than the class block they sit inside.
+
+   So the BOX is left alone and only the hit region grows, centred, via a
+   transparent pseudo-element — and only where the pointer is actually a
+   finger, so desktop density is untouched. Apply it to isolated controls: the
+   overlay sits above later siblings, so two of these within 44px of each other
+   would fight, and the loser stops responding.
+
+   `pointer: coarse` matches touch; the hover-capable rules elsewhere in this
+   file use its counterpart. */
+@media (pointer: coarse) {
+  .tap-44 { position: relative; }
+  .tap-44::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+  }
+}
+
+/* The companion to .tap-44, for controls that sit shoulder to shoulder.
+
+   .tap-44 is unusable in a row: its 44px overlay reaches a neighbour 4px away
+   and the loser stops responding, exactly as the note above warns. So for
+   grouped controls — the view-mode and filter chips, the exam sub-tabs, the
+   week arrows — grow the BOX rather than an invisible overlay. There is no
+   overlap to fight over once the box itself is finger-sized.
+
+   Still gated on `pointer: coarse`, so the desktop HUD keeps the density it
+   was drawn for. Chips live in rows that wrap or scroll, so the extra height
+   costs layout room, never reachability. */
+@media (pointer: coarse) {
+  .cad-chip,
+  .tap-grow {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  /* A <select> renders its own control box; forcing inline-flex on it is
+     ignored in some engines and distorts it in others. min-height is enough. */
+  .cad-chip:not(select),
+  .tap-grow:not(select) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
 }
 
 /* Ghost row / menu item that tints on hover. */

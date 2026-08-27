@@ -146,7 +146,11 @@ export function SubjectGradeCard({
             <span aria-hidden="true" style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-xs)', color: 'var(--cad-text-lo)' }}>
               {open ? '▾' : '▸'}
             </span>
-            <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-xs)', fontWeight: 'bold', color: 'var(--subj-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {/* Wraps rather than ellipsising. At 375px this box is 208px and a
+                real syllabus name like "CONSTITUTION OF INDIA AND PROFESSIONAL
+                ETHICS" needs 297px — a third of the card's own title was being
+                hidden behind an ellipsis. A taller row is the cheaper price. */}
+            <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-xs)', fontWeight: 'bold', color: 'var(--subj-text)', overflowWrap: 'anywhere' }}>
               {subject.name}
             </span>
             {hasOverride && (
@@ -245,6 +249,17 @@ export function SubjectGradeCard({
                     </span>
                   </div>
                   <span style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-sm)', color: cs?.marks === null || cs === undefined ? 'var(--cad-text-xlo)' : 'var(--cad-text-hi)' }}>
+                    {/* Where the scheme's rounding moved a mark, show the
+                        measured figure it came from. A number that changed
+                        deserves to say why — the same reason an awarded grade
+                        shows the projection it overrode instead of replacing
+                        it silently. */}
+                    {cs?.rounded && (
+                      <span style={{ color: 'var(--cad-text-lo)' }}>
+                        <span aria-hidden="true">{fmt(cs.rawMarks)} → </span>
+                        <span className="sr-only">{fmt(cs.rawMarks)} rounded up to </span>
+                      </span>
+                    )}
                     {cs && cs.marks !== null ? fmt(cs.marks) : '—'} / {fmt(component.weight, 0)}
                   </span>
                 </div>

@@ -22,7 +22,12 @@ export function SubjectRow({ subject, grade, editMode, onUpdate, onRemove, stagg
   }, [subject.name, subject.code, subject.credits, focused])
 
   const commitField = (key, value) => {
-    const parsed = key === 'credits' ? (parseFloat(value) || 0) : value
+    // An emptied name never commits — every row needs one. The draft resyncs
+    // from `subject` on blur, so the previous name snaps back into the input.
+    if (key === 'name' && !String(value).trim()) return
+    // Credits weight the GPA; a negative value is never meaningful, so it
+    // lands as 0 rather than persisting.
+    const parsed = key === 'credits' ? Math.max(0, parseFloat(value) || 0) : value
     const current = key === 'credits' ? (parseFloat(subject.credits) || 0) : (subject[key] ?? '')
     if (parsed !== current) onUpdate(subject.id, key, parsed)
   }
@@ -62,36 +67,59 @@ export function SubjectRow({ subject, grade, editMode, onUpdate, onRemove, stagg
             onClick={() => editMode && setShowColors(v => !v)}
             disabled={!editMode}
             aria-expanded={editMode ? showColors : undefined}
-            className={`w-3 h-3 shrink-0 transition-transform ${editMode ? 'cursor-pointer hover:scale-125' : 'cursor-default'}`}
+            className={`w-3 h-3 shrink-0 transition-transform ${editMode ? 'cursor-pointer hover:scale-125' : 'cursor-default'} ${editMode ? 'tap-44' : ''}`}
             style={{ background: 'var(--subj-border)', boxShadow: '0 0 4px var(--subj-border)', borderRadius: '1px' }}
             title={editMode ? 'CHANGE COLOR' : colorName}
             aria-label={editMode ? `Change colour (currently ${colorName})` : colorName}
           />
 
-          {/* Name */}
-          <input
-            value={draft.name}
-            onChange={e => setDraft(d => ({ ...d, name: e.target.value }))}
-            onBlur={commitOnBlur('name')}
-            onKeyDown={commitOnEnter('name')}
-            onFocus={() => setFocused('name')}
-            disabled={!editMode}
-            spellCheck={false}
-            aria-label="Subject name"
-            className="flex-1 min-w-0 bg-transparent cad-underline"
-            style={{
-              fontFamily:  'var(--cad-font-mono)',
-              fontSize:    'var(--cad-fs-sm)',
-              letterSpacing:'0.05em',
-              color:       'var(--subj-text)',
-              borderBottom: editMode ? '1px solid var(--cad-border)' : '1px solid transparent',
-              transition:  'border-color 0.15s',
-            }}
-          />
+          {/* Name — a real input only while editing.
+
+              An <input> can neither wrap nor ellipsise, so as a disabled
+              display element it cut long names off silently. Measured at
+              375px: the box is 320px, "CONSTITUTION OF INDIA AND PROFESSIONAL
+              ETHICS" needs 351px, and `text-overflow` on an input computes to
+              `clip` — four characters gone with nothing to show for them. The
+              subject name is the row's whole identity, so in view mode it is
+              text and wraps. */}
+          {editMode ? (
+            <input
+              value={draft.name}
+              onChange={e => setDraft(d => ({ ...d, name: e.target.value }))}
+              onBlur={commitOnBlur('name')}
+              onKeyDown={commitOnEnter('name')}
+              onFocus={() => setFocused('name')}
+              spellCheck={false}
+              aria-label="Subject name"
+              className="flex-1 min-w-0 bg-transparent cad-underline"
+              style={{
+                fontFamily:   'var(--cad-font-mono)',
+                fontSize:     'var(--cad-fs-sm)',
+                letterSpacing:'0.05em',
+                color:        'var(--subj-text)',
+                borderBottom: '1px solid var(--cad-border)',
+                transition:   'border-color 0.15s',
+                // A field being edited has to stay one line, but it should at
+                // least admit when it is hiding something.
+                textOverflow: 'ellipsis',
+              }}
+            />
+          ) : (
+            <span
+              className="flex-1 min-w-0"
+              style={{
+                fontFamily:   'var(--cad-font-mono)',
+                fontSize:     'var(--cad-fs-sm)',
+                letterSpacing:'0.05em',
+                color:        'var(--subj-text)',
+                overflowWrap: 'anywhere',
+              }}
+            >{subject.name}</span>
+          )}
         </div>
 
         {/* Line 2: Code · Credits · Grade · Remove (right-aligned on mobile) */}
-        <div className="flex items-center gap-1.5 sm:gap-1.5 pl-5 sm:pl-0 shrink-0">
+        <div className={`flex items-center gap-1.5 sm:gap-1.5 pl-5 sm:pl-0 shrink-0 ${editMode ? 'min-h-[44px]' : ''}`}>
           {/* Code */}
           <input
             value={draft.code}
@@ -160,7 +188,7 @@ export function SubjectRow({ subject, grade, editMode, onUpdate, onRemove, stagg
                 value={subject.gradePoint ?? ''}
                 onChange={e => onUpdate(subject.id, 'gradePoint', e.target.value === '' ? null : Number(e.target.value))}
                 aria-label={`Grade point for ${subject.name}`}
-                className="w-full text-right bg-transparent cursor-pointer"
+                className="w-full text-right bg-transparent cursor-pointer min-h-[44px]"
                 style={{
                   fontFamily:  'var(--cad-font-mono)',
                   fontSize:    'var(--cad-fs-xs)',
@@ -188,7 +216,7 @@ export function SubjectRow({ subject, grade, editMode, onUpdate, onRemove, stagg
               type="button"
               onClick={() => onRemove(subject.id)}
               aria-label={`Remove ${subject.name}`}
-              className="w-4 text-center shrink-0 cad-x btn-mech"
+              className="px-2.5 self-stretch text-center shrink-0 cad-x btn-mech"
               style={{ fontSize: 'var(--cad-fs-xs)' }}
             >✕</button>
           )}

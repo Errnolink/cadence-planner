@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { computeSemesterGPA, computeCGPA, gradeCoverage, scaleOf, resolveScheme, subjectGradePoint } from '../../data/grading.js'
 
 import { SubjectRow } from './SubjectRow.jsx'
@@ -9,6 +9,21 @@ export function SubjectRoster({ sem, semesters, editMode, onUpdateSem, onAddSubj
   const startDate = sem?.startDate || ''
   const endDate   = sem?.endDate || ''
   const totalCr   = subjects.reduce((a, s) => a + (parseFloat(s.credits) || 0), 0)
+  const [dateOrderWarn, setDateOrderWarn] = useState(false)
+
+  // Native date inputs fire change only on a complete date, so an inverted
+  // pair here is fully formed, not mid-typing. Refusing it keeps the stored
+  // dates honest; the input is controlled, so it snaps back to the last
+  // accepted value and the warning says why.
+  const setSemDate = (patch) => {
+    const next = { startDate, endDate, ...patch }
+    if (next.startDate && next.endDate && next.endDate < next.startDate) {
+      setDateOrderWarn(true)
+      return
+    }
+    setDateOrderWarn(false)
+    onUpdateSem(s => ({ ...s, ...patch }))
+  }
 
   // GPA is derived from entered marks where they exist, falling back to the
   // hand-typed gradePoint. It used to read the typed value only, so these
@@ -56,16 +71,21 @@ export function SubjectRoster({ sem, semesters, editMode, onUpdateSem, onAddSubj
               type="date"
               value={startDate}
               aria-label="Semester start date"
-              onChange={e => onUpdateSem(s => ({ ...s, startDate: e.target.value }))}
+              onChange={e => setSemDate({ startDate: e.target.value })}
               style={{ flex: 1, fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-micro)', padding: '2px 4px', background: 'var(--cad-bg-input)', border: '1px solid var(--cad-border)', color: 'var(--cad-text-hi)' }}
             />
             <input
               type="date"
               value={endDate}
               aria-label="Semester end date"
-              onChange={e => onUpdateSem(s => ({ ...s, endDate: e.target.value }))}
+              onChange={e => setSemDate({ endDate: e.target.value })}
               style={{ flex: 1, fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-micro)', padding: '2px 4px', background: 'var(--cad-bg-input)', border: '1px solid var(--cad-border)', color: 'var(--cad-text-hi)' }}
             />
+          {dateOrderWarn && (
+            <div role="alert" style={{ marginTop: '4px', fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-micro)', color: 'var(--cad-danger)' }}>
+              ⚠ END DATE PRECEDES START — NOT SAVED
+            </div>
+          )}
           </div>
         ) : (startDate && endDate) ? (
           <div className="mt-2" style={{ fontFamily: 'var(--cad-font-mono)', fontSize: 'var(--cad-fs-micro)', color: 'var(--cad-text-mid)' }}>
@@ -77,15 +97,17 @@ export function SubjectRoster({ sem, semesters, editMode, onUpdateSem, onAddSubj
         ) : null}
       </div>
 
-      {/* Column headers */}
-      <div className="flex items-center gap-1.5 px-2 shrink-0">
+      {/* Column headers — hidden below `sm`, where SubjectRow collapses to
+          two lines and the CR / GP labels sit ~188px right of the values
+          they name. */}
+      <div className="hidden sm:flex items-center gap-1.5 px-2 shrink-0">
         <div className="w-3 shrink-0" />
         <span className="cad-label" style={{ flex: 1, fontSize: 'var(--cad-fs-micro)' }}>SUBJECT</span>
         <span className="cad-label" style={{ fontSize: 'var(--cad-fs-micro)', width: '32px', textAlign: 'right' }}>CR</span>
         <span className="cad-label" style={{ fontSize: 'var(--cad-fs-micro)', width: editMode && coverage.derived + coverage.awarded > 0 ? '4.5rem' : '40px', textAlign: 'right' }}>GP</span>
         {editMode && <span className="w-4" />}
       </div>
-      <hr style={{ border: 'none', borderTop: '1px solid var(--cad-border-dim)', margin: '4px 0' }} />
+      <hr className="hidden sm:block" style={{ border: 'none', borderTop: '1px solid var(--cad-border-dim)', margin: '4px 0' }} />
 
       {/* Subject list */}
       <div className="flex-1 overflow-y-auto min-h-0">

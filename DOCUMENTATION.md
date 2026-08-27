@@ -21,8 +21,8 @@ src/
 ├── components/
 │   ├── attendance/   # AttendanceView, SubjectAttendanceModal
 │   ├── calendar/     # CalendarView, DayDetailModal
-│   ├── exams/        # ExamsView, ExamModal
-│   ├── layout/       # ControlBar, MobileTabBar, SemDropdown, SettingsModal, ClassifiedPanel
+│   ├── exams/        # ExamsView, SchemeModal, SubjectGradeCard, SittingRow, ExamModal
+│   ├── layout/       # ControlBar, MobileTabBar, SemDropdown, SettingsPage, ClassifiedPanel
 │   ├── roster/       # SubjectRoster, SubjectRow, GpaBadge
 │   ├── timetable/    # TimetableGrid, TimetableModal, ClassInstanceModal
 │   ├── ui/           # Modal, AttendanceToggle, ColorPicker, ConfirmDeleteButton, Dot, SyncChip
@@ -34,11 +34,12 @@ src/
 │   ├── calendar.js       # date/weekday/day-metadata helpers (pure)
 │   ├── colors.js         # subject palette names + theme-token binding
 │   ├── constants.js      # DAYS, GRADE_MAP, PANEL_TABS, ATTENDANCE_THRESHOLD, grid bounds
+│   ├── grading.js        # schemes, sittings, marks → grade → grade point (pure)
 │   ├── initialData.js    # first-run seed semesters
 │   ├── supabaseClient.js # lazy-loaded Supabase client
 │   ├── utils.js          # GPA, time parsing, date formatting
 │   └── index.js          # barrel re-export
-├── hooks/            # useSemesters, useAttendance, useSettings, useAuth, useNow, useModalDismiss
+├── hooks/            # useSemesters, useAttendance, useAttendanceContext (+AttendanceContext), useSettings, useAuth, useNow, useModalDismiss
 ├── themes/           # ThemeContext, theme registry, token/style CSS, subject colour tokens
 │   ├── _subjects.css
 │   ├── nerv/         # meta.js + tokens.css + styles.css
@@ -51,9 +52,10 @@ src/
 Other top-level directories:
 
 ```text
-e2e/                     # Playwright specs (smoke.spec.js, sync.spec.js)
+e2e/                     # Playwright specs (smoke, sync, prune, mobile-header)
 public/                  # favicon.svg, manifest.webmanifest, sw.js
-supabase/migrations/     # SQL to run by hand in the Supabase dashboard
+supabase/migrations/     # SQL to run by hand in the Supabase dashboard (RLS, key-stamps column)
+.github/workflows/       # CI: lint gate, unit, e2e, contrast, build, NUL check
 ```
 
 ---
@@ -66,16 +68,32 @@ A semester is a self-contained container. All semesters live in one array under 
 ```js
 Semester = {
   id, label,                  // 'SEM 01'
-  startDate, endDate,         // 'YYYY-MM-DD' | ''
-  subjects:  [Subject],
-  timetable: [TimetableEntry],
-  exams:     [Exam],
+  startDate, endDate,         // 'YYYY-MM-DD' | '' — bounds the term (inclusive)
+  subjects:     [Subject],
+  timetable:    [TimetableEntry],
+  assessments:  [Assessment], // the gradebook — see the Grading section
+  gradingScheme: Scheme,      // the semester's default grading scheme
+  exams:         [Exam],      // LEGACY: retained for downgrade safety, read by nothing
 }
 
-Subject       = { id, name, code, credits, colorIdx, gradePoint }   // gradePoint: 0-10 | null
+Subject       = { id, name, code, credits, colorIdx, gradePoint, awardedGp, scheme }
+               // gradePoint: hand-typed 0-10 | null — never overwritten
+               // awardedGp:  a registrar's final result; outranks everything
+               // scheme:     per-subject override of gradingScheme | null
 TimetableEntry= { id, subjectId, day, startTime, endTime, room }    // day: 'MON'…'SUN', times 'HH:MM'
-Exam          = { id, subjectId, date, startTime, endTime, room, notes }
+
+Assessment    = { id, subjectId, componentId, partId, attempt,
+                  score, maxScore, date, blocksClasses }
+               // score: null = ungraded. blocksClasses: only a sit-down paper
+               // suspends teaching; an assignment deadline does not.
+Exam          = { id, subjectId, date, startTime, endTime, room, notes }   // legacy, see above
 ```
+
+`normalizeSemester` (grading.js) runs on **both** read paths — initial load and
+cloud pull — and is idempotent. It migrates legacy `exams` into `assessments`
+(`migrateExamsToAssessments`) and keeps the original array untouched: a
+downgraded client still shows the exam schedule instead of an empty tab. Drop
+the legacy array in a later schema version.
 
 Ids are mixed by design: seed data uses numbers, everything created at runtime uses
 `crypto.randomUUID()`. Comparisons therefore normalise with `String(...)`.
@@ -106,8 +124,10 @@ Consequences worth knowing before touching this code:
 - **A substitution redirects the credit.** `"e7_sub": "s3"` means the slot normally taught
   as entry `e7`'s subject counted toward subject `s3` on that date. The mark itself still
   lives under `"e7"`.
-- **Records outlive their entries.** Deleting a subject or a timetable slot does not remove
-  its attendance keys; `pruneOrphans` in `attendanceMath.js` exists to sweep them.
+- **Records outlive their entries only briefly.** The delete paths (subject, timetable
+  slot, whole semester) call `pruneToEntries` with the post-delete live-entry set, so the
+  rows leave storage at once; `pruneOrphans`' gated boot sweep exists as backstop for
+  deletes that predate that wiring.
 - **Days are not term-scoped by storage.** Scoping to a semester's `startDate`/`endDate` is
   the caller's job, via `getDayMeta(...).inTerm`.
 - **Absence is the cleared state.** Clearing a mark, emptying a note, removing a substitute,
@@ -135,8 +155,18 @@ All storage access goes through the `API` object; nothing else touches `localSto
 | `cadence_user_id` | Supabase user id the local data belongs to |
 | `cadence_pruned_at` | Schema version of the last orphaned-attendance sweep |
 
-`API.set(key, value)` writes locally, stamps both `cadence_updated_at` and the per-key entry
-in `cadence_key_stamps`, and — only when signed in — arms the debounced push.
+`API.set(key, value, skipTimestampUpdate?)` writes locally, stamps both `cadence_updated_at`
+and the per-key entry in `cadence_key_stamps`, and — only when signed in — arms the
+2-second debounced push. It **returns a boolean**: on a rejected write
+(`QuotaExceededError`, Safari private mode) it stamps nothing, dispatches
+`storage-full` / `storage-error` on the `cadence-sync` channel, and returns `false` —
+the stateful providers advance their "already saved" refs (and consume their boot-write
+flags) only on success, so a failed write is retried on the next change instead of
+silently dropped.
+
+`syncFromServer(userId)` pins the owning user id through the push (`_push` takes it as a
+parameter): an auth-state flip mid-sync — `INITIAL_SESSION(null)` during boot nulls
+`API.userId` — must not silently cancel an in-flight push of local-newer data.
 
 ### `attendanceMath.js` — attendance statistics (pure)
 
@@ -162,7 +192,66 @@ counts toward neither `present` nor `total`.
 `useAttendance` runs `pruneOrphans` once per page load, gated by the `cadence_pruned_at`
 schema stamp, to clear records left behind by deletes that happened before the sweep existed.
 It is deliberately conservative — if the semester list cannot be read or contains no
-timetable entries at all, nothing is pruned.
+timetable entries at all, nothing is pruned. The delete paths (subject, timetable slot,
+whole semester) also call `pruneToEntries(liveEntryIds)` immediately, so dead rows leave
+storage and the sync payload at once instead of waiting for the gated sweep.
+
+### `grading.js` — schemes, sittings, marks → grade (pure)
+
+The gradebook engine. Everything here is pure and unit-tested; the components only render.
+
+**Vocabulary.** A *scheme* is the subject's grading shape: `components`, each with a
+`weight` (literally its marks out of 100), a `rule`, and `parts`. A *part* is the split
+inside one sitting (e.g. objective 10 + subjective 10 + assignment 5). A *sitting*
+(attempt) is Mid 1 / Mid 2 — the unit the aggregation rule compares. An *assessment* is
+one mark (see the data model above). `SCHEME_PRESETS` ships JNTU-shaped defaults;
+`DEFAULT_SCHEME` is theory-75 / internals-25 with mids averaged.
+
+**Aggregation.** `aggregateComponent(entries, rule)` — `average`, `best` or `latest`.
+Sittings are summed **before** the rule compares them: "best of mids" picks the best
+sitting total, never the best objective from one mid and the best subjective from the
+other. There is a test naming exactly that.
+
+**`computeSubjectGrade(assessments, scheme)`** separates three numbers:
+
+- `current` — what is banked so far, over the weight of graded components only;
+- `locked` — the total that can no longer change (every component fully in);
+- `ceiling` — the best still-reachable total if everything outstanding is perfect.
+
+**Rounding** (`roundMarks`, modes `none` | `half-up`) applies per component, never to the
+final total — a college that rounds does so before adding components up. It deliberately
+routes through `toFixed(6)` first: `29/50 × 25` arrives as `14.499999999999998` and a
+plain `Math.round` quietly costs the student the half mark.
+
+**Grade points.** `subjectGradePoint(subject, assessments, scheme)` precedence:
+awarded (`awardedGp`) > derived-from-marks > hand-typed (`gradePoint`). The typed value
+is never overwritten — clear the marks and it returns. Partway through a term it grades
+the *projection* (ceiling-weighted), not banked marks: only-internals-in means 19.5 of
+100 banked, and grading that as an F misreports someone heading for an A.
+`computeSemesterGPA` / `computeCGPA` weight by credits, honour per-subject scheme
+overrides, and skip ungraded subjects rather than scoring them zero. Badge thresholds
+are proportional to the band set's scale — never absolute.
+
+**Targets.** `targetForGrade` / `nextBandTarget` compute what is still needed for a
+band; `impliedComponentMarks` inverts an awarded grade point into the component marks
+that would produce it. With `half-up` rounding in force, `targetForGrade` claims the
+free half mark only when a single component is outstanding, and `impliedComponentMarks`
+shifts its window down by the same half.
+
+**The trap.** `classBlockingDates(assessments)` derives exam days **only** from
+assessments flagged `blocksClasses` — widening it to "any dated assessment" makes every
+assignment deadline silently cancel a day of teaching and move the attendance
+percentage. Thirteen tests in `migration.test.js` guard this.
+
+**Bands.** `JNTU_BANDS` / `GRADE_BAND_PRESETS` / `validateBands`; `pctToGradePoint`,
+counts for the roster.
+
+Remaining exports are thin aliases and helpers used where they are needed:
+`DEFAULT_BAND_SET` / `DEFAULT_GRADE_BANDS` (aliases of `JNTU_BANDS`),
+`pctToGradeLabel`, `sittingMax`, `isGraded`, `scaleOf`, `resolveScheme` /
+`validateScheme` (scheme resolution and the modal's save gate), `groupIntoAttempts`
+(the summing step the aggregation paragraph describes), `AGGREGATION_*` /
+`ROUNDING_*` label tables.
 
 ### `calendar.js` — "what kind of day is this?"
 
@@ -198,17 +287,25 @@ values live in the theme layer — see [Subject colours](#subject-colours).
 ## State Management
 
 Three providers are mounted in `main.jsx`, outermost first: `AuthProvider` →
-`SettingsProvider` → `ThemeProvider`. Domain state is held by hooks called inside `App`.
+`SettingsProvider` → `ThemeProvider`. A fourth — `AttendanceProvider` — mounts inside
+`App`, because it binds the attendance state to the active semester's `timetable`,
+`examDates` and `semester`, which only App holds.
 
 | Module | Responsibility |
 |---|---|
-| `hooks/useSemesters.js` | Semester → Subject → TimetableEntry → Exam CRUD, active semester |
-| `hooks/useAttendance.js` | Attendance state + marking/notes/substitutes/holiday actions |
+| `hooks/useSemesters.js` | Semester → Subject → TimetableEntry → Assessment CRUD, active semester, grading-scheme state |
+| `hooks/useAttendance.js` | Attendance state + marking/notes/substitutes/holiday actions + `pruneToEntries` |
+| `hooks/AttendanceContext.jsx` | `AttendanceProvider` — binds `useAttendance` + timetable/examDates/semester into context |
+| `hooks/useAttendanceContext.jsx` | `useAttendance()` / `useAttendanceStats()` consumers; stats selectors arrive pre-bound |
 | `hooks/useSettings.jsx` | `SettingsProvider` + `useSettings()` — global preferences |
 | `hooks/useAuth.jsx` | `AuthProvider` + Supabase session |
 | `themes/ThemeContext.jsx` | `ThemeProvider` + `useTheme()` — active theme, custom themes |
 | `hooks/useNow.js` | Shared ticker for time-dependent UI |
 | `hooks/useModalDismiss.js` | Escape / backdrop dismissal |
+
+No component receives `attendanceHook` (or its three scoping companions) as props —
+views read `useAttendance()` for the map and mutations, `useAttendanceStats()` for
+numbers. App keeps the raw hook so its delete handlers can prune.
 
 Settings are `showLocation`, `themeMode` (`'dark'` / `'light'`), `holidays2nd4thSat`, and
 `enableGlitch`.
@@ -283,7 +380,9 @@ stamp map from the whole-row timestamp.
 ### Row-level security
 
 The Supabase anon key is public by design in a client app, so **RLS is the only thing
-protecting user data**. Confirm it is enabled on `user_data`:
+protecting user data**. Run
+[`supabase/migrations/20260801_enable_rls.sql`](supabase/migrations/20260801_enable_rls.sql)
+— it enables RLS and creates the own-row policy (idempotent: drop-if-exists + create):
 
 ```sql
 alter table public.user_data enable row level security;
@@ -295,7 +394,7 @@ create policy "own row" on public.user_data
 
 | Event | Meaning |
 |---|---|
-| `cadence-sync` (`detail: 'syncing' \| 'success' \| 'error'`) | Drives `SyncChip` |
+| `cadence-sync` (`detail: 'syncing' \| 'success' \| 'error' \| 'storage-error' \| 'storage-full'`) | Drives `SyncChip`. The two storage details mean a **local** write was rejected; they stick on the chip until a write succeeds, and `storage-full` says export a backup. |
 | `cadence-data-updated` | Storage changed underneath React; providers re-read |
 
 ### Import / export
@@ -412,7 +511,10 @@ tab strip and `MobileTabBar`. On narrow viewports the roster becomes a fifth tab
 Subjects belong to a semester: name, auto-generated code, credits, colour index, and grade
 point. `SubjectRoster` renders semester GPA and cumulative CGPA through `GpaBadge`
 (credit-weighted; ungraded subjects are ignored). **Deleting a subject cascades to every
-timetable entry referencing it.**
+timetable entry referencing it — and prunes its attendance rows immediately.** Edit-mode
+rows carry a 44px minimum height so the grade select and remove control have real targets;
+below `sm` the row collapses to two lines and the CR / GP column headers hide rather than
+float ~188px from the values they label.
 
 ### Timetable
 
@@ -425,16 +527,22 @@ timetable entry referencing it.**
   attendance, write a note, or record a substitution. Notes and substitutions are stored in
   the attendance map alongside the status, under the suffixed keys described above.
 
-### Exams
+### Exams — the gradebook
 
-`ExamsView` lists the active semester's exams split into UPCOMING and COMPLETED with a live
-countdown per exam; `ExamModal` handles add/edit/delete in edit mode.
+`ExamsView` is a gradebook: one `SubjectGradeCard` per subject, collapsing to the totals
+and expanding to per-component sittings. `SittingRow` gives each part its own numeric
+input, commits on blur and Enter, rejects out-of-range rather than clamping, and dims a
+sitting the aggregation rule discarded with a `DROPPED` chip and the reason.
+`SchemeModal` edits the scheme: preset pickers, free-form component editing (name,
+weight, rule, parts, live sitting total) and a band table. Cross-field validation does
+not fight the cursor — a weight total of 105 passes through while typing; save stays
+blocked and names the real number. Removing a component or part with graded entries
+names the entries and makes save two-step; nothing is silently deleted.
 
-Exams are not just a list — their dates form the `examDates` set that the attendance engine
-consumes. **An exam date suspends regular attendance counting for that whole day**, on the
-assumption that classes do not meet. `DayDetailModal` offers COUNT DAY AS PRESENT to opt a
-specific exam day back in, which sets `examCountAsPresent` and credits that weekday's
-scheduled slots.
+Assessment dates still drive attendance, through `classBlockingDates` — **only**
+sit-down papers (`blocksClasses`), never assignment deadlines. An exam date suspends
+regular attendance counting for that day; `DayDetailModal`'s COUNT DAY AS PRESENT opts
+back in and credits that weekday's scheduled slots.
 
 ### Calendar
 
@@ -480,9 +588,9 @@ Because fonts are loaded cross-origin, typography is not currently offline-capab
 - **CSP** — `index.html` ships a `Content-Security-Policy` meta tag: `default-src 'self'`,
   `object-src 'none'`, `base-uri 'self'`, with explicit allowances for the Vercel analytics
   script, Google Fonts, and Supabase over HTTPS/WSS. `script-src` still needs
-  `'unsafe-inline'` for the pre-paint theme script. Note that `connect-src` also carries
-  `ws:` and `http:` for the dev server — those are development escape hatches and should not
-  be relied on in production.
+  `'unsafe-inline'` for the pre-paint theme script. `connect-src` carries no plaintext
+  sources in the shipped bundle; the dev-only `ws:` / `http:` escape hatch is injected by a
+  `serve`-only `transformIndexHtml` plugin in `vite.config.js`, so it never reaches a build.
 - **Custom theme sanitisation** — see the theming section; user-supplied CSS is filtered
   before injection.
 - **RLS** — the only barrier between the public anon key and user rows; see the sync section.
@@ -507,19 +615,21 @@ Without these the app runs entirely on `localStorage`. The Supabase client is im
 
 | Command | Suite |
 |---|---|
-| `npm test` | Vitest — pure data layer (`src/**/*.test.js`, node environment) |
+| `npm test` | Vitest — pure data layer (`src/**/*.test.js`, node environment), 237 tests |
 | `npm run test:watch` | Vitest in watch mode |
-| `npm run test:e2e` | Playwright end-to-end |
+| `npm run test:e2e` | Playwright end-to-end, 23 tests |
+| `node scripts/check-contrast.mjs` | WCAG AA gate over all three theme cascades, 192 pairs |
 
-The Vitest suite targets the logic that is hardest to verify by eye and has no DOM
-dependency — `attendanceMath.test.js` (exam-day credit, explicit-mark precedence,
-substitutions, holidays, history, orphan pruning), `calendar.test.js` (weekday resolution,
-date round-trips, `getDayMeta`), and `utils.test.js` (GPA/CGPA, subject codes, time and date
-helpers). Config lives in the `test` block of `vite.config.js`; the environment is `node`,
-and only `src/**/*.test.js` is collected.
+The Vitest suite targets the logic that is hardest to verify by eye — the grading engine
+(schemes, aggregation, rounding, targets, migration), attendance math (exam-day credit,
+explicit-mark precedence, substitutions, holidays, history, orphan pruning), the calendar
+helpers, GPA/CGPA, and `API.set`'s storage-failure contract (a node-environment stub of
+`window`/`localStorage` installed before the module import). Config lives in the `test`
+block of `vite.config.js`; the environment is `node`, and only `src/**/*.test.js` is
+collected.
 
 Playwright config (`playwright.config.js`) starts a Vite dev server on `127.0.0.1:5199` and
-runs Chromium against it, retaining traces on failure. Two specs:
+runs Chromium against it, retaining traces on failure. Four specs:
 
 - `e2e/smoke.spec.js` — boot and panel switching, keyboard-accessible calendar days,
   attendance quick-mark persistence, theme cycling, modal focus trap and restore, the auth
@@ -527,8 +637,17 @@ runs Chromium against it, retaining traces on failure. Two specs:
 - `e2e/sync.spec.js` — the merge contract with a stubbed Supabase: local-newer, server-newer,
   missing server row, retry after reconnect, pull/push serialization, per-key merge, and a
   freshly migrated row.
+- `e2e/prune.spec.js` — deleting a subject drops its attendance rows (including `_note` /
+  `_sub`) immediately, with an unrelated entry as the survival control.
+- `e2e/mobile-header.spec.js` — every header child's right edge fits the viewport at
+  320 / 360 / 375 / 390 / 412 px. The header's clipping ancestor makes `scrollWidth`
+  checks pass while a control sits off-screen, so this measures geometry directly.
 
-`npm run lint` runs Oxlint.
+`npm run lint` runs Oxlint and must stay at **3 warnings, 0 errors**.
+
+**CI (`.github/workflows/ci.yml`)** runs all of the above on every push and PR — lint
+gate, unit, e2e with Chromium, contrast, build — plus a NUL-byte check on `src/`: a stray
+NUL makes grep tools treat a file as binary and silently drop it from every search.
 
 ---
 
@@ -540,5 +659,5 @@ runs Chromium against it, retaining traces on failure. Two specs:
    service worker, since it is not registered in dev.
 
 If cloud sync is in use, set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in the host's
-environment, and make sure the `key_updated_at` migration and the RLS policy have been
-applied to the Supabase project.
+environment, and make sure both migrations (RLS, `key_updated_at`) have been applied to the
+Supabase project.

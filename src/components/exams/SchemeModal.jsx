@@ -3,6 +3,7 @@ import { Modal } from '../ui/Modal.jsx'
 import { ConfirmDeleteButton } from '../ui/ConfirmDeleteButton.jsx'
 import {
   SCHEME_PRESETS, GRADE_BAND_PRESETS, AGGREGATION_MODES, AGGREGATION_LABELS,
+  ROUNDING_MODES, ROUNDING_LABELS, ROUNDING_BLURBS,
   DEFAULT_SCHEME, resolveScheme, validateScheme, validateBands, sittingMax, scaleOf, isGraded,
 } from '../../data/grading.js'
 
@@ -444,7 +445,7 @@ function findOrphans({ assessments, scheme, baseline }) {
 
     const oldComp = (baseline?.components ?? []).find(c => c.id === a.componentId)
     const oldPart = (oldComp?.parts ?? []).find(p => p.id === a.partId)
-    const key = `${a.componentId} ${a.partId ?? ''}`
+    const key = `${a.componentId}\u0000${a.partId ?? ''}`
     if (!byKey.has(key)) {
       byKey.set(key, {
         key,
@@ -492,6 +493,7 @@ export function SchemeModal({ semester, subjects = [], subjectId = null, onSetSc
   const bandCheck = validateBands(clean.bands)
   const bandRows = bandListOf(draft.bands)
   const scale = scaleOf(draft.bands)
+  const rounding = draft?.rounding ?? 'none'
 
   // Which marks a save would strip of a home. Semester-level edits skip
   // subjects that carry their own override — those are not being changed.
@@ -707,6 +709,28 @@ export function SchemeModal({ semester, subjects = [], subjectId = null, onSetSc
             >
               TOTAL {weights.total} / 100{weights.valid ? '' : ' — WEIGHTS MUST ADD UP TO 100'}
             </div>
+          </div>
+        </div>
+
+        {/* Rounding — how a component's marks are counted into the 100 */}
+        <div style={section}>
+          <div className="cad-label" style={{ marginBottom: '4px' }}>COMPONENT MARKS</div>
+          <div className="flex gap-2 flex-wrap">
+            {ROUNDING_MODES.map(mode => (
+              <button
+                key={mode}
+                type="button"
+                className="cad-chip btn-mech"
+                data-active={rounding === mode || undefined}
+                aria-pressed={rounding === mode}
+                onClick={() => mutate(d => ({ ...d, rounding: mode }))}
+              >
+                {ROUNDING_LABELS[mode]}
+              </button>
+            ))}
+          </div>
+          <div style={{ ...microStyle, color: 'var(--cad-text-lo)', marginTop: '4px' }}>
+            {ROUNDING_BLURBS[rounding]}
           </div>
         </div>
 

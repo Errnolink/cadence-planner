@@ -699,9 +699,22 @@ for free, which also defuses any future entry-id collision.
 Do not leave them as-is: the fields imply a constraint the app does not enforce, and users
 will assume attendance is term-scoped when it is not.
 
-- [ ] Decide (a) or (b) — record the decision here
-- [ ] If (a): `inTerm` in `getDayMeta`, honoured by stats + calendar + grid
-- [ ] If (a): tests for a date before `startDate` and after `endDate`
+- [x] **Decided: (a), make them real.** 2026-08-13, by the user: "semester dates
+      are indeed decorative as of now, make them real".
+- [x] `inTerm` in `getDayMeta`, honoured by stats + calendar + grid.
+      `getDayMeta` already computed `inTerm` and had tests for it — but not one
+      of its three call sites passed `semester`, so it was always `true`. The
+      helper was wired up and dead.
+- [x] Tests for a date before `startDate` and after `endDate`, plus both bounds
+      inclusive, a half-open term, and history scoped with the percentage.
+
+Scoping lives in `isInTerm` (`calendar.js`), used by both `getDayMeta` and
+`traverse` so the two cannot disagree about a boundary day. **A semester with
+no dates set is unbounded and counts everything**, which is how every semester
+behaved before this — so no existing record changes until dates are entered.
+Marking an out-of-term day is still allowed, with the day modal saying plainly
+that it will not count: the dates are the user's to get wrong, and silently
+discarding a mark would be worse than one that admits it does not count.
 
 ## D2 · S3 — Attendance has no schema version
 

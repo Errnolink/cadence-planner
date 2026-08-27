@@ -55,7 +55,7 @@ Without these, the app runs entirely offline on `localStorage`.
 
 Cloud sync needs a `public.user_data` table in your Supabase project, and two things applied to it:
 
-1. **Row-level security.** The anon key is public by design, so RLS is the only thing protecting user rows:
+1. **Row-level security.** The anon key is public by design, so RLS is the only thing protecting user rows. Run [`supabase/migrations/20260801_enable_rls.sql`](supabase/migrations/20260801_enable_rls.sql) — it enables RLS and creates this policy:
 
    ```sql
    alter table public.user_data enable row level security;

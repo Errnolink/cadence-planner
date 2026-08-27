@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # Without this every later step runs against an empty node_modules, and
+      # `npx oxlint` silently downloads whatever the registry calls latest
+      # instead of the version package.json pins — which is how CI came to
+      # report 8 warnings against a local 3.
+      - run: npm ci
+
+      # --no-install so a missing dependency fails loudly here rather than
+      # being papered over by a registry fetch. oxlint exits non-zero above
+      # the threshold on its own; hand-counting its output matched the
+      # "Found N warnings and 0 errors." summary line and could never pass.
+      - name: Lint (at most 3 warnings, 0 errors)
+        run: npx --no-install oxlint --max-warnings 3
+
+      - run: npm test
+
+      - run: npx playwright install --with-deps chromium
+
+      # .env.local is gitignored, so the runner has no Supabase vars and
+      # getSupabase() throws "supabaseUrl is required" the moment anything
+      # touches sync — which took out all eight sync specs the first time CI
+      # ever got this far. These are deliberately fake: every sync spec stubs
+      # the network and never reaches Supabase, so all createClient needs is a
+      # well-formed URL. Real credentials would buy CI nothing and cost it a
+      # production secret.
+      - run: npm run test:e2e
+        env:
+          VITE_SUPABASE_URL: https://stub.supabase.co
+          VITE_SUPABASE_ANON_KEY: stub-anon-key
+
+      - run: node scripts/check-contrast.mjs
+
+      - run: npm run build
+
+      # A stray NUL byte makes ripgrep treat a file as binary and silently
+      # drop it from every code search; SchemeModal.jsx carried one for
+      # weeks before anyone noticed (HANDOFF §6d).
+      - name: No NUL bytes in src/
+        run: |
+          if grep -rPa '\x00' src/ ; then
+            echo "::error::NUL byte found in src/ — grep tools will treat the file as binary"
+            exit 1
+          fi

@@ -164,7 +164,7 @@ export const API = {
             // Server is stale for at least one key — push the merged state.
             // Server-adopted stamps were written into the local map above,
             // so the local map IS the merged stamp map.
-            await API._push();
+            await API._push(userId);
             return; // _push dispatched success/error
           }
         } else {
@@ -206,7 +206,7 @@ export const API = {
 
           if (shouldPushToServer) {
             // Inline push — we already hold the serialization slot
-            await API._push();
+            await API._push(userId);
             return; // _push dispatched success/error
           }
         }
@@ -214,7 +214,7 @@ export const API = {
         // No rows returned — new user or new device with local data only.
         // Push their local data up to the server.
         localStorage.setItem(KEYS.USER_ID, userId);
-        await API._push();
+        await API._push(userId);
         return; // _push dispatched success/error
       } else if (error) {
         throw error;
@@ -234,8 +234,12 @@ export const API = {
 
   // Raw push body — callers must already hold the serialization slot.
   // Returns true on success, false on failure (never throws).
-  _push: async () => {
-    if (!API.userId) return true;
+  // `userId` defaults to the live value but can be pinned by syncFromServer:
+  // an auth state flip (e.g. INITIAL_SESSION(null) during boot) nulls
+  // API.userId mid-sync, and this push would silently no-op while the
+  // surrounding sync resolved success — dropping a local-newer push.
+  _push: async (userId = API.userId) => {
+    if (!userId) return true
 
     // Cancel any pending debounced sync so we don't double-push
     clearTimeout(_syncTimer);
@@ -244,7 +248,7 @@ export const API = {
 
     try {
       const payload = {
-        user_id: API.userId,
+        user_id: userId,
         semesters: API.getSemesters([]),
         active_sem_id: API.getActiveSemId(null),
         settings: API.getSettings({}),
@@ -268,7 +272,11 @@ export const API = {
         return false;
       }
       _syncFailed = false;
+      // Null it, don't just clear it. scheduleRetry() guards on `if (_retryTimer)
+      // return`, so leaving a spent handle in place silently disabled the bounded
+      // retry for the rest of the session — every later failure skipped it.
       clearTimeout(_retryTimer);
+      _retryTimer = null;
       window.dispatchEvent(new CustomEvent('cadence-sync', { detail: 'success' }));
       return true;
     } catch (e) {
@@ -298,10 +306,13 @@ export const API = {
     return defaultValue
   },
   
+  // Returns true when the write (and its stamps) landed, false when
+  // localStorage rejected it. Callers that cache "already saved" state must
+  // advance that cache only on success, or a failed write is never retried.
   set: (key, value, skipTimestampUpdate = false) => {
     try {
       localStorage.setItem(key, key === KEYS.THEME ? value : JSON.stringify(value))
-      
+
       if (!skipTimestampUpdate && key !== KEYS.UPDATED_AT) {
         const ts = new Date().toISOString()
         localStorage.setItem(KEYS.UPDATED_AT, ts)
@@ -314,24 +325,35 @@ export const API = {
         clearTimeout(_syncTimer)
         _syncTimer = setTimeout(() => API.syncToServer().catch(console.error), SYNC_DEBOUNCE_MS)
       }
+      return true
     } catch (e) {
       console.error(`Failed to save ${key}`, e)
+      // Quota (or Safari private mode) loses the edit — the user needs a
+      // different message than a generic failure: export a backup now.
+      const quota = e && (e.name === 'QuotaExceededError' || e.code === 22 || e.code === 1014)
+      window.dispatchEvent(new CustomEvent('cadence-sync', { detail: quota ? 'storage-full' : 'storage-error' }))
+      return false
     }
   },
 
   // --- Domain Specific Getters/Setters ---
   
+  // `skipTimestamp` marks a write that is not a user edit — persisting the
+  // state a provider booted with, or a shape migration. Stamping those made
+  // every page load look like the newest edit to the per-key merge below, so a
+  // device that had never been touched won every key and pushed its seed data
+  // over real cloud data. Mounting is not an edit.
   getSemesters: (fallback) => API.get(KEYS.DATA, fallback),
-  saveSemesters: (data) => API.set(KEYS.DATA, data),
+  saveSemesters: (data, skipTimestamp) => API.set(KEYS.DATA, data, skipTimestamp),
 
   getActiveSemId: (fallback) => API.get(KEYS.ACTIVE_SEM, fallback),
-  saveActiveSemId: (id) => API.set(KEYS.ACTIVE_SEM, id),
+  saveActiveSemId: (id, skipTimestamp) => API.set(KEYS.ACTIVE_SEM, id, skipTimestamp),
 
   getSettings: (fallback) => API.get(KEYS.SETTINGS, fallback),
-  saveSettings: (settings) => API.set(KEYS.SETTINGS, settings),
+  saveSettings: (settings, skipTimestamp) => API.set(KEYS.SETTINGS, settings, skipTimestamp),
 
   getAttendance: (fallback) => API.get(KEYS.ATTENDANCE, fallback),
-  saveAttendance: (data) => API.set(KEYS.ATTENDANCE, data),
+  saveAttendance: (data, skipTimestamp) => API.set(KEYS.ATTENDANCE, data, skipTimestamp),
 
   getCustomThemes: (fallback) => API.get(KEYS.CUSTOM_THEMES, fallback),
   saveCustomThemes: (themes) => API.set(KEYS.CUSTOM_THEMES, themes),

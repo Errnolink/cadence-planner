@@ -15,10 +15,17 @@ export function SettingsProvider({ children }) {
     return API.getSettings(defaultSettings)
   })
 
-  const isFirstRender = useRef(true)
-  
-  const lastSavedSettingsRef = useRef('')
-  
+  // First run persists the defaults we booted with, which is not a user edit —
+  // see the note on API.saveSemesters.
+  const isBootWrite = useRef(true)
+
+  // Seeded from storage rather than '', so a boot that changes nothing writes
+  // nothing at all.
+  const lastSavedSettingsRef = useRef(null)
+  if (lastSavedSettingsRef.current === null) {
+    lastSavedSettingsRef.current = JSON.stringify(API.getSettings(null))
+  }
+
   useEffect(() => {
     const handleSync = () => {
       const fresh = API.getSettings(defaultSettings)
@@ -30,13 +37,13 @@ export function SettingsProvider({ children }) {
   }, [])
 
   useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false
-    } else {
-      const serialized = JSON.stringify(settings)
-      if (serialized !== lastSavedSettingsRef.current) {
+    const serialized = JSON.stringify(settings)
+    if (serialized !== lastSavedSettingsRef.current) {
+      // Advance the ref (and consume the boot flag) only when the write
+      // landed — same contract as useSemesters' save effect.
+      if (API.saveSettings(settings, isBootWrite.current)) {
+        isBootWrite.current = false
         lastSavedSettingsRef.current = serialized
-        API.saveSettings(settings)
       }
     }
     // Also apply data-mode to documentElement here so CSS can react

@@ -16,7 +16,12 @@ export function useSemesters() {
     return API.getActiveSemId(semesters[0]?.id || 1)
   })
 
-  const lastSavedSemestersRef = useRef('')
+  // Seeded from storage rather than '', so a boot that changes nothing writes
+  // nothing at all.
+  const lastSavedSemestersRef = useRef(null)
+  if (lastSavedSemestersRef.current === null) {
+    lastSavedSemestersRef.current = JSON.stringify(API.getSemesters(null))
+  }
 
   useEffect(() => {
     const handleSync = () => {
@@ -29,28 +34,33 @@ export function useSemesters() {
     return () => window.removeEventListener('cadence-data-updated', handleSync)
   }, [])
 
-  const isFirstRenderActiveSem = useRef(true)
-  const isFirstRenderSem = useRef(true)
+  // The first run of each effect below persists what we booted with — seed data
+  // on a fresh device, a migrated shape on an older one. Neither is an edit the
+  // user made, so both go in unstamped. These used to be `isFirstRender` guards
+  // that skipped the write entirely, which StrictMode's second mount defeated:
+  // the write happened anyway, stamped, and every boot then looked like the
+  // newest edit to the sync merge.
+  const isBootWriteActiveSem = useRef(true)
+  const isBootWriteSem = useRef(true)
 
   useEffect(() => {
-    if (isFirstRenderActiveSem.current) {
-      isFirstRenderActiveSem.current = false
-      return
-    }
+    const isBootWrite = isBootWriteActiveSem.current
+    isBootWriteActiveSem.current = false
     const currentLocalId = API.getActiveSemId(null)
     if (currentLocalId === activeSemId) return
-    API.saveActiveSemId(activeSemId)
+    API.saveActiveSemId(activeSemId, isBootWrite)
   }, [activeSemId])
 
   useEffect(() => {
-    if (isFirstRenderSem.current) {
-      isFirstRenderSem.current = false
-      return
-    }
     const serialized = JSON.stringify(semesters)
     if (serialized === lastSavedSemestersRef.current) return
-    lastSavedSemestersRef.current = serialized
-    API.saveSemesters(semesters)
+    // Advance the ref (and consume the boot flag) only when the write landed,
+    // so a rejected write — quota, private mode — is retried on the next
+    // change instead of being silently dropped.
+    if (API.saveSemesters(semesters, isBootWriteSem.current)) {
+      isBootWriteSem.current = false
+      lastSavedSemestersRef.current = serialized
+    }
   }, [semesters])
 
   const activeSem = useMemo(
